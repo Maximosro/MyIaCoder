@@ -40,6 +40,9 @@ export class PTYManager {
     pty.onExit(({ exitCode }) => {
       session.buffer.push(`\r\n\x1b[33mProcess exited with code ${exitCode ?? -1}\x1b[0m\r\n`);
     });
+
+    // Type "claude" and press enter — exactly like the user would
+    pty.write('claude\r\n');
   }
 
   /** Read and clear buffered data for a tab. Called by renderer via polling. */

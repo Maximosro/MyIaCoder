@@ -20,34 +20,34 @@ export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
       const term = new Terminal({
         cursorBlink: true,
         cursorStyle: 'bar',
-        fontSize: 14,
-        fontFamily: '"Fira Code", "Cascadia Code", Consolas, "Courier New", monospace',
+        fontSize: 16,
+        fontFamily: '"Fira Code", "Cascadia Code", "JetBrains Mono", Consolas, monospace',
         fontWeight: 'normal',
         theme: {
-          // Tango Dark at 70% opacity — matches Windows Terminal bg image opacity 0.3
-          background: 'rgba(46, 52, 54, 0.7)',
-          foreground: '#D3D7CF',
-          cursor: '#FFFFFF',
-          selectionBackground: '#555753',
-          black: '#2E3436',
-          red: '#CC0000',
-          green: '#4E9A06',
-          yellow: '#C4A000',
-          blue: '#3465A4',
-          magenta: '#75507B',
-          cyan: '#06989A',
-          white: '#D3D7CF',
-          brightBlack: '#555753',
-          brightRed: '#EF2929',
-          brightGreen: '#8AE234',
-          brightYellow: '#FCE94F',
-          brightBlue: '#729FCF',
-          brightMagenta: '#AD7FA8',
-          brightCyan: '#34E2E2',
-          brightWhite: '#EEEEEC',
+          // Copper / Hero-Centric — solid, crisp, matches app chrome
+          background: '#050505',
+          foreground: '#f0ece8',
+          cursor: '#d4784a',
+          selectionBackground: 'rgba(212, 120, 74, 0.25)',
+          black: '#0a0a0a',
+          red: '#e05555',
+          green: '#6ba86b',
+          yellow: '#d4a44a',
+          blue: '#7b9ec4',
+          magenta: '#9b7bc4',
+          cyan: '#5ba89c',
+          white: '#f0ece8',
+          brightBlack: '#1f1a15',
+          brightRed: '#ff6b6b',
+          brightGreen: '#8acc8a',
+          brightYellow: '#e8c06a',
+          brightBlue: '#9bbce0',
+          brightMagenta: '#b89bde',
+          brightCyan: '#7ac4bc',
+          brightWhite: '#ffffff',
         },
         allowProposedApi: true,
-        allowTransparency: true,
+        allowTransparency: false,
         windowsMode: true,
         scrollback: 5000,
         tabStopWidth: 4,
@@ -126,17 +126,23 @@ export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
     };
   }, [tab.id]);
 
-  // Refit when tab becomes active (visible)
+  // Refit when tab becomes active — use double-refit for reliability
   useEffect(() => {
     if (isActive && fitAddonRef.current) {
-      // Small delay to let the DOM settle
       const timer = setTimeout(() => {
         fitAddonRef.current?.fit();
         const term = terminalRef.current;
         if (term && term.cols > 0 && term.rows > 0) {
           window.electronAPI.ptyResize(tab.id, term.cols, term.rows);
         }
-      }, 50);
+        // Second refit to catch any layout settling
+        setTimeout(() => {
+          fitAddonRef.current?.fit();
+          if (term && term.cols > 0 && term.rows > 0) {
+            window.electronAPI.ptyResize(tab.id, term.cols, term.rows);
+          }
+        }, 100);
+      }, 80);
       return () => clearTimeout(timer);
     }
   }, [isActive, tab.id]);
@@ -144,13 +150,11 @@ export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
   return (
     <div
       ref={containerRef}
-      className="h-full w-full"
+      className="absolute inset-0 border border-[#1f1a15]/40"
       style={{
-        display: isActive ? 'block' : 'none',
-        backgroundImage: "url('/wallpaper.png')",
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        opacity: isActive ? 1 : 0,
+        pointerEvents: isActive ? 'auto' : 'none',
+        zIndex: isActive ? 1 : 0,
       }}
     />
   );

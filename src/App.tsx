@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { ProjectInfo } from './components/ProjectInfo';
 import { TerminalPanel } from './components/TerminalPanel';
 import { StatusBar } from './components/StatusBar';
 import { useProjects } from './hooks/useProjects';
@@ -9,7 +8,7 @@ import type { Project } from './types/project';
 
 function App() {
   const { projects, loading, error, refresh } = useProjects();
-  const { tabs, activeTabId, openTab, closeTab, setActiveTab } = useTerminal();
+  const { tabs, activeTabId, openTab, forceOpenTab, closeTab, setActiveTab } = useTerminal();
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [workspacePath, setWorkspacePath] = useState('C:\\Workspace');
@@ -20,7 +19,6 @@ function App() {
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
-    // Also activate the corresponding tab if it exists
     const existingTab = tabs.find((t) => t.projectPath === project.path);
     if (existingTab) {
       setActiveTab(existingTab.id);
@@ -41,18 +39,28 @@ function App() {
     window.close();
   };
 
-  const handleOpenTab = (project: Project) => {
-    openTab(project);
+  const handleOpenTab = (project: Project, title: string) => {
+    openTab(project, title);
   };
 
+  const handleForceOpenTab = (project: Project, title: string) => {
+    forceOpenTab(project, title);
+  };
+
+  const openTabPaths = new Set(tabs.map((t) => t.projectPath));
+
   return (
-    <div className="flex h-screen bg-gray-950 text-gray-100">
+    <div className="flex h-screen bg-[#050505] text-[#f0ece8] relative overflow-hidden">
+      {/* Warm copper ambient glow — slow breathing background */}
+      <div className="warm-ambient" />
+
       {/* Sidebar */}
       <Sidebar
         projects={projects}
         loading={loading}
         error={error}
         selectedPath={selectedProject?.path ?? null}
+        openTabPaths={openTabPaths}
         onSelectProject={handleSelectProject}
         onRefresh={refresh}
         onConfig={handleConfig}
@@ -60,29 +68,23 @@ function App() {
       />
 
       {/* Main panel */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Project info (top) */}
-        <div className="border-b border-gray-800 p-6 flex-shrink-0">
-          <ProjectInfo project={selectedProject} />
-        </div>
-
-        {/* Terminal area (bottom) */}
+      <main className="flex-1 flex flex-col min-w-0 relative z-10">
+        {/* Terminal area — full height */}
         <TerminalPanel
           tabs={tabs}
           activeTabId={activeTabId}
           activeProject={selectedProject}
           onOpenTab={handleOpenTab}
+          onForceOpenTab={handleForceOpenTab}
           onCloseTab={closeTab}
           onSelectTab={setActiveTab}
         />
 
         <StatusBar
-          projectCount={projects.length}
           workspacePath={workspacePath}
+          selectedProject={selectedProject}
         />
       </main>
-
-      {/* Settings modal (simple) */}
     </div>
   );
 }

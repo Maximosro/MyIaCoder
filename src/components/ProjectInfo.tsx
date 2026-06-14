@@ -1,3 +1,5 @@
+import { FolderGit2, FolderOpen } from 'lucide-react';
+import { getBranchStyle } from '../types/project';
 import type { Project } from '../types/project';
 
 interface ProjectInfoProps {
@@ -7,30 +9,39 @@ interface ProjectInfoProps {
 export function ProjectInfo({ project }: ProjectInfoProps) {
   if (!project) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-600">
-        <svg className="w-12 h-12 mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-        </svg>
-        <p className="text-lg">Select a project from the sidebar to start</p>
+      <div className="flex items-center gap-3 animate-fade-in">
+        <FolderGit2 className="w-4 h-4 text-[#8b5a3c]" />
+        <div>
+          <p className="text-sm font-mono font-semibold text-[#8b5a3c] tracking-wider">
+            SELECT_PROJECT
+            <span className="text-[#d4784a] animate-cursor-blink">_</span>
+          </p>
+          <p className="text-[10px] font-mono text-[#4a2a1a] mt-0.5 tracking-widest">
+            ◄ SIDEBAR ►
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="animate-fade-in">
-      <h2 className="text-xl font-semibold text-gray-100">{project.name}</h2>
-      <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-400">
-        <span className="truncate max-w-[400px]" title={project.path}>Path: {project.path}</span>
-        <span className={`px-2 py-0.5 rounded text-xs border ${
-          project.branch === 'main' || project.branch === 'master'
-            ? 'bg-blue-900/50 text-blue-300 border-blue-700'
-            : project.branch === 'develop'
-              ? 'bg-green-900/50 text-green-300 border-green-700'
-              : 'bg-gray-700/50 text-gray-300 border-gray-600'
-        }`}>
-          {project.branch}
-        </span>
+      <div className="flex items-center gap-3">
+        <FolderOpen className="w-4 h-4 text-[#d4784a]" />
+        <div>
+          <h2 className="text-sm font-mono font-semibold text-[#f0ece8] text-glow tracking-tight">
+            {project.name}
+          </h2>
+          <div className="flex flex-wrap items-center gap-3 mt-0.5 text-xs font-mono">
+            <span className="text-[#8b5a3c] flex items-center gap-1.5" title={project.path}>
+              <span className="text-[#4a2a1a]">PATH:</span>
+              <span className="truncate max-w-[400px] text-[#b0a89a]">{project.path}</span>
+            </span>
+            <span className={`px-1.5 py-0.5 rounded border text-[11px] font-mono ${getBranchStyle(project.branch)}`}>
+              {project.branch}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

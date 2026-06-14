@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
+import { FolderOpen } from 'lucide-react';
+import { getBranchStyle } from '../types/project';
+import type { Project } from '../types/project';
 
 interface StatusBarProps {
-  projectCount: number;
   workspacePath: string;
+  selectedProject: Project | null;
 }
 
-export function StatusBar({ projectCount, workspacePath }: StatusBarProps) {
+export function StatusBar({ workspacePath, selectedProject }: StatusBarProps) {
   const [time, setTime] = useState(new Date().toLocaleTimeString());
 
   useEffect(() => {
@@ -16,10 +19,24 @@ export function StatusBar({ projectCount, workspacePath }: StatusBarProps) {
   }, []);
 
   return (
-    <div className="h-6 bg-gray-900 border-t border-gray-800 text-[11px] text-gray-500 flex items-center px-3 gap-4 flex-shrink-0 select-none">
-      <span>{projectCount} project{projectCount !== 1 ? 's' : ''}</span>
-      <span className="truncate max-w-[300px]" title={workspacePath}>{workspacePath}</span>
-      <span className="ml-auto">{time}</span>
+    <div className="h-7 bg-[#0a0a0a] border-t border-[#1f1a15] text-[11px] font-mono text-[#8b5a3c] flex items-center px-4 gap-4 flex-shrink-0 select-none relative z-10">
+      {/* Center: selected project or workspace */}
+      {selectedProject ? (
+        <span className="flex items-center gap-2 truncate" title={selectedProject.path}>
+          <FolderOpen className="w-3 h-3 text-[#d4784a] flex-shrink-0" />
+          <span className="text-[#f0ece8] truncate">{selectedProject.name}</span>
+          <span className="text-[#4a2a1a] truncate max-w-[200px] hidden sm:inline">{selectedProject.path}</span>
+          <span className={`text-[10px] px-1 py-0.5 rounded border flex-shrink-0 ${getBranchStyle(selectedProject.branch)}`}>
+            {selectedProject.branch}
+          </span>
+        </span>
+      ) : (
+        <span className="truncate max-w-[350px] text-[#8b5a3c]/70" title={workspacePath}>
+          {workspacePath}
+        </span>
+      )}
+
+      <span className="ml-auto text-[#d4784a]/60 tabular-nums tracking-wider">{time}</span>
     </div>
   );
 }

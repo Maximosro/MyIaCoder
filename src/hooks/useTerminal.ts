@@ -9,7 +9,8 @@ function generateTabId(): string {
 interface UseTerminalReturn {
   tabs: TerminalTab[];
   activeTabId: string | null;
-  openTab: (project: Project) => void;
+  openTab: (project: Project, title: string) => void;
+  forceOpenTab: (project: Project, title: string) => void;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
 }
@@ -18,9 +19,7 @@ export function useTerminal(): UseTerminalReturn {
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
-  // PTY uses polling via ptyRead — no event listeners needed
-
-  const openTab = useCallback(async (project: Project) => {
+  const openTab = useCallback(async (project: Project, title: string) => {
     // If a tab for this project path already exists, just activate it
     const existing = tabs.find((t) => t.projectPath === project.path);
     if (existing) {
@@ -33,16 +32,13 @@ export function useTerminal(): UseTerminalReturn {
       id: tabId,
       projectName: project.name,
       projectPath: project.path,
+      title,
     };
 
-    // Add tab to state first (so the TerminalTabComponent can mount)
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(tabId);
 
-    // Spawn PTY in main process
-    console.log(`[useTerminal] Calling ptySpawn: tabId=${tabId} path=${project.path}`);
     await window.electronAPI.ptySpawn(tabId, project.path);
-    console.log(`[useTerminal] ptySpawn returned for tabId=${tabId}`);
   }, [tabs]);
 
   const closeTab = useCallback(async (tabId: string) => {
@@ -51,7 +47,6 @@ export function useTerminal(): UseTerminalReturn {
     setTabs((prev) => {
       const updated = prev.filter((t) => t.id !== tabId);
 
-      // If closing the active tab, switch to the last remaining tab
       if (activeTabId === tabId) {
         setActiveTabId(updated.length > 0 ? updated[updated.length - 1].id : null);
       }
@@ -60,9 +55,24 @@ export function useTerminal(): UseTerminalReturn {
     });
   }, [activeTabId]);
 
+  const forceOpenTab = useCallback(async (project: Project, title: string) => {
+    const tabId = generateTabId();
+    const newTab: TerminalTab = {
+      id: tabId,
+      projectName: project.name,
+      projectPath: project.path,
+      title,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(tabId);
+
+    await window.electronAPI.ptySpawn(tabId, project.path);
+  }, []);
+
   const setActiveTab = useCallback((tabId: string) => {
     setActiveTabId(tabId);
   }, []);
 
-  return { tabs, activeTabId, openTab, closeTab, setActiveTab };
+  return { tabs, activeTabId, openTab, forceOpenTab, closeTab, setActiveTab };
 }
