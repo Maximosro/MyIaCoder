@@ -15,6 +15,7 @@ interface SidebarProps {
   onSelectProject: (project: Project) => void;
   onRefresh: () => void;
   onConfig: () => void;
+  onOpenTodos: () => void;
   onFileClick?: (filePath: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function Sidebar({
   onSelectProject,
   onRefresh,
   onConfig,
+  onOpenTodos,
   onFileClick,
 }: SidebarProps) {
   const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath);
@@ -127,6 +129,7 @@ export function Sidebar({
         tree={tree}
         loading={plansLoading}
         error={plansError}
+        onOpenTodos={onOpenTodos}
         onRefresh={refreshPlans}
         onFileClick={onFileClick}
       />

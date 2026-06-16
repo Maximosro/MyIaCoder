@@ -21,6 +21,7 @@ function App() {
     saveFileTab,
     markTabDirty,
     getFileContent,
+    openTodoTab,
   } = useTabs();
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -57,6 +58,10 @@ function App() {
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
     refresh();
+  };
+
+  const handleOpenTodos = () => {
+    openTodoTab();
   };
 
   const handleOpenTab = (project: Project, title: string) => {
@@ -110,6 +115,7 @@ function App() {
           onSelectProject={handleSelectProject}
           onRefresh={refresh}
           onConfig={handleOpenConfig}
+          onOpenTodos={handleOpenTodos}
           onFileClick={handleFileOpen}
         />
 

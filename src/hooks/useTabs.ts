@@ -17,6 +17,7 @@ interface UseTabsReturn {
   openTerminalTab: (project: Project, title: string) => Promise<void>;
   forceOpenTerminalTab: (project: Project, title: string) => Promise<void>;
   openFileTab: (project: Project, filePath: string) => Promise<string>;
+  openTodoTab: () => void;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
   setActiveTab: (tabId: string) => void;
   saveFileTab: (tabId: string, content: string) => Promise<void>;
@@ -138,6 +139,29 @@ export function useTabs(): UseTabsReturn {
     return fileContentsRef.current.get(tabId);
   }, []);
 
+  // ── ToDo tab (unique singleton) ────────────────────────────
+
+  const openTodoTab = useCallback(() => {
+    const TODO_TAB_ID = 'todo-tab';
+
+    const existing = tabs.find((t) => t.id === TODO_TAB_ID);
+    if (existing) {
+      setActiveTabId(existing.id);
+      return;
+    }
+
+    const newTab: Tab = {
+      id: TODO_TAB_ID,
+      kind: 'todo',
+      projectName: 'Focusxide',
+      projectPath: '',
+      title: 'ToDos',
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(TODO_TAB_ID);
+  }, [tabs]);
+
   // ── Shared tab operations ──────────────────────────────────
 
   const closeTab = useCallback(async (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => {
@@ -183,6 +207,7 @@ export function useTabs(): UseTabsReturn {
     openTerminalTab,
     forceOpenTerminalTab,
     openFileTab,
+    openTodoTab,
     closeTab,
     setActiveTab,
     saveFileTab,

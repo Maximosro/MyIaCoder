@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal, X, Plus, FileText, Code2 } from 'lucide-react';
+import { Terminal, X, Plus, FileText, Code2, ClipboardList } from 'lucide-react';
 import { TerminalTabComponent } from './TerminalTab';
 import { FileEditor } from './FileEditor';
 import { UnsavedDialog } from './UnsavedDialog';
 import type { Tab } from '../types/terminal';
-import { isFileTab, getTabColorClass } from '../types/terminal';
+import { isFileTab, isTodoTab, getTabColorClass } from '../types/terminal';
 import type { Project } from '../types/project';
 
 interface TerminalPanelProps {
@@ -110,20 +110,25 @@ export function TerminalPanel({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-transparent">
-      {/* Tab bar — always visible when a project is selected */}
-      {activeProject && (
+      {/* Tab bar — visible when a project is selected or any tab is open (e.g. ToDos) */}
+      {(activeProject || tabs.length > 0) && (
         <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto">
           {tabs.map((tab) => {
             const file = isFileTab(tab);
+            const todo = isTodoTab(tab);
             const isActive = tab.id === activeTabId;
 
-            // Accent colors: terminal = copper, files = type-dependent
-            const accentBorder = file
-              ? getTabColorClass(tab.fileType).split(' ')[0] // "border-[#6ba86b]"
-              : 'border-[#d4784a]';
-            const accentText = file
-              ? getTabColorClass(tab.fileType).split(' ')[1] // "text-[#6ba86b]"
-              : 'text-[#d4784a]';
+            // Accent colors: terminal = copper, files = type-dependent, todo = amber
+            const accentBorder = todo
+              ? 'border-[#d4a44a]'
+              : file
+                ? getTabColorClass(tab.fileType).split(' ')[0]
+                : 'border-[#d4784a]';
+            const accentText = todo
+              ? 'text-[#d4a44a]'
+              : file
+                ? getTabColorClass(tab.fileType).split(' ')[1]
+                : 'text-[#d4784a]';
 
             const activeClass = isActive
               ? `${accentBorder} ${accentText}`
@@ -136,7 +141,9 @@ export function TerminalPanel({
                 className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[220px] min-w-[80px] shrink border-b-2 font-mono ${activeClass}`}
               >
                 {/* Icon */}
-                {file ? (
+                {todo ? (
+                  <ClipboardList className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
+                ) : file ? (
                   <FileText className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
                 ) : (
                   <Terminal className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
@@ -183,7 +190,17 @@ export function TerminalPanel({
             key={tab.id}
             className={tab.id === activeTabId ? 'absolute inset-0' : 'hidden'}
           >
-            {isFileTab(tab) ? (
+            {isTodoTab(tab) ? (
+              <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
+                <ClipboardList className="w-16 h-16 text-[#d4a44a]/30" />
+                <p className="text-2xl font-mono text-[#d4a44a] tracking-widest animate-pulse">
+                  PROXIMAMENTE
+                </p>
+                <p className="text-xs font-mono text-[#8b5a3c] tracking-wider max-w-md">
+                  Kanban board · Gestión de tareas · ToDos
+                </p>
+              </div>
+            ) : isFileTab(tab) ? (
               <FileEditor
                 tab={tab}
                 initialContent={getFileContent?.(tab.id) ?? ''}

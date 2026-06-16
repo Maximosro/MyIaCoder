@@ -1,6 +1,6 @@
 // ── Tab type system ──────────────────────────────────────────────
 
-export type TabKind = 'terminal' | 'file';
+export type TabKind = 'terminal' | 'file' | 'todo';
 
 export type FileType = 'text' | 'json' | 'markdown';
 
@@ -27,6 +27,10 @@ export function isFileTab(tab: Tab): tab is Tab & { kind: 'file'; filePath: stri
 
 export function isTerminalTab(tab: Tab): tab is Tab & { kind: 'terminal' } {
   return tab.kind === 'terminal';
+}
+
+export function isTodoTab(tab: Tab): tab is Tab & { kind: 'todo' } {
+  return tab.kind === 'todo';
 }
 
 // ── File type helpers ────────────────────────────────────────────

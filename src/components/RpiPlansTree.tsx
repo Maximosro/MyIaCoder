@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Folder, FolderOpen, FileText, ChevronRight, RefreshCw } from 'lucide-react';
+import { Folder, FolderOpen, FileText, ChevronRight, RefreshCw, ClipboardList } from 'lucide-react';
 import type { TreeNode } from '../types/project';
 import { SUPPORTED_EXTENSIONS } from '../types/terminal';
 
@@ -8,6 +8,7 @@ interface RpiPlansTreeProps {
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onOpenTodos: () => void;
   onFileClick?: (filePath: string) => void;
 }
 
@@ -102,7 +103,7 @@ export function TreeNodeItem({ node, depth, onFileClick }: TreeNodeItemProps) {
   );
 }
 
-export function RpiPlansTree({ tree, loading, error, onRefresh, onFileClick }: RpiPlansTreeProps) {
+export function RpiPlansTree({ tree, loading, error, onRefresh, onOpenTodos, onFileClick }: RpiPlansTreeProps) {
   return (
     <div className="border-t border-[#1f1a15] flex flex-col min-h-0">
       {/* Header */}
@@ -113,14 +114,23 @@ export function RpiPlansTree({ tree, loading, error, onRefresh, onFileClick }: R
             /Plans
           </span>
         </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a] disabled:opacity-30"
-          title="Refresh RPI plans tree"
-        >
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onOpenTodos}
+            className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4a44a]"
+            title="ToDos — Kanban board"
+          >
+            <ClipboardList className="w-3 h-3" />
+          </button>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a] disabled:opacity-30"
+            title="Refresh RPI plans tree"
+          >
+            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
