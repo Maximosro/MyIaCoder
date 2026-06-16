@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'node:path';
-import { scanWorkspace } from './services/filesystem';
+import { exec } from 'node:child_process';
+import { scanWorkspace, readDirectoryTree, readClaudeGithubTree, readFileContent, writeFileContent } from './services/filesystem';
 import { getGitBranch } from './services/git';
 import { loadSettings, saveSettings } from './services/settings';
 import type { Settings } from './services/settings';
@@ -17,8 +18,14 @@ function createWindow(): void {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#0c0c0c',
+    frame: false,
+    backgroundColor: '#050505',
     autoHideMenuBar: true,
+    titleBarOverlay: {
+      color: '#050505',
+      symbolColor: '#f0ece8',
+      height: 36,
+    },
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -65,6 +72,50 @@ function registerIpcHandlers(): void {
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle('pick-folder', async (_event, title: string) => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title,
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+
+  ipcMain.handle('read-plans-tree', async () => {
+    const settings = loadSettings();
+    return readDirectoryTree(settings.plansPath);
+  });
+
+  ipcMain.handle('read-project-tree', async (_event, projectPath: string) => {
+    return readClaudeGithubTree(projectPath);
+  });
+
+  ipcMain.handle('read-file-content', async (_event, filePath: string) => {
+    const settings = loadSettings();
+    const resolved = path.resolve(filePath);
+    const workspaceRoot = path.resolve(settings.workspacePath);
+    const plansRoot = path.resolve(settings.plansPath);
+    const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
+    const inPlans = plansRoot && resolved.startsWith(plansRoot);
+    if (!inWorkspace && !inPlans) {
+      throw new Error('PATH_TRAVERSAL');
+    }
+    return readFileContent(filePath);
+  });
+
+  ipcMain.handle('write-file-content', async (_event, filePath: string, content: string) => {
+    const settings = loadSettings();
+    const resolved = path.resolve(filePath);
+    const workspaceRoot = path.resolve(settings.workspacePath);
+    const plansRoot = path.resolve(settings.plansPath);
+    const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
+    const inPlans = plansRoot && resolved.startsWith(plansRoot);
+    if (!inWorkspace && !inPlans) {
+      throw new Error('PATH_TRAVERSAL');
+    }
+    writeFileContent(filePath, content);
+  });
+
   // PTY handlers — polling-based (no webContents.send, sandbox-compatible)
   ipcMain.handle('pty-spawn', async (_event, tabId: string, projectPath: string) => {
     ptyManager.spawn(tabId, projectPath);
@@ -88,6 +139,47 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('pty-kill', async (_event, tabId: string) => {
     ptyManager.kill(tabId);
+  });
+
+  ipcMain.handle('launch-vscode', async (_event, projectPath: string) => {
+    const cmd = process.platform === 'win32'
+      ? `code "${projectPath}"`
+      : `code '${projectPath}'`;
+    exec(cmd, (error) => {
+      if (error) {
+        // Fallback: try opening the folder in explorer / finder
+        shell.openPath(projectPath);
+      }
+    });
+  });
+
+  // ── Window controls (frameless custom title bar) ─────────
+  ipcMain.handle('window-minimize', () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.handle('window-maximize', () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow?.maximize();
+    }
+  });
+
+  ipcMain.handle('window-is-maximized', () => {
+    return mainWindow?.isMaximized() ?? false;
+  });
+
+  ipcMain.handle('window-close', () => {
+    mainWindow?.close();
+  });
+
+  // Notify renderer when maximize state changes
+  mainWindow?.on('maximize', () => {
+    mainWindow?.webContents.send('window-maximized-changed', true);
+  });
+  mainWindow?.on('unmaximize', () => {
+    mainWindow?.webContents.send('window-maximized-changed', false);
   });
 }
 

@@ -4,11 +4,13 @@ import path from 'node:path';
 
 export interface Settings {
   workspacePath: string;
+  plansPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 
 const DEFAULTS: Settings = {
   workspacePath: 'C:\\Workspace',
+  plansPath: 'C:\\Users\\Rothar\\.claude\\plans',
   theme: 'system',
 };
 

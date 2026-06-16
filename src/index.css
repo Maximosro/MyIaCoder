@@ -92,6 +92,11 @@ body {
   50% { box-shadow: 0 0 22px var(--color-copper-glow-strong), 0 0 40px var(--color-copper-glow); }
 }
 
+@keyframes glowPulseVscode {
+  0%, 100% { box-shadow: 0 0 6px rgba(51, 136, 204, 0.15); }
+  50% { box-shadow: 0 0 22px rgba(51, 136, 204, 0.35), 0 0 40px rgba(51, 136, 204, 0.15); }
+}
+
 @keyframes borderPulse {
   0%, 100% { border-color: rgba(212, 120, 74, 0.3); }
   50% { border-color: rgba(212, 120, 74, 0.7); }
@@ -128,6 +133,11 @@ body {
   to { width: 100%; }
 }
 
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* ── Utility Classes ────────────────────────────────────── */
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out;
@@ -137,8 +147,16 @@ body {
   animation: fadeInLeft 0.35s ease-out;
 }
 
+.animate-scale-in {
+  animation: scaleIn 0.25s ease-out;
+}
+
 .animate-glow-pulse {
   animation: glowPulse 2.5s ease-in-out infinite;
+}
+
+.animate-glow-pulse-vscode {
+  animation: glowPulseVscode 2.5s ease-in-out infinite;
 }
 
 .animate-border-pulse {
@@ -155,6 +173,10 @@ body {
 
 .text-glow {
   text-shadow: 0 0 12px var(--color-copper-glow);
+}
+
+.text-glow-vscode {
+  text-shadow: 0 0 12px rgba(51, 136, 204, 0.2);
 }
 
 .text-glow-strong {
@@ -217,4 +239,216 @@ body {
 .tab-underline:hover::after,
 .tab-underline.active::after {
   width: 100%;
+}
+
+/* ── RPI Plans Tree ─────────────────────────────────────── */
+@keyframes treeExpand {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 2000px; opacity: 1; }
+}
+
+@keyframes treeCollapse {
+  from { max-height: 2000px; opacity: 1; }
+  to { max-height: 0; opacity: 0; }
+}
+
+.animate-tree-expand {
+  animation: treeExpand 0.3s ease-in-out forwards;
+  overflow: hidden;
+}
+
+.animate-tree-collapse {
+  animation: treeCollapse 0.25s ease-in-out forwards;
+  overflow: hidden;
+}
+
+/* ── Markdown Preview ───────────────────────────────────── */
+.markdown-preview {
+  color: #b0a89a;
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.markdown-preview h1 {
+  font-size: 1.75rem;
+  color: #f0ece8;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(212, 120, 74, 0.3);
+  font-weight: 600;
+}
+
+.markdown-preview h2 {
+  font-size: 1.35rem;
+  color: #e8956a;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #1f1a15;
+  font-weight: 600;
+}
+
+.markdown-preview h3 {
+  font-size: 1.15rem;
+  color: #d4784a;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  color: #8b5a3c;
+  margin-top: 1.25rem;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.markdown-preview p {
+  margin-bottom: 0.85rem;
+}
+
+.markdown-preview a {
+  color: #7b9ec4;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+
+.markdown-preview a:hover {
+  color: #9bbce0;
+}
+
+.markdown-preview strong {
+  color: #f0ece8;
+  font-weight: 600;
+}
+
+.markdown-preview em {
+  color: #d4a44a;
+}
+
+.markdown-preview code {
+  background: #1f1a15;
+  color: #d4784a;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-family: var(--font-mono);
+}
+
+.markdown-preview pre {
+  background: #0a0a0a;
+  border: 1px solid #1f1a15;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.markdown-preview pre code {
+  background: transparent;
+  color: #b0a89a;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.markdown-preview blockquote {
+  border-left: 2px solid rgba(212, 120, 74, 0.4);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #8b5a3c;
+  font-style: italic;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+}
+
+.markdown-preview ul {
+  list-style-type: disc;
+}
+
+.markdown-preview ol {
+  list-style-type: decimal;
+}
+
+.markdown-preview li {
+  margin-bottom: 0.3rem;
+}
+
+.markdown-preview li::marker {
+  color: #8b5a3c;
+}
+
+.markdown-preview hr {
+  border: none;
+  border-top: 1px solid #1f1a15;
+  margin: 1.5rem 0;
+}
+
+.markdown-preview img {
+  max-width: 100%;
+  border-radius: 4px;
+  border: 1px solid #1f1a15;
+  margin: 0.75rem 0;
+}
+
+/* ── Custom Title Bar (frameless window) ─────────────────── */
+.titlebar {
+  -webkit-app-region: drag;
+}
+
+.titlebar .titlebar-btn {
+  -webkit-app-region: no-drag;
+}
+
+.titlebar .titlebar-close:hover {
+  background-color: #e05555;
+}
+
+.markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 13px;
+}
+
+.markdown-preview th {
+  background: #0a0a0a;
+  color: #d4784a;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border: 1px solid #1f1a15;
+}
+
+.markdown-preview td {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #1f1a15;
+  color: #b0a89a;
+}
+
+.markdown-preview tr:nth-child(even) td {
+  background: rgba(10, 10, 10, 0.5);
+}
+
+/* ── Markdown preview: task lists ───────────────────────── */
+.markdown-preview input[type="checkbox"] {
+  accent-color: #d4784a;
+  margin-right: 0.4rem;
+}
+
+/* ── Mermaid diagrams in preview ────────────────────────── */
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  background: #0a0a0a;
+  padding: 0.5rem;
 }

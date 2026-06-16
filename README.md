@@ -23,6 +23,9 @@ Claude Code terminal — powered by Electron, React, xterm.js, and node-pty.
 
 ## Development
 
+> ⚠️ **Primera vez?** Seguí la [guía completa de setup →](SETUP.md)  
+> Cubre requisitos, Visual Studio Build Tools, y el workaround para el binario de Electron.
+
 ```bash
 npm install
 npm run dev        # Starts Vite + Electron in dev mode

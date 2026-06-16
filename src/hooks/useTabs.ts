@@ -1,0 +1,192 @@
+import { useState, useCallback, useRef } from 'react';
+import type { Project } from '../types/project';
+import type { Tab } from '../types/terminal';
+import { getFileType, isFileTab } from '../types/terminal';
+
+function generateTabId(): string {
+  return crypto.randomUUID();
+}
+
+interface UseTabsReturn {
+  tabs: Tab[];
+  activeTabId: string | null;
+  /** @deprecated Use openTerminalTab instead */
+  openTab: (project: Project, title: string) => Promise<void>;
+  /** @deprecated Use forceOpenTerminalTab instead */
+  forceOpenTab: (project: Project, title: string) => Promise<void>;
+  openTerminalTab: (project: Project, title: string) => Promise<void>;
+  forceOpenTerminalTab: (project: Project, title: string) => Promise<void>;
+  openFileTab: (project: Project, filePath: string) => Promise<string>;
+  closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
+  setActiveTab: (tabId: string) => void;
+  saveFileTab: (tabId: string, content: string) => Promise<void>;
+  markTabDirty: (tabId: string, isDirty: boolean) => void;
+  getFileContent: (tabId: string) => string | undefined;
+}
+
+export function useTabs(): UseTabsReturn {
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const fileContentsRef = useRef<Map<string, string>>(new Map());
+  const [, setTick] = useState(0); // Force re-render for content updates
+
+  // ── Terminal tabs ──────────────────────────────────────────
+
+  const openTerminalTab = useCallback(async (project: Project, title: string) => {
+    const existing = tabs.find((t) => t.kind === 'terminal' && t.projectPath === project.path);
+    if (existing) {
+      setActiveTabId(existing.id);
+      return;
+    }
+
+    const tabId = generateTabId();
+    const newTab: Tab = {
+      id: tabId,
+      kind: 'terminal',
+      projectName: project.name,
+      projectPath: project.path,
+      title,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(tabId);
+
+    await window.electronAPI.ptySpawn(tabId, project.path);
+  }, [tabs]);
+
+  const forceOpenTerminalTab = useCallback(async (project: Project, title: string) => {
+    const tabId = generateTabId();
+    const newTab: Tab = {
+      id: tabId,
+      kind: 'terminal',
+      projectName: project.name,
+      projectPath: project.path,
+      title,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(tabId);
+
+    await window.electronAPI.ptySpawn(tabId, project.path);
+  }, []);
+
+  // ── File tabs ──────────────────────────────────────────────
+
+  const openFileTab = useCallback(async (project: Project, filePath: string): Promise<string> => {
+    // Extract file name from path
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
+    const fileType = getFileType(fileName);
+    if (!fileType) return ''; // Unsupported extension
+
+    // Check if already open
+    const existing = tabs.find((t) => isFileTab(t) && t.filePath === filePath);
+    if (existing) {
+      setActiveTabId(existing.id);
+      return existing.id;
+    }
+
+    const tabId = generateTabId();
+
+    // Read file content via IPC
+    let content = '';
+    try {
+      content = await window.electronAPI.readFileContent(filePath);
+    } catch {
+      // File not found or path traversal — don't open
+      return '';
+    }
+
+    fileContentsRef.current.set(tabId, content);
+
+    const newTab: Tab = {
+      id: tabId,
+      kind: 'file',
+      projectName: project.name,
+      projectPath: project.path,
+      title: fileName,
+      filePath,
+      fileType,
+      isDirty: false,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(tabId);
+
+    return tabId;
+  }, [tabs]);
+
+  const saveFileTab = useCallback(async (tabId: string, content: string) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab || !isFileTab(tab)) return;
+
+    await window.electronAPI.writeFileContent(tab.filePath, content);
+    fileContentsRef.current.set(tabId, content);
+
+    // Mark clean
+    setTabs((prev) => prev.map((t) =>
+      t.id === tabId ? { ...t, isDirty: false } : t
+    ));
+  }, [tabs]);
+
+  const markTabDirty = useCallback((tabId: string, isDirty: boolean) => {
+    setTabs((prev) => prev.map((t) =>
+      t.id === tabId ? { ...t, isDirty } : t
+    ));
+  }, []);
+
+  const getFileContent = useCallback((tabId: string): string | undefined => {
+    return fileContentsRef.current.get(tabId);
+  }, []);
+
+  // ── Shared tab operations ──────────────────────────────────
+
+  const closeTab = useCallback(async (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+
+    // Pre-close hook (for unsaved changes check)
+    if (onBeforeClose) {
+      const shouldClose = await onBeforeClose(tab);
+      if (!shouldClose) return;
+    }
+
+    // Terminal cleanup
+    if (tab.kind === 'terminal') {
+      await window.electronAPI.ptyKill(tabId);
+    }
+
+    // File cleanup
+    if (isFileTab(tab)) {
+      fileContentsRef.current.delete(tabId);
+    }
+
+    setTabs((prev) => {
+      const updated = prev.filter((t) => t.id !== tabId);
+
+      if (activeTabId === tabId) {
+        setActiveTabId(updated.length > 0 ? updated[updated.length - 1].id : null);
+      }
+
+      return updated;
+    });
+  }, [activeTabId, tabs]);
+
+  const setActiveTab = useCallback((tabId: string) => {
+    setActiveTabId(tabId);
+  }, []);
+
+  return {
+    tabs,
+    activeTabId,
+    openTab: openTerminalTab,
+    forceOpenTab: forceOpenTerminalTab,
+    openTerminalTab,
+    forceOpenTerminalTab,
+    openFileTab,
+    closeTab,
+    setActiveTab,
+    saveFileTab,
+    markTabDirty,
+    getFileContent,
+  };
+}

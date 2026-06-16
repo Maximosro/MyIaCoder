@@ -4,8 +4,16 @@ export interface Project {
   branch: string;
 }
 
+export interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: TreeNode[];
+}
+
 export interface Settings {
   workspacePath: string;
+  plansPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 

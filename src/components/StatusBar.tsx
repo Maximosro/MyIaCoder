@@ -25,7 +25,7 @@ export function StatusBar({ workspacePath, selectedProject }: StatusBarProps) {
         <span className="flex items-center gap-2 truncate" title={selectedProject.path}>
           <FolderOpen className="w-3 h-3 text-[#d4784a] flex-shrink-0" />
           <span className="text-[#f0ece8] truncate">{selectedProject.name}</span>
-          <span className="text-[#4a2a1a] truncate max-w-[200px] hidden sm:inline">{selectedProject.path}</span>
+          <span className="text-[#8b5a3c] truncate max-w-[200px] hidden sm:inline">{selectedProject.path}</span>
           <span className={`text-[10px] px-1 py-0.5 rounded border flex-shrink-0 ${getBranchStyle(selectedProject.branch)}`}>
             {selectedProject.branch}
           </span>

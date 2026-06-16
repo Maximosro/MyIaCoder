@@ -11,17 +11,22 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "lucide-react": "^0.460.0",
+    "marked": "^18.0.5",
+    "mermaid": "^11.15.0",
+    "monaco-editor": "^0.52.2",
     "node-pty": "^1.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0",
-    "xterm-addon-webgl": "^0.16.0",
-    "lucide-react": "^0.460.0"
+    "xterm-addon-webgl": "^0.16.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/react": "^16.0.0",
+    "@types/marked": "^5.0.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.4.0",

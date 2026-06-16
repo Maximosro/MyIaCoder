@@ -30,6 +30,7 @@ export function useTerminal(): UseTerminalReturn {
     const tabId = generateTabId();
     const newTab: TerminalTab = {
       id: tabId,
+      kind: 'terminal',
       projectName: project.name,
       projectPath: project.path,
       title,
@@ -59,6 +60,7 @@ export function useTerminal(): UseTerminalReturn {
     const tabId = generateTabId();
     const newTab: TerminalTab = {
       id: tabId,
+      kind: 'terminal',
       projectName: project.name,
       projectPath: project.path,
       title,

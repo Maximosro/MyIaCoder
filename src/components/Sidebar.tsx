@@ -1,6 +1,9 @@
-import { RefreshCw, Settings, Power } from 'lucide-react';
+import { RefreshCw, FolderOpen } from 'lucide-react';
 import type { Project } from '../types/project';
 import { ProjectItem } from './ProjectItem';
+import { RpiPlansTree, TreeNodeItem } from './RpiPlansTree';
+import { usePlansTree } from '../hooks/usePlansTree';
+import { useProjectTree } from '../hooks/useProjectTree';
 
 interface SidebarProps {
   projects: Project[];
@@ -8,10 +11,11 @@ interface SidebarProps {
   error: string | null;
   selectedPath: string | null;
   openTabPaths: Set<string>;
+  plansPath: string;
   onSelectProject: (project: Project) => void;
   onRefresh: () => void;
   onConfig: () => void;
-  onClose: () => void;
+  onFileClick?: (filePath: string) => void;
 }
 
 export function Sidebar({
@@ -20,24 +24,24 @@ export function Sidebar({
   error,
   selectedPath,
   openTabPaths,
+  plansPath,
   onSelectProject,
   onRefresh,
   onConfig,
-  onClose,
+  onFileClick,
 }: SidebarProps) {
+  const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath);
+  const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath);
+
   return (
     <aside className="w-[280px] flex-shrink-0 border-r border-[#1f1a15] flex flex-col h-full bg-[#0a0a0a] relative z-10">
       {/* Header */}
       <div className="p-4 border-b border-[#1f1a15]">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-sm font-mono font-semibold text-[#f0ece8] text-glow tracking-wider">
-              ◈ AI_CODE_MGR
-            </h1>
-            <p className="text-[10px] text-[#8b5a3c] mt-0.5 font-mono tracking-widest uppercase">
-              {projects.length} project{projects.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+          <p className="text-sm text-[#8b5a3c] font-mono tracking-widest uppercase flex items-center gap-1.5">
+            <FolderOpen className="w-4 h-4 text-[#d4784a]" />
+            /projects <span className="text-[#6ba86b]">{projects.length}</span>
+          </p>
           <button
             onClick={onRefresh}
             disabled={loading}
@@ -94,29 +98,38 @@ export function Sidebar({
               hasOpenTab={openTabPaths.has(project.path)}
               onClick={() => onSelectProject(project)}
             />
+            {/* Project .claude / .github tree — shown when selected */}
+            {project.path === selectedPath && (
+              <div className="border-t border-[#1f1a15]/30">
+                {projectTreeLoading && projectTree.length === 0 && (
+                  <div className="flex items-center justify-center py-3">
+                    <RefreshCw className="w-3 h-3 text-[#d4784a] animate-spin" />
+                  </div>
+                )}
+                {!projectTreeLoading && projectTree.length === 0 && (
+                  <div className="px-2 py-3 text-center">
+                    <p className="text-[#8b5a3c] text-[10px] font-mono tracking-wider">
+                      NO_CLAUDE_OR_GITHUB
+                    </p>
+                  </div>
+                )}
+                {projectTree.map((node) => (
+                  <TreeNodeItem key={node.path} node={node} depth={1} onFileClick={onFileClick} />
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Footer */}
-      <div className="mt-auto border-t border-[#1f1a15] p-3 flex gap-2">
-        <button
-          onClick={onConfig}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all duration-200 font-mono"
-          title="Change workspace folder"
-        >
-          <Settings className="w-3.5 h-3.5" />
-          CONFIG
-        </button>
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-[#0f0f0f] hover:bg-[#1a0a0a] text-[#8b5a3c] hover:text-[#e05555] border border-[#1f1a15] hover:border-[#e05555]/30 transition-all duration-200 font-mono"
-          title="Close application"
-        >
-          <Power className="w-3.5 h-3.5" />
-          EXIT
-        </button>
-      </div>
+      {/* RPI Plans tree — always visible below project list */}
+      <RpiPlansTree
+        tree={tree}
+        loading={plansLoading}
+        error={plansError}
+        onRefresh={refreshPlans}
+        onFileClick={onFileClick}
+      />
     </aside>
   );
 }
