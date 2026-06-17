@@ -12,11 +12,13 @@ interface SidebarProps {
   selectedPath: string | null;
   openTabPaths: Set<string>;
   plansPath: string;
+  treeRefreshKey: number;
   onSelectProject: (project: Project) => void;
   onRefresh: () => void;
   onConfig: () => void;
   onOpenTodos: () => void;
   onFileClick?: (filePath: string) => void;
+  onDeleteFile?: (filePath: string) => void;
 }
 
 export function Sidebar({
@@ -26,14 +28,16 @@ export function Sidebar({
   selectedPath,
   openTabPaths,
   plansPath,
+  treeRefreshKey,
   onSelectProject,
   onRefresh,
   onConfig,
   onOpenTodos,
   onFileClick,
+  onDeleteFile,
 }: SidebarProps) {
-  const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath);
-  const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath);
+  const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath, treeRefreshKey);
+  const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath, treeRefreshKey);
 
   return (
     <aside className="w-[280px] flex-shrink-0 border-r border-[#1f1a15] flex flex-col h-full bg-[#0a0a0a] relative z-10">
@@ -116,7 +120,7 @@ export function Sidebar({
                   </div>
                 )}
                 {projectTree.map((node) => (
-                  <TreeNodeItem key={node.path} node={node} depth={1} onFileClick={onFileClick} />
+                  <TreeNodeItem key={node.path} node={node} depth={1} onFileClick={onFileClick} onDeleteFile={onDeleteFile} />
                 ))}
               </div>
             )}
@@ -132,6 +136,7 @@ export function Sidebar({
         onOpenTodos={onOpenTodos}
         onRefresh={refreshPlans}
         onFileClick={onFileClick}
+        onDeleteFile={onDeleteFile}
       />
     </aside>
   );

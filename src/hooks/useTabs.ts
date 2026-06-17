@@ -11,11 +11,11 @@ interface UseTabsReturn {
   tabs: Tab[];
   activeTabId: string | null;
   /** @deprecated Use openTerminalTab instead */
-  openTab: (project: Project, title: string) => Promise<void>;
+  openTab: (project: Project, title: string, command?: string) => Promise<void>;
   /** @deprecated Use forceOpenTerminalTab instead */
-  forceOpenTab: (project: Project, title: string) => Promise<void>;
-  openTerminalTab: (project: Project, title: string) => Promise<void>;
-  forceOpenTerminalTab: (project: Project, title: string) => Promise<void>;
+  forceOpenTab: (project: Project, title: string, command?: string) => Promise<void>;
+  openTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
+  forceOpenTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   openFileTab: (project: Project, filePath: string) => Promise<string>;
   openTodoTab: () => void;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
@@ -33,7 +33,7 @@ export function useTabs(): UseTabsReturn {
 
   // ── Terminal tabs ──────────────────────────────────────────
 
-  const openTerminalTab = useCallback(async (project: Project, title: string) => {
+  const openTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
     const existing = tabs.find((t) => t.kind === 'terminal' && t.projectPath === project.path);
     if (existing) {
       setActiveTabId(existing.id);
@@ -47,15 +47,16 @@ export function useTabs(): UseTabsReturn {
       projectName: project.name,
       projectPath: project.path,
       title,
+      command,
     };
 
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(tabId);
 
-    await window.electronAPI.ptySpawn(tabId, project.path);
+    await window.electronAPI.ptySpawn(tabId, project.path, command);
   }, [tabs]);
 
-  const forceOpenTerminalTab = useCallback(async (project: Project, title: string) => {
+  const forceOpenTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
     const tabId = generateTabId();
     const newTab: Tab = {
       id: tabId,
@@ -63,12 +64,13 @@ export function useTabs(): UseTabsReturn {
       projectName: project.name,
       projectPath: project.path,
       title,
+      command,
     };
 
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(tabId);
 
-    await window.electronAPI.ptySpawn(tabId, project.path);
+    await window.electronAPI.ptySpawn(tabId, project.path, command);
   }, []);
 
   // ── File tabs ──────────────────────────────────────────────

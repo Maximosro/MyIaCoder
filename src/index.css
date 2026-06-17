@@ -97,6 +97,11 @@ body {
   50% { box-shadow: 0 0 22px rgba(51, 136, 204, 0.35), 0 0 40px rgba(51, 136, 204, 0.15); }
 }
 
+@keyframes glowPulseCopilot {
+  0%, 100% { box-shadow: 0 0 6px rgba(107, 168, 107, 0.15); }
+  50% { box-shadow: 0 0 22px rgba(107, 168, 107, 0.35), 0 0 40px rgba(107, 168, 107, 0.15); }
+}
+
 @keyframes borderPulse {
   0%, 100% { border-color: rgba(212, 120, 74, 0.3); }
   50% { border-color: rgba(212, 120, 74, 0.7); }
@@ -159,6 +164,10 @@ body {
   animation: glowPulseVscode 2.5s ease-in-out infinite;
 }
 
+.animate-glow-pulse-copilot {
+  animation: glowPulseCopilot 2.5s ease-in-out infinite;
+}
+
 .animate-border-pulse {
   animation: borderPulse 3s ease-in-out infinite;
 }
@@ -177,6 +186,10 @@ body {
 
 .text-glow-vscode {
   text-shadow: 0 0 12px rgba(51, 136, 204, 0.2);
+}
+
+.text-glow-copilot {
+  text-shadow: 0 0 12px rgba(107, 168, 107, 0.2);
 }
 
 .text-glow-strong {

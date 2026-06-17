@@ -20,7 +20,8 @@ export interface ElectronAPI {
   refreshBranch: (projectPath: string) => Promise<string>;
   readFileContent: (filePath: string) => Promise<string>;
   writeFileContent: (filePath: string, content: string) => Promise<void>;
-  ptySpawn: (tabId: string, projectPath: string) => Promise<void>;
+  deleteFile: (filePath: string) => Promise<void>;
+  ptySpawn: (tabId: string, projectPath: string, command?: string) => Promise<void>;
   ptyRead: (tabId: string) => Promise<string | null>;
   ptyIsAlive: (tabId: string) => Promise<boolean>;
   ptyInput: (tabId: string, data: string) => Promise<void>;
@@ -46,7 +47,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshBranch: (projectPath: string) => ipcRenderer.invoke('refresh-branch', projectPath),
   readFileContent: (filePath: string) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
-  ptySpawn: (tabId: string, projectPath: string) => ipcRenderer.invoke('pty-spawn', tabId, projectPath),
+  deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
+  ptySpawn: (tabId: string, projectPath: string, command?: string) => ipcRenderer.invoke('pty-spawn', tabId, projectPath, command),
   ptyRead: (tabId: string) => ipcRenderer.invoke('pty-read', tabId),
   ptyIsAlive: (tabId: string) => ipcRenderer.invoke('pty-is-alive', tabId),
   ptyInput: (tabId: string, data: string) => ipcRenderer.invoke('pty-input', tabId, data),

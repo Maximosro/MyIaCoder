@@ -8,7 +8,7 @@ interface UsePlansTreeReturn {
   refresh: () => Promise<void>;
 }
 
-export function usePlansTree(refreshKey?: string): UsePlansTreeReturn {
+export function usePlansTree(plansPath: string, refreshKey?: number): UsePlansTreeReturn {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function usePlansTree(refreshKey?: string): UsePlansTreeReturn {
 
   useEffect(() => {
     refresh();
-  }, [refresh, refreshKey]);
+  }, [refresh, plansPath, refreshKey]);
 
   return { tree, loading, error, refresh };
 }

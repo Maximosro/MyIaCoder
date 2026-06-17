@@ -11,8 +11,8 @@ interface TerminalPanelProps {
   tabs: Tab[];
   activeTabId: string | null;
   activeProject: Project | null;
-  onOpenTab: (project: Project, title: string) => void;
-  onForceOpenTab: (project: Project, title: string) => void;
+  onOpenTab: (project: Project, title: string, command?: string) => void;
+  onForceOpenTab: (project: Project, title: string, command?: string) => void;
   onCloseTab: (tabId: string) => Promise<void>;
   onSelectTab: (tabId: string) => void;
   onSaveFile?: (tabId: string, content: string) => Promise<void>;
@@ -35,6 +35,8 @@ export function TerminalPanel({
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptValue, setPromptValue] = useState('');
   const [promptAction, setPromptAction] = useState<'open' | 'force'>('open');
+  const [pendingCommand, setPendingCommand] = useState<string | undefined>(undefined);
+  const [showLaunchOverlay, setShowLaunchOverlay] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Unsaved changes dialog state
@@ -55,6 +57,7 @@ export function TerminalPanel({
     if (!activeProject) return;
     setPromptValue(activeProject.name);
     setPromptAction('open');
+    setPendingCommand(undefined); // default: claude
     setPromptVisible(true);
   };
 
@@ -63,11 +66,18 @@ export function TerminalPanel({
     window.electronAPI.launchVscode(activeProject.path);
   };
 
-  const handleNewTab = () => {
+  const handleLaunchCopilot = () => {
     if (!activeProject) return;
     setPromptValue(activeProject.name);
-    setPromptAction('force');
+    setPromptAction('open');
+    // Store copilot command intent — will be passed when user confirms
+    setPendingCommand('copilot');
     setPromptVisible(true);
+  };
+
+  const handleNewTab = () => {
+    if (!activeProject) return;
+    setShowLaunchOverlay(true);
   };
 
   const submitPrompt = () => {
@@ -75,9 +85,9 @@ export function TerminalPanel({
     setPromptVisible(false);
     if (!activeProject) return;
     if (promptAction === 'force') {
-      onForceOpenTab(activeProject, title);
+      onForceOpenTab(activeProject, title, pendingCommand);
     } else {
-      onOpenTab(activeProject, title);
+      onOpenTab(activeProject, title, pendingCommand);
     }
   };
 
@@ -118,17 +128,21 @@ export function TerminalPanel({
             const todo = isTodoTab(tab);
             const isActive = tab.id === activeTabId;
 
-            // Accent colors: terminal = copper, files = type-dependent, todo = amber
+            // Accent colors: terminal = copper, copilot = emerald, files = type-dependent, todo = amber
             const accentBorder = todo
               ? 'border-[#d4a44a]'
               : file
                 ? getTabColorClass(tab.fileType).split(' ')[0]
-                : 'border-[#d4784a]';
+                : tab.command === 'copilot'
+                  ? 'border-[#6ba86b]'
+                  : 'border-[#d4784a]';
             const accentText = todo
               ? 'text-[#d4a44a]'
               : file
                 ? getTabColorClass(tab.fileType).split(' ')[1]
-                : 'text-[#d4784a]';
+                : tab.command === 'copilot'
+                  ? 'text-[#6ba86b]'
+                  : 'text-[#d4784a]';
 
             const activeClass = isActive
               ? `${accentBorder} ${accentText}`
@@ -175,7 +189,7 @@ export function TerminalPanel({
             <button
               onClick={handleNewTab}
               className="flex items-center justify-center w-6 h-6 rounded hover:bg-[#0f0f0f] text-[#8b5a3c] hover:text-[#d4784a] flex-shrink-0 transition-all duration-200 ml-0.5"
-              title="New terminal"
+              title="New launch"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -258,8 +272,81 @@ export function TerminalPanel({
           </div>
         )}
 
+        {/* Launch overlay — shown when + is clicked on tab bar */}
+        {showLaunchOverlay && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#050505]/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-6 animate-fade-in">
+              <p className="text-[10px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                LAUNCH_TERMINAL
+                <span className="animate-cursor-blink">_</span>
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setShowLaunchOverlay(false);
+                    handleLaunch();
+                  }}
+                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1f1a15] hover:border-[#d4784a]/40 rounded cursor-pointer
+                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#1a0f0a] hover:shadow-[0_0_30px_rgba(212,120,74,0.15)] animate-glow-pulse"
+                >
+                  <Terminal className="w-10 h-10 text-[#d4784a] group-hover:scale-110 transition-transform duration-500 ease-out" />
+                  <span className="font-mono text-sm text-[#f0ece8] text-glow tracking-wider">
+                    LAUNCH_CLAUDE
+                    <span className="animate-cursor-blink">_</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLaunchOverlay(false);
+                    handleLaunchCopilot();
+                  }}
+                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1a1a0f] hover:border-[#6ba86b]/40 rounded cursor-pointer
+                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1a0e] hover:shadow-[0_0_30px_rgba(107,168,107,0.15)] animate-glow-pulse-copilot"
+                >
+                  <svg
+                    className="w-10 h-10 text-[#6ba86b] group-hover:scale-110 transition-transform duration-500 ease-out"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2 3 22h6.5l2.5-7 2.5 7H21L12 2z" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  <span className="font-mono text-sm text-[#f0ece8] text-glow-copilot tracking-wider">
+                    LAUNCH_COPILOT
+                    <span className="animate-cursor-blink">_</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLaunchOverlay(false);
+                    handleLaunchVscode();
+                  }}
+                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#0f1a25] hover:border-[#3388cc]/40 rounded cursor-pointer
+                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1520] hover:shadow-[0_0_30px_rgba(51,136,204,0.15)] animate-glow-pulse-vscode"
+                >
+                  <Code2 className="w-10 h-10 text-[#3388cc] group-hover:scale-110 transition-transform duration-500 ease-out" />
+                  <span className="font-mono text-sm text-[#f0ece8] text-glow-vscode tracking-wider">
+                    LAUNCH_VSCODE
+                    <span className="animate-cursor-blink">_</span>
+                  </span>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowLaunchOverlay(false)}
+                className="px-4 py-1.5 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#b0a89a] border border-[#1f1a15] font-mono transition-colors"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Empty state — no tabs yet */}
-        {!promptVisible && tabs.length === 0 && (
+        {!promptVisible && !showLaunchOverlay && tabs.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {activeProject ? (
               <div className="flex gap-4">
@@ -271,6 +358,28 @@ export function TerminalPanel({
                   <Terminal className="w-10 h-10 text-[#d4784a] group-hover:scale-110 transition-transform duration-500 ease-out" />
                   <span className="font-mono text-sm text-[#f0ece8] text-glow tracking-wider">
                     LAUNCH_CLAUDE
+                    <span className="animate-cursor-blink">_</span>
+                  </span>
+                </button>
+                <button
+                  onClick={handleLaunchCopilot}
+                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1a1a0f] hover:border-[#6ba86b]/40 rounded cursor-pointer
+                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1a0e] hover:shadow-[0_0_30px_rgba(107,168,107,0.15)] animate-glow-pulse-copilot"
+                >
+                  <svg
+                    className="w-10 h-10 text-[#6ba86b] group-hover:scale-110 transition-transform duration-500 ease-out"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2 3 22h6.5l2.5-7 2.5 7H21L12 2z" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  <span className="font-mono text-sm text-[#f0ece8] text-glow-copilot tracking-wider">
+                    LAUNCH_COPILOT
                     <span className="animate-cursor-blink">_</span>
                   </span>
                 </button>

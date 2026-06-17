@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'node:path';
 import { exec } from 'node:child_process';
-import { scanWorkspace, readDirectoryTree, readClaudeGithubTree, readFileContent, writeFileContent } from './services/filesystem';
+import { scanWorkspace, readDirectoryTree, readClaudeGithubTree, readFileContent, writeFileContent, deleteEntry } from './services/filesystem';
 import { getGitBranch } from './services/git';
 import { loadSettings, saveSettings } from './services/settings';
 import type { Settings } from './services/settings';
@@ -116,9 +116,22 @@ function registerIpcHandlers(): void {
     writeFileContent(filePath, content);
   });
 
+  ipcMain.handle('delete-file', async (_event, filePath: string) => {
+    const settings = loadSettings();
+    const resolved = path.resolve(filePath);
+    const workspaceRoot = path.resolve(settings.workspacePath);
+    const plansRoot = path.resolve(settings.plansPath);
+    const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
+    const inPlans = plansRoot && resolved.startsWith(plansRoot);
+    if (!inWorkspace && !inPlans) {
+      throw new Error('PATH_TRAVERSAL');
+    }
+    deleteEntry(filePath);
+  });
+
   // PTY handlers — polling-based (no webContents.send, sandbox-compatible)
-  ipcMain.handle('pty-spawn', async (_event, tabId: string, projectPath: string) => {
-    ptyManager.spawn(tabId, projectPath);
+  ipcMain.handle('pty-spawn', async (_event, tabId: string, projectPath: string, command?: string) => {
+    ptyManager.spawn(tabId, projectPath, command);
   });
 
   ipcMain.handle('pty-read', async (_event, tabId: string) => {

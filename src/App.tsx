@@ -28,6 +28,7 @@ function App() {
   const [workspacePath, setWorkspacePath] = useState('C:\\Workspace');
   const [plansPath, setPlansPath] = useState('');
   const [configOpen, setConfigOpen] = useState(false);
+  const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
   useEffect(() => {
     window.electronAPI.getSettings().then((s) => {
@@ -64,12 +65,12 @@ function App() {
     openTodoTab();
   };
 
-  const handleOpenTab = (project: Project, title: string) => {
-    openTab(project, title);
+  const handleOpenTab = (project: Project, title: string, command?: string) => {
+    openTab(project, title, command);
   };
 
-  const handleForceOpenTab = (project: Project, title: string) => {
-    forceOpenTab(project, title);
+  const handleForceOpenTab = (project: Project, title: string, command?: string) => {
+    forceOpenTab(project, title, command);
   };
 
   const handleFileOpen = async (filePath: string) => {
@@ -92,6 +93,34 @@ function App() {
     markTabDirty(tabId, isDirty);
   };
 
+  const handleDeleteFile = async (filePath: string) => {
+    try {
+      await window.electronAPI.deleteFile(filePath);
+
+      // Close any open tabs whose file is the deleted entry or inside a deleted directory
+      const normalizedDeleted = filePath.replace(/\\/g, '/');
+      const tabsToClose = tabs.filter((t) => {
+        if (!t.filePath) return false;
+        const normalizedTab = t.filePath.replace(/\\/g, '/');
+        return normalizedTab === normalizedDeleted || normalizedTab.startsWith(normalizedDeleted + '/');
+      });
+
+      for (const tab of tabsToClose) {
+        await closeTab(tab.id);
+      }
+
+      // Refresh the project list to trigger tree re-reading
+      refresh();
+      setTreeRefreshKey((k) => k + 1);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete file';
+      console.error('Delete failed:', message);
+      // Tree may be stale — refresh to resync with filesystem
+      refresh();
+      setTreeRefreshKey((k) => k + 1);
+    }
+  };
+
   const openTabPaths = new Set(tabs.map((t) => t.projectPath));
 
   return (
@@ -112,11 +141,13 @@ function App() {
           selectedPath={selectedProject?.path ?? null}
           openTabPaths={openTabPaths}
           plansPath={plansPath}
+          treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
           onRefresh={refresh}
           onConfig={handleOpenConfig}
           onOpenTodos={handleOpenTodos}
           onFileClick={handleFileOpen}
+          onDeleteFile={handleDeleteFile}
         />
 
         {/* Main panel */}

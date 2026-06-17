@@ -8,7 +8,7 @@ interface UseProjectTreeReturn {
   refresh: () => Promise<void>;
 }
 
-export function useProjectTree(projectPath: string | null): UseProjectTreeReturn {
+export function useProjectTree(projectPath: string | null, refreshKey?: number): UseProjectTreeReturn {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export function useProjectTree(projectPath: string | null): UseProjectTreeReturn
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, refreshKey]);
 
   return { tree, loading, error, refresh };
 }

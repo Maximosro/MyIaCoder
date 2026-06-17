@@ -10,6 +10,8 @@ export interface Tab {
   projectName: string;
   projectPath: string;
   title: string;
+  /** CLI command launched in this terminal tab (e.g. 'claude', 'copilot'). Used for accent coloring. */
+  command?: string;
   // File-specific fields
   filePath?: string;
   fileType?: FileType;

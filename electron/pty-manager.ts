@@ -14,7 +14,7 @@ interface PTYSession {
 export class PTYManager {
   private sessions = new Map<string, PTYSession>();
 
-  spawn(tabId: string, projectPath: string): void {
+  spawn(tabId: string, projectPath: string, command: string = 'claude'): void {
     this.kill(tabId);
 
     const pty = nodePty.spawn('cmd.exe', [], {
@@ -41,8 +41,8 @@ export class PTYManager {
       session.buffer.push(`\r\n\x1b[33mProcess exited with code ${exitCode ?? -1}\x1b[0m\r\n`);
     });
 
-    // Type "claude" and press enter — exactly like the user would
-    pty.write('claude\r\n');
+    // Type the command and press enter — exactly like the user would
+    pty.write(`${command}\r\n`);
   }
 
   /** Read and clear buffered data for a tab. Called by renderer via polling. */
