@@ -5,12 +5,14 @@ import path from 'node:path';
 export interface Settings {
   workspacePath: string;
   plansPath: string;
+  skillsPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 
 const DEFAULTS: Settings = {
   workspacePath: 'C:\\Workspace',
   plansPath: 'C:\\Users\\Rothar\\.claude\\plans',
+  skillsPath: 'C:\\Users\\Rothar\\.claude\\skills',
   theme: 'system',
 };
 

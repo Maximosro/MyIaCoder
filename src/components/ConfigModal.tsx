@@ -5,13 +5,15 @@ interface ConfigModalProps {
   open: boolean;
   workspacePath: string;
   plansPath: string;
+  skillsPath: string;
   onClose: () => void;
-  onSave: (workspacePath: string, plansPath: string) => void;
+  onSave: (workspacePath: string, plansPath: string, skillsPath: string) => void;
 }
 
-export function ConfigModal({ open, workspacePath, plansPath, onClose, onSave }: ConfigModalProps) {
+export function ConfigModal({ open, workspacePath, plansPath, skillsPath, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
+  const [sp, setSp] = useState(skillsPath);
   const [saving, setSaving] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -19,8 +21,9 @@ export function ConfigModal({ open, workspacePath, plansPath, onClose, onSave }:
     if (open) {
       setWp(workspacePath);
       setPp(plansPath);
+      setSp(skillsPath);
     }
-  }, [open, workspacePath, plansPath]);
+  }, [open, workspacePath, plansPath, skillsPath]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -42,10 +45,15 @@ export function ConfigModal({ open, workspacePath, plansPath, onClose, onSave }:
     if (folder) setPp(folder);
   };
 
+  const handleBrowseSkills = async () => {
+    const folder = await window.electronAPI.pickFolder('Select Skills Folder');
+    if (folder) setSp(folder);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(wp, pp);
+      await onSave(wp, pp, sp);
       onClose();
     } finally {
       setSaving(false);
@@ -132,6 +140,33 @@ export function ConfigModal({ open, workspacePath, plansPath, onClose, onSave }:
             </div>
             <p className="text-[10px] text-[#4a2a1a] font-mono">
               Folder containing .claude/plans structure for the plans tree
+            </p>
+          </div>
+
+          {/* Skills Path */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+              Skills Path
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={sp}
+                onChange={(e) => setSp(e.target.value)}
+                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                placeholder="C:\Users\...\.claude\skills"
+                spellCheck={false}
+              />
+              <button
+                onClick={handleBrowseSkills}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                BROWSE
+              </button>
+            </div>
+            <p className="text-[10px] text-[#4a2a1a] font-mono">
+              Folder containing .claude/skills structure for the skills tree
             </p>
           </div>
         </div>

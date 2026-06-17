@@ -4,6 +4,7 @@ import { TerminalTabComponent } from './TerminalTab';
 import { FileEditor } from './FileEditor';
 import { DiffViewer } from './DiffViewer';
 import { UnsavedDialog } from './UnsavedDialog';
+import { TodoKanban } from './TodoKanban';
 import type { Tab } from '../types/terminal';
 import { isFileTab, isTodoTab, isDiffTab, getTabColorClass } from '../types/terminal';
 import type { Project } from '../types/project';
@@ -213,15 +214,7 @@ export function TerminalPanel({
             className={tab.id === activeTabId ? 'absolute inset-0' : 'hidden'}
           >
             {isTodoTab(tab) ? (
-              <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
-                <ClipboardList className="w-16 h-16 text-[#d4a44a]/30" />
-                <p className="text-2xl font-mono text-[#d4a44a] tracking-widest animate-pulse">
-                  PROXIMAMENTE
-                </p>
-                <p className="text-xs font-mono text-[#8b5a3c] tracking-wider max-w-md">
-                  Kanban board · Gestión de tareas · ToDos
-                </p>
-              </div>
+              <TodoKanban />
             ) : isDiffTab(tab) ? (
               <DiffViewer
                 fileName={tab.title.replace(' (diff)', '')}

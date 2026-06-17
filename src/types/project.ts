@@ -28,6 +28,7 @@ export interface GitChangesResult {
 export interface Settings {
   workspacePath: string;
   plansPath: string;
+  skillsPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 

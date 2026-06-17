@@ -2,9 +2,11 @@ import { RefreshCw, FolderOpen, ArrowLeft, ChevronRight, FolderGit2 } from 'luci
 import { useState } from 'react';
 import type { Project } from '../types/project';
 import { ProjectItem } from './ProjectItem';
-import { RpiPlansTree, TreeNodeItem } from './RpiPlansTree';
+import { TreeNodeItem } from './RpiPlansTree';
+import { RpiPanelTabs } from './RpiPanelTabs';
 import { GitChangesTree } from './GitChangesTree';
 import { usePlansTree } from '../hooks/usePlansTree';
+import { useSkillsTree } from '../hooks/useSkillsTree';
 import { useProjectTree } from '../hooks/useProjectTree';
 
 interface SidebarProps {
@@ -14,6 +16,7 @@ interface SidebarProps {
   selectedPath: string | null;
   openTabPaths: Set<string>;
   plansPath: string;
+  skillsPath: string;
   treeRefreshKey: number;
   onSelectProject: (project: Project) => void;
   onRefresh: () => void;
@@ -32,6 +35,7 @@ export function Sidebar({
   selectedPath,
   openTabPaths,
   plansPath,
+  skillsPath,
   treeRefreshKey,
   onSelectProject,
   onRefresh,
@@ -43,6 +47,7 @@ export function Sidebar({
   onOpenDiff,
 }: SidebarProps) {
   const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath, treeRefreshKey);
+  const { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: refreshSkills } = useSkillsTree(treeRefreshKey);
   const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath, treeRefreshKey);
   const [claudeExpanded, setClaudeExpanded] = useState(true);
 
@@ -189,13 +194,17 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* RPI Plans tree — always visible below project list */}
-      <RpiPlansTree
-        tree={tree}
-        loading={plansLoading}
-        error={plansError}
+      {/* RPI Panel Tabs — Plans / Skills with shared ToDos */}
+      <RpiPanelTabs
+        plansTree={tree}
+        plansLoading={plansLoading}
+        plansError={plansError}
+        onRefreshPlans={refreshPlans}
+        skillsTree={skillsTree}
+        skillsLoading={skillsLoading}
+        skillsError={skillsError}
+        onRefreshSkills={refreshSkills}
         onOpenTodos={onOpenTodos}
-        onRefresh={refreshPlans}
         onFileClick={onFileClick}
         onDeleteFile={onDeleteFile}
       />

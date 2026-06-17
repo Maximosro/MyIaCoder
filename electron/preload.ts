@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { TreeNode } from './services/filesystem';
+import type { TodoItem } from './services/todos';
 
 export interface Project {
   name: string;
@@ -10,12 +11,14 @@ export interface Project {
 export interface Settings {
   workspacePath: string;
   plansPath: string;
+  skillsPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 
 export interface ElectronAPI {
   listProjects: () => Promise<Project[]>;
   readPlansTree: () => Promise<TreeNode[]>;
+  readSkillsTree: () => Promise<TreeNode[]>;
   readProjectTree: (projectPath: string) => Promise<TreeNode[]>;
   refreshBranch: (projectPath: string) => Promise<string>;
   getGitChanges: (projectPath: string) => Promise<import('./services/git').GitChangesResult>;
@@ -41,11 +44,15 @@ export interface ElectronAPI {
   windowIsMaximized: () => Promise<boolean>;
   windowClose: () => Promise<void>;
   onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
+  // ToDo / Kanban
+  loadTodos: () => Promise<TodoItem[]>;
+  saveTodos: (items: TodoItem[]) => Promise<void>;
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
   listProjects: () => ipcRenderer.invoke('list-projects'),
   readPlansTree: () => ipcRenderer.invoke('read-plans-tree'),
+  readSkillsTree: () => ipcRenderer.invoke('read-skills-tree'),
   readProjectTree: (projectPath: string) => ipcRenderer.invoke('read-project-tree', projectPath),
   refreshBranch: (projectPath: string) => ipcRenderer.invoke('refresh-branch', projectPath),
   getGitChanges: (projectPath: string) => ipcRenderer.invoke('git-changes', projectPath),
@@ -75,4 +82,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window-maximized-changed', handler);
     return () => ipcRenderer.removeListener('window-maximized-changed', handler);
   },
+  // ToDo / Kanban
+  loadTodos: () => ipcRenderer.invoke('load-todos'),
+  saveTodos: (items) => ipcRenderer.invoke('save-todos', items),
 } satisfies ElectronAPI);

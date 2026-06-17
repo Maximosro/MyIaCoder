@@ -4,6 +4,8 @@ import { exec } from 'node:child_process';
 import { scanWorkspace, readDirectoryTree, readClaudeGithubTree, readFileContent, writeFileContent, deleteEntry } from './services/filesystem';
 import { getGitBranch, getGitChanges, getGitDiff, getGitFileVersions } from './services/git';
 import { loadSettings, saveSettings } from './services/settings';
+import { loadTodos, saveTodos } from './services/todos';
+import type { TodoItem } from './services/todos';
 import type { Settings } from './services/settings';
 import { PTYManager } from './pty-manager';
 
@@ -75,6 +77,14 @@ function registerIpcHandlers(): void {
     saveSettings(settings);
   });
 
+  ipcMain.handle('load-todos', async () => {
+    return loadTodos();
+  });
+
+  ipcMain.handle('save-todos', async (_event, items: TodoItem[]) => {
+    saveTodos(items);
+  });
+
   ipcMain.handle('pick-workspace', async () => {
     if (!mainWindow) return null;
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -98,6 +108,11 @@ function registerIpcHandlers(): void {
     return readDirectoryTree(settings.plansPath);
   });
 
+  ipcMain.handle('read-skills-tree', async () => {
+    const settings = loadSettings();
+    return readDirectoryTree(settings.skillsPath);
+  });
+
   ipcMain.handle('read-project-tree', async (_event, projectPath: string) => {
     return readClaudeGithubTree(projectPath);
   });
@@ -107,9 +122,11 @@ function registerIpcHandlers(): void {
     const resolved = path.resolve(filePath);
     const workspaceRoot = path.resolve(settings.workspacePath);
     const plansRoot = path.resolve(settings.plansPath);
+    const skillsRoot = path.resolve(settings.skillsPath);
     const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
     const inPlans = plansRoot && resolved.startsWith(plansRoot);
-    if (!inWorkspace && !inPlans) {
+    const inSkills = skillsRoot && resolved.startsWith(skillsRoot);
+    if (!inWorkspace && !inPlans && !inSkills) {
       throw new Error('PATH_TRAVERSAL');
     }
     return readFileContent(filePath);
@@ -120,9 +137,11 @@ function registerIpcHandlers(): void {
     const resolved = path.resolve(filePath);
     const workspaceRoot = path.resolve(settings.workspacePath);
     const plansRoot = path.resolve(settings.plansPath);
+    const skillsRoot = path.resolve(settings.skillsPath);
     const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
     const inPlans = plansRoot && resolved.startsWith(plansRoot);
-    if (!inWorkspace && !inPlans) {
+    const inSkills = skillsRoot && resolved.startsWith(skillsRoot);
+    if (!inWorkspace && !inPlans && !inSkills) {
       throw new Error('PATH_TRAVERSAL');
     }
     writeFileContent(filePath, content);
@@ -133,9 +152,11 @@ function registerIpcHandlers(): void {
     const resolved = path.resolve(filePath);
     const workspaceRoot = path.resolve(settings.workspacePath);
     const plansRoot = path.resolve(settings.plansPath);
+    const skillsRoot = path.resolve(settings.skillsPath);
     const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
     const inPlans = plansRoot && resolved.startsWith(plansRoot);
-    if (!inWorkspace && !inPlans) {
+    const inSkills = skillsRoot && resolved.startsWith(skillsRoot);
+    if (!inWorkspace && !inPlans && !inSkills) {
       throw new Error('PATH_TRAVERSAL');
     }
     deleteEntry(filePath);

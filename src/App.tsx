@@ -30,6 +30,7 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [workspacePath, setWorkspacePath] = useState('C:\\Workspace');
   const [plansPath, setPlansPath] = useState('');
+  const [skillsPath, setSkillsPath] = useState('');
   const [configOpen, setConfigOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
@@ -37,8 +38,9 @@ function App() {
     window.electronAPI.getSettings().then((s) => {
       setWorkspacePath(s.workspacePath);
       setPlansPath(s.plansPath);
+      setSkillsPath(s.skillsPath || '');
     });
-  }, [projects]);
+  }, []);
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
@@ -67,15 +69,17 @@ function App() {
     setConfigOpen(true);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string) => {
     const currentSettings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({
       ...currentSettings,
       workspacePath: newWorkspacePath,
       plansPath: newPlansPath,
+      skillsPath: newSkillsPath,
     });
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
+    setSkillsPath(newSkillsPath);
     refresh();
   };
 
@@ -161,6 +165,7 @@ function App() {
           selectedPath={selectedProject?.path ?? null}
           openTabPaths={openTabPaths}
           plansPath={plansPath}
+          skillsPath={skillsPath}
           treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
           onRefresh={refresh}
@@ -221,6 +226,7 @@ function App() {
           open={configOpen}
           workspacePath={workspacePath}
           plansPath={plansPath}
+          skillsPath={skillsPath}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
         />
