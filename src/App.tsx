@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
+import { GitChangesPanel } from './components/GitChangesPanel';
 import { StatusBar } from './components/StatusBar';
 import { ConfigModal } from './components/ConfigModal';
 import { TitleBar } from './components/TitleBar';
+import { ProjectInfo } from './components/ProjectInfo';
 import { useProjects } from './hooks/useProjects';
 import { useTabs } from './hooks/useTabs';
 import type { Project } from './types/project';
@@ -16,6 +18,7 @@ function App() {
     openTab,
     forceOpenTab,
     openFileTab,
+    openDiffTab,
     closeTab,
     setActiveTab,
     saveFileTab,
@@ -43,6 +46,21 @@ function App() {
     if (existingTab) {
       setActiveTab(existingTab.id);
     }
+  };
+
+  const handleBackToProjects = () => {
+    setSelectedProject(null);
+  };
+
+  const handleLaunchVscode = () => {
+    if (selectedProject) {
+      window.electronAPI.launchVscode(selectedProject.path);
+    }
+  };
+
+  const handleOpenDiff = async (filePath: string) => {
+    if (!selectedProject) return;
+    await openDiffTab(selectedProject, filePath);
   };
 
   const handleOpenConfig = () => {
@@ -122,6 +140,8 @@ function App() {
   };
 
   const openTabPaths = new Set(tabs.map((t) => t.projectPath));
+  const showGitPanel = selectedProject !== null && tabs.length === 0;
+  const showTerminalPanel = tabs.length > 0;
 
   return (
     <div className="flex flex-col h-screen bg-[#050505] text-[#f0ece8] relative overflow-hidden">
@@ -144,27 +164,51 @@ function App() {
           treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
           onRefresh={refresh}
+          onBack={handleBackToProjects}
           onConfig={handleOpenConfig}
           onOpenTodos={handleOpenTodos}
           onFileClick={handleFileOpen}
           onDeleteFile={handleDeleteFile}
+          onOpenDiff={handleOpenDiff}
         />
 
         {/* Main panel */}
         <main className="flex-1 flex flex-col min-w-0 relative z-10">
-          {/* Terminal area — full height */}
-          <TerminalPanel
-            tabs={tabs}
-            activeTabId={activeTabId}
-            activeProject={selectedProject}
-            onOpenTab={handleOpenTab}
-            onForceOpenTab={handleForceOpenTab}
-            onCloseTab={closeTab}
-            onSelectTab={setActiveTab}
-            onSaveFile={handleSaveFile}
-            onFileDirtyChange={handleFileDirtyChange}
-            getFileContent={getFileContent}
-          />
+          {/* No project selected, no tabs: welcome */}
+          {!selectedProject && tabs.length === 0 && (
+            <div className="flex-1 flex items-center justify-center">
+              <ProjectInfo project={null} />
+            </div>
+          )}
+
+          {/* Project selected, no tabs: Git changes view */}
+          {showGitPanel && selectedProject && (
+            <GitChangesPanel
+              project={selectedProject}
+              onOpenTab={handleOpenTab}
+              onForceOpenTab={handleForceOpenTab}
+              onLaunchVscode={handleLaunchVscode}
+              onRefresh={() => setTreeRefreshKey((k) => k + 1)}
+              refreshKey={treeRefreshKey}
+              onOpenDiff={handleOpenDiff}
+            />
+          )}
+
+          {/* Tabs open: Terminal panel */}
+          {showTerminalPanel && (
+            <TerminalPanel
+              tabs={tabs}
+              activeTabId={activeTabId}
+              activeProject={selectedProject}
+              onOpenTab={handleOpenTab}
+              onForceOpenTab={handleForceOpenTab}
+              onCloseTab={closeTab}
+              onSelectTab={setActiveTab}
+              onSaveFile={handleSaveFile}
+              onFileDirtyChange={handleFileDirtyChange}
+              getFileContent={getFileContent}
+            />
+          )}
 
           <StatusBar
             workspacePath={workspacePath}

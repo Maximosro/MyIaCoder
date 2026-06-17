@@ -1,6 +1,6 @@
 // ── Tab type system ──────────────────────────────────────────────
 
-export type TabKind = 'terminal' | 'file' | 'todo';
+export type TabKind = 'terminal' | 'file' | 'diff' | 'todo';
 
 export type FileType = 'text' | 'json' | 'markdown';
 
@@ -16,6 +16,8 @@ export interface Tab {
   filePath?: string;
   fileType?: FileType;
   isDirty?: boolean;
+  // Diff-specific fields
+  diffContent?: string;
 }
 
 /** @deprecated Use Tab instead. Kept for backward compatibility. */
@@ -33,6 +35,10 @@ export function isTerminalTab(tab: Tab): tab is Tab & { kind: 'terminal' } {
 
 export function isTodoTab(tab: Tab): tab is Tab & { kind: 'todo' } {
   return tab.kind === 'todo';
+}
+
+export function isDiffTab(tab: Tab): tab is Tab & { kind: 'diff'; filePath: string; diffContent: string } {
+  return tab.kind === 'diff';
 }
 
 // ── File type helpers ────────────────────────────────────────────

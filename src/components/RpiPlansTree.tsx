@@ -13,7 +13,7 @@ interface RpiPlansTreeProps {
   onDeleteFile?: (filePath: string) => void;
 }
 
-interface TreeNodeItemProps {
+export interface TreeNodeItemProps {
   node: TreeNode;
   depth: number;
   onFileClick?: (filePath: string) => void;

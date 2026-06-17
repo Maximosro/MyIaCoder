@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { scanWorkspace, readDirectoryTree, readClaudeGithubTree, readFileContent, writeFileContent, deleteEntry } from './services/filesystem';
-import { getGitBranch } from './services/git';
+import { getGitBranch, getGitChanges, getGitDiff, getGitFileVersions } from './services/git';
 import { loadSettings, saveSettings } from './services/settings';
 import type { Settings } from './services/settings';
 import { PTYManager } from './pty-manager';
@@ -55,6 +55,18 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('refresh-branch', async (_event, projectPath: string) => {
     return getGitBranch(projectPath);
+  });
+
+  ipcMain.handle('git-changes', async (_event, projectPath: string) => {
+    return getGitChanges(projectPath);
+  });
+
+  ipcMain.handle('git-diff', async (_event, projectPath: string, filePath: string) => {
+    return getGitDiff(projectPath, filePath);
+  });
+
+  ipcMain.handle('git-file-versions', async (_event, projectPath: string, filePath: string) => {
+    return getGitFileVersions(projectPath, filePath);
   });
 
   ipcMain.handle('get-settings', async () => loadSettings());

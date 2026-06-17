@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Project } from '../types/project';
 import type { Tab } from '../types/terminal';
-import { getFileType, isFileTab } from '../types/terminal';
+import { getFileType, isFileTab, isDiffTab } from '../types/terminal';
 
 function generateTabId(): string {
   return crypto.randomUUID();
@@ -17,6 +17,7 @@ interface UseTabsReturn {
   openTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   forceOpenTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   openFileTab: (project: Project, filePath: string) => Promise<string>;
+  openDiffTab: (project: Project, filePath: string) => Promise<string>;
   openTodoTab: () => void;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
   setActiveTab: (tabId: string) => void;
@@ -118,6 +119,48 @@ export function useTabs(): UseTabsReturn {
     return tabId;
   }, [tabs]);
 
+  // ── Diff tabs ──────────────────────────────────────────────
+
+  const openDiffTab = useCallback(async (project: Project, filePath: string): Promise<string> => {
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
+
+    // Check if already open
+    const existing = tabs.find((t) => isDiffTab(t) && t.filePath === filePath);
+    if (existing) {
+      setActiveTabId(existing.id);
+      return existing.id;
+    }
+
+    const tabId = generateTabId();
+
+    // Get diff content via IPC
+    let diffContent = '';
+    try {
+      diffContent = await window.electronAPI.getGitDiff(project.path, filePath);
+    } catch {
+      diffContent = `# Error: Unable to load diff for ${filePath}`;
+    }
+
+    const newTab: Tab = {
+      id: tabId,
+      kind: 'diff',
+      projectName: project.name,
+      projectPath: project.path,
+      title: `${fileName} (diff)`,
+      filePath,
+      fileType: 'text',
+      diffContent,
+      isDirty: false,
+    };
+
+    fileContentsRef.current.set(tabId, diffContent);
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(tabId);
+
+    return tabId;
+  }, [tabs]);
+
   const saveFileTab = useCallback(async (tabId: string, content: string) => {
     const tab = tabs.find((t) => t.id === tabId);
     if (!tab || !isFileTab(tab)) return;
@@ -181,8 +224,8 @@ export function useTabs(): UseTabsReturn {
       await window.electronAPI.ptyKill(tabId);
     }
 
-    // File cleanup
-    if (isFileTab(tab)) {
+    // File/diff cleanup
+    if (isFileTab(tab) || isDiffTab(tab)) {
       fileContentsRef.current.delete(tabId);
     }
 
@@ -209,6 +252,7 @@ export function useTabs(): UseTabsReturn {
     openTerminalTab,
     forceOpenTerminalTab,
     openFileTab,
+    openDiffTab,
     openTodoTab,
     closeTab,
     setActiveTab,

@@ -18,6 +18,9 @@ export interface ElectronAPI {
   readPlansTree: () => Promise<TreeNode[]>;
   readProjectTree: (projectPath: string) => Promise<TreeNode[]>;
   refreshBranch: (projectPath: string) => Promise<string>;
+  getGitChanges: (projectPath: string) => Promise<import('./services/git').GitChangesResult>;
+  getGitDiff: (projectPath: string, filePath: string) => Promise<string>;
+  getGitFileVersions: (projectPath: string, filePath: string) => Promise<import('./services/git').GitFileVersions>;
   readFileContent: (filePath: string) => Promise<string>;
   writeFileContent: (filePath: string, content: string) => Promise<void>;
   deleteFile: (filePath: string) => Promise<void>;
@@ -45,6 +48,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readPlansTree: () => ipcRenderer.invoke('read-plans-tree'),
   readProjectTree: (projectPath: string) => ipcRenderer.invoke('read-project-tree', projectPath),
   refreshBranch: (projectPath: string) => ipcRenderer.invoke('refresh-branch', projectPath),
+  getGitChanges: (projectPath: string) => ipcRenderer.invoke('git-changes', projectPath),
+  getGitDiff: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-diff', projectPath, filePath),
+  getGitFileVersions: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-file-versions', projectPath, filePath),
   readFileContent: (filePath: string) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
   deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),

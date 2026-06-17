@@ -143,6 +143,16 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes slideExpand {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 2000px; }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Utility Classes ────────────────────────────────────── */
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out;
@@ -154,6 +164,10 @@ body {
 
 .animate-scale-in {
   animation: scaleIn 0.25s ease-out;
+}
+
+.animate-fade-slide-in {
+  animation: fadeSlideIn 0.3s ease-out;
 }
 
 .animate-glow-pulse {
@@ -219,6 +233,11 @@ body {
 
 .shimmer-surface:hover {
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Slide expand (tree reveal animation) ─────────────── */
+.slide-expand {
+  animation: fadeSlideIn 0.3s ease-out;
 }
 
 /* ── Warm ambient background (App.tsx) ──────────────────── */

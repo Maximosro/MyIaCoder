@@ -11,6 +11,20 @@ export interface TreeNode {
   children?: TreeNode[];
 }
 
+/** Represents a single file change detected by git. */
+export interface GitChange {
+  status: 'M' | 'A' | 'D' | 'R' | '??' | 'MM' | 'AM' | 'RM';
+  file: string;
+  oldFile?: string;
+}
+
+/** Result of querying git for current branch changes. */
+export interface GitChangesResult {
+  branch: string;
+  changes: GitChange[];
+  error?: string;
+}
+
 export interface Settings {
   workspacePath: string;
   plansPath: string;

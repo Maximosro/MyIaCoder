@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal, X, Plus, FileText, Code2, ClipboardList } from 'lucide-react';
+import { Terminal, X, Plus, FileText, Code2, ClipboardList, GitCompare } from 'lucide-react';
 import { TerminalTabComponent } from './TerminalTab';
 import { FileEditor } from './FileEditor';
+import { DiffViewer } from './DiffViewer';
 import { UnsavedDialog } from './UnsavedDialog';
 import type { Tab } from '../types/terminal';
-import { isFileTab, isTodoTab, getTabColorClass } from '../types/terminal';
+import { isFileTab, isTodoTab, isDiffTab, getTabColorClass } from '../types/terminal';
 import type { Project } from '../types/project';
 
 interface TerminalPanelProps {
@@ -97,7 +98,7 @@ export function TerminalPanel({
 
   // Close tab with unsaved changes check for file tabs
   const handleCloseTab = (tab: Tab) => {
-    if (isFileTab(tab) && tab.isDirty) {
+    if ((isFileTab(tab) || isDiffTab(tab)) && tab.isDirty) {
       setUnsavedDialog({ open: true, tabId: tab.id, fileName: tab.title });
     } else {
       onCloseTab(tab.id);
@@ -125,24 +126,29 @@ export function TerminalPanel({
         <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto">
           {tabs.map((tab) => {
             const file = isFileTab(tab);
+            const diff = isDiffTab(tab);
             const todo = isTodoTab(tab);
             const isActive = tab.id === activeTabId;
 
-            // Accent colors: terminal = copper, copilot = emerald, files = type-dependent, todo = amber
+            // Accent colors: terminal = copper, copilot = emerald, diff = amber, files = type-dependent, todo = amber
             const accentBorder = todo
               ? 'border-[#d4a44a]'
-              : file
-                ? getTabColorClass(tab.fileType).split(' ')[0]
-                : tab.command === 'copilot'
-                  ? 'border-[#6ba86b]'
-                  : 'border-[#d4784a]';
+              : diff
+                ? 'border-[#d4a44a]'
+                : file
+                  ? getTabColorClass(tab.fileType).split(' ')[0]
+                  : tab.command === 'copilot'
+                    ? 'border-[#6ba86b]'
+                    : 'border-[#d4784a]';
             const accentText = todo
               ? 'text-[#d4a44a]'
-              : file
-                ? getTabColorClass(tab.fileType).split(' ')[1]
-                : tab.command === 'copilot'
-                  ? 'text-[#6ba86b]'
-                  : 'text-[#d4784a]';
+              : diff
+                ? 'text-[#d4a44a]'
+                : file
+                  ? getTabColorClass(tab.fileType).split(' ')[1]
+                  : tab.command === 'copilot'
+                    ? 'text-[#6ba86b]'
+                    : 'text-[#d4784a]';
 
             const activeClass = isActive
               ? `${accentBorder} ${accentText}`
@@ -157,6 +163,8 @@ export function TerminalPanel({
                 {/* Icon */}
                 {todo ? (
                   <ClipboardList className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
+                ) : diff ? (
+                  <GitCompare className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
                 ) : file ? (
                   <FileText className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
                 ) : (
@@ -214,6 +222,12 @@ export function TerminalPanel({
                   Kanban board · Gestión de tareas · ToDos
                 </p>
               </div>
+            ) : isDiffTab(tab) ? (
+              <DiffViewer
+                fileName={tab.title.replace(' (diff)', '')}
+                projectPath={tab.projectPath}
+                filePath={tab.filePath}
+              />
             ) : isFileTab(tab) ? (
               <FileEditor
                 tab={tab}
