@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   Terminal,
   RefreshCw,
@@ -85,8 +85,47 @@ export function GitChangesPanel({
 
   const grouped = useMemo(() => groupChanges(changes), [changes]);
 
-  const handleLaunchClaude = () => onOpenTab(project, project.name);
-  const handleLaunchCopilot = () => onOpenTab(project, project.name, 'copilot');
+  // Name prompt state — shared by CLAUDE and COPILOT launch buttons
+  const [promptVisible, setPromptVisible] = useState(false);
+  const [promptValue, setPromptValue] = useState('');
+  const [promptAction, setPromptAction] = useState<'open' | 'force'>('open');
+  const [pendingCommand, setPendingCommand] = useState<string | undefined>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (promptVisible && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [promptVisible]);
+
+  const handleLaunchClaude = () => {
+    setPromptValue(project.name);
+    setPromptAction('open');
+    setPendingCommand('claude');
+    setPromptVisible(true);
+  };
+
+  const handleLaunchCopilot = () => {
+    setPromptValue(project.name);
+    setPromptAction('force');
+    setPendingCommand('copilot');
+    setPromptVisible(true);
+  };
+
+  const submitPrompt = () => {
+    const title = promptValue.trim() || project.name;
+    setPromptVisible(false);
+    if (promptAction === 'force') {
+      onForceOpenTab(project, title, pendingCommand);
+    } else {
+      onOpenTab(project, title, pendingCommand);
+    }
+  };
+
+  const cancelPrompt = () => {
+    setPromptVisible(false);
+  };
 
   const handleRefresh = () => {
     refresh();
@@ -94,7 +133,7 @@ export function GitChangesPanel({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-slide-in">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-slide-in relative">
       {/* Header */}
       <div className="px-6 py-4 border-b border-[#1f1a15] flex items-center gap-4 flex-shrink-0">
         <FolderGit2 className="w-5 h-5 text-[#d4784a] flex-shrink-0" />
@@ -274,6 +313,44 @@ export function GitChangesPanel({
           <span className="text-[10px] font-mono text-[#8b5a3c]/40 ml-auto">
             {branch}
           </span>
+        </div>
+      )}
+
+      {/* Name prompt overlay — shown when CLAUDE or COPILOT is clicked */}
+      {promptVisible && (
+        <div className="absolute inset-0 z-20 flex items-start justify-center pt-20 bg-[#050505]/80 backdrop-blur-sm">
+          <div className="bg-[#0a0a0a] border border-[#1f1a15] rounded p-4 w-80 shadow-[0_0_30px_rgba(212,120,74,0.08)] animate-fade-in">
+            <p className="text-[10px] font-mono text-[#8b5a3c] tracking-widest uppercase mb-3">
+              NEW_TERMINAL
+            </p>
+            <input
+              ref={inputRef}
+              type="text"
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitPrompt();
+                if (e.key === 'Escape') cancelPrompt();
+              }}
+              className="w-full bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-sm font-mono text-[#f0ece8] placeholder-[#4a2a1a] outline-none focus:border-[#d4784a]/50 transition-colors"
+              placeholder="Tab title..."
+              spellCheck={false}
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={submitPrompt}
+                className="flex-1 px-3 py-1.5 text-xs rounded bg-[#d4784a] hover:bg-[#e8956a] text-[#050505] font-mono font-semibold transition-colors"
+              >
+                LAUNCH
+              </button>
+              <button
+                onClick={cancelPrompt}
+                className="flex-1 px-3 py-1.5 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#b0a89a] border border-[#1f1a15] font-mono transition-colors"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -19,6 +19,8 @@ function mapFileTypeToLanguage(fileType: FileType): string {
       return 'json';
     case 'markdown':
       return 'markdown';
+    case 'yaml':
+      return 'yaml';
   }
 }
 
@@ -30,6 +32,8 @@ function getFileTypeBadge(fileType: FileType): { label: string; className: strin
       return { label: 'JSON', className: 'bg-[#0a1520] text-[#7b9ec4] border-[#7b9ec4]/30' };
     case 'markdown':
       return { label: 'MD', className: 'bg-[#1a0f0a] text-[#d4784a] border-[#d4784a]/30' };
+    case 'yaml':
+      return { label: 'YAML', className: 'bg-[#1a140a] text-[#d4a44a] border-[#d4a44a]/30' };
   }
 }
 

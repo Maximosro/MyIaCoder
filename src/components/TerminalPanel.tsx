@@ -4,9 +4,10 @@ import { TerminalTabComponent } from './TerminalTab';
 import { FileEditor } from './FileEditor';
 import { DiffViewer } from './DiffViewer';
 import { UnsavedDialog } from './UnsavedDialog';
+import { CloseTerminalDialog } from './CloseTerminalDialog';
 import { TodoKanban } from './TodoKanban';
 import type { Tab } from '../types/terminal';
-import { isFileTab, isTodoTab, isDiffTab, getTabColorClass } from '../types/terminal';
+import { isFileTab, isTodoTab, isDiffTab, isTerminalTab, getTabColorClass } from '../types/terminal';
 import type { Project } from '../types/project';
 
 interface TerminalPanelProps {
@@ -20,6 +21,8 @@ interface TerminalPanelProps {
   onSaveFile?: (tabId: string, content: string) => Promise<void>;
   onFileDirtyChange?: (tabId: string, isDirty: boolean) => void;
   getFileContent?: (tabId: string) => string | undefined;
+  /** Called when a terminal tab receives PTY output. Propagated from App → useTabs.markTabBusy. */
+  onTabActivity?: (tabId: string) => void;
 }
 
 export function TerminalPanel({
@@ -33,6 +36,7 @@ export function TerminalPanel({
   onSaveFile,
   onFileDirtyChange,
   getFileContent,
+  onTabActivity,
 }: TerminalPanelProps) {
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptValue, setPromptValue] = useState('');
@@ -48,6 +52,13 @@ export function TerminalPanel({
     fileName: string;
   }>({ open: false, tabId: '', fileName: '' });
 
+  // Close terminal confirmation dialog state
+  const [closeTerminalDialog, setCloseTerminalDialog] = useState<{
+    open: boolean;
+    tabId: string;
+    tabTitle: string;
+  }>({ open: false, tabId: '', tabTitle: '' });
+
   useEffect(() => {
     if (promptVisible && inputRef.current) {
       inputRef.current.focus();
@@ -55,11 +66,11 @@ export function TerminalPanel({
     }
   }, [promptVisible]);
 
-  const handleLaunch = () => {
+  const handleLaunch = (force = false) => {
     if (!activeProject) return;
     setPromptValue(activeProject.name);
-    setPromptAction('open');
-    setPendingCommand(undefined); // default: claude
+    setPromptAction(force ? 'force' : 'open');
+    setPendingCommand('claude');
     setPromptVisible(true);
   };
 
@@ -68,10 +79,10 @@ export function TerminalPanel({
     window.electronAPI.launchVscode(activeProject.path);
   };
 
-  const handleLaunchCopilot = () => {
+  const handleLaunchCopilot = (force = false) => {
     if (!activeProject) return;
     setPromptValue(activeProject.name);
-    setPromptAction('open');
+    setPromptAction(force ? 'force' : 'open');
     // Store copilot command intent — will be passed when user confirms
     setPendingCommand('copilot');
     setPromptVisible(true);
@@ -97,13 +108,25 @@ export function TerminalPanel({
     setPromptVisible(false);
   };
 
-  // Close tab with unsaved changes check for file tabs
+  // Close tab: terminal tabs show confirmation dialog; file/diff tabs check for unsaved changes
   const handleCloseTab = (tab: Tab) => {
-    if ((isFileTab(tab) || isDiffTab(tab)) && tab.isDirty) {
+    if (isTerminalTab(tab)) {
+      setCloseTerminalDialog({ open: true, tabId: tab.id, tabTitle: tab.title });
+    } else if ((isFileTab(tab) || isDiffTab(tab)) && tab.isDirty) {
       setUnsavedDialog({ open: true, tabId: tab.id, fileName: tab.title });
     } else {
       onCloseTab(tab.id);
     }
+  };
+
+  const handleCloseTerminalConfirm = async () => {
+    const tabId = closeTerminalDialog.tabId;
+    setCloseTerminalDialog({ open: false, tabId: '', tabTitle: '' });
+    await onCloseTab(tabId);
+  };
+
+  const handleCloseTerminalCancel = () => {
+    setCloseTerminalDialog({ open: false, tabId: '', tabTitle: '' });
   };
 
   const handleUnsavedSave = async () => {
@@ -155,11 +178,25 @@ export function TerminalPanel({
               ? `${accentBorder} ${accentText}`
               : `${accentBorder}/30 ${accentText}/70 hover:${accentBorder}/60 hover:${accentText}`;
 
+            // Activity indicator: breathing tab for Claude/Copilot tabs that are busy
+            // Only show on inactive tabs — if the user is already focused on the tab,
+            // they can see terminal output directly.
+            const isAiTab = tab.command === 'claude' || tab.command === 'copilot';
+            const isBusy = isAiTab && tab.busy && !isActive;
+            const busyBorderClass = isBusy ? 'animate-tab-breathing' : '';
+            const busyStyle = isBusy ? {
+              '--busy-color': tab.command === 'copilot' ? '#6ba86b' : '#d4784a',
+              '--busy-color-dim': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.15)' : 'rgba(212, 120, 74, 0.15)',
+              '--busy-bg': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.05)' : 'rgba(212, 120, 74, 0.05)',
+              '--busy-glow': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.07)' : 'rgba(212, 120, 74, 0.07)',
+            } as React.CSSProperties : undefined;
+
             return (
               <div
                 key={tab.id}
                 onClick={() => onSelectTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[220px] min-w-[80px] shrink border-b-2 font-mono ${activeClass}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[220px] min-w-[80px] shrink border-b-2 font-mono ${activeClass} ${busyBorderClass}`}
+                style={busyStyle}
               >
                 {/* Icon */}
                 {todo ? (
@@ -236,6 +273,7 @@ export function TerminalPanel({
               <TerminalTabComponent
                 tab={tab}
                 isActive={tab.id === activeTabId}
+                onActivity={onTabActivity}
               />
             )}
           </div>
@@ -291,7 +329,7 @@ export function TerminalPanel({
                 <button
                   onClick={() => {
                     setShowLaunchOverlay(false);
-                    handleLaunch();
+                    handleLaunch(true);
                   }}
                   className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1f1a15] hover:border-[#d4784a]/40 rounded cursor-pointer
                     transition-all duration-500 hover:scale-[1.02] hover:bg-[#1a0f0a] hover:shadow-[0_0_30px_rgba(212,120,74,0.15)] animate-glow-pulse"
@@ -305,7 +343,7 @@ export function TerminalPanel({
                 <button
                   onClick={() => {
                     setShowLaunchOverlay(false);
-                    handleLaunchCopilot();
+                    handleLaunchCopilot(true);
                   }}
                   className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1a1a0f] hover:border-[#6ba86b]/40 rounded cursor-pointer
                     transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1a0e] hover:shadow-[0_0_30px_rgba(107,168,107,0.15)] animate-glow-pulse-copilot"
@@ -358,7 +396,7 @@ export function TerminalPanel({
             {activeProject ? (
               <div className="flex gap-4">
                 <button
-                  onClick={handleLaunch}
+                  onClick={() => handleLaunch()}
                   className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1f1a15] hover:border-[#d4784a]/40 rounded cursor-pointer
                     transition-all duration-500 hover:scale-[1.02] hover:bg-[#1a0f0a] hover:shadow-[0_0_30px_rgba(212,120,74,0.15)] animate-glow-pulse"
                 >
@@ -369,7 +407,7 @@ export function TerminalPanel({
                   </span>
                 </button>
                 <button
-                  onClick={handleLaunchCopilot}
+                  onClick={() => handleLaunchCopilot()}
                   className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1a1a0f] hover:border-[#6ba86b]/40 rounded cursor-pointer
                     transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1a0e] hover:shadow-[0_0_30px_rgba(107,168,107,0.15)] animate-glow-pulse-copilot"
                 >
@@ -422,6 +460,14 @@ export function TerminalPanel({
         onSave={handleUnsavedSave}
         onDiscard={handleUnsavedDiscard}
         onCancel={handleUnsavedCancel}
+      />
+
+      {/* Close terminal confirmation dialog */}
+      <CloseTerminalDialog
+        open={closeTerminalDialog.open}
+        tabTitle={closeTerminalDialog.tabTitle}
+        onConfirm={handleCloseTerminalConfirm}
+        onCancel={handleCloseTerminalCancel}
       />
     </div>
   );

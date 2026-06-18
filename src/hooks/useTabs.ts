@@ -23,6 +23,8 @@ interface UseTabsReturn {
   setActiveTab: (tabId: string) => void;
   saveFileTab: (tabId: string, content: string) => Promise<void>;
   markTabDirty: (tabId: string, isDirty: boolean) => void;
+  /** Mark a terminal tab as busy (receiving output). Auto-clears after 5s of inactivity. */
+  markTabBusy: (tabId: string) => void;
   getFileContent: (tabId: string) => string | undefined;
 }
 
@@ -30,6 +32,8 @@ export function useTabs(): UseTabsReturn {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const fileContentsRef = useRef<Map<string, string>>(new Map());
+  const busyTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const BUSY_TIMEOUT_MS = 5000;
   const [, setTick] = useState(0); // Force re-render for content updates
 
   // ── Terminal tabs ──────────────────────────────────────────
@@ -180,6 +184,27 @@ export function useTabs(): UseTabsReturn {
     ));
   }, []);
 
+  const markTabBusy = useCallback((tabId: string) => {
+    // Clear existing timer for this tab (resets the 5s countdown)
+    const existing = busyTimersRef.current.get(tabId);
+    if (existing) clearTimeout(existing);
+
+    // Set busy = true
+    setTabs((prev) => prev.map((t) =>
+      t.id === tabId ? { ...t, busy: true } : t
+    ));
+
+    // Schedule auto-clear after BUSY_TIMEOUT_MS of inactivity
+    const timer = setTimeout(() => {
+      busyTimersRef.current.delete(tabId);
+      setTabs((prev) => prev.map((t) =>
+        t.id === tabId ? { ...t, busy: false } : t
+      ));
+    }, BUSY_TIMEOUT_MS);
+
+    busyTimersRef.current.set(tabId, timer);
+  }, []);
+
   const getFileContent = useCallback((tabId: string): string | undefined => {
     return fileContentsRef.current.get(tabId);
   }, []);
@@ -221,6 +246,12 @@ export function useTabs(): UseTabsReturn {
 
     // Terminal cleanup
     if (tab.kind === 'terminal') {
+      // Clear busy timer if present
+      const busyTimer = busyTimersRef.current.get(tabId);
+      if (busyTimer) {
+        clearTimeout(busyTimer);
+        busyTimersRef.current.delete(tabId);
+      }
       await window.electronAPI.ptyKill(tabId);
     }
 
@@ -258,6 +289,7 @@ export function useTabs(): UseTabsReturn {
     setActiveTab,
     saveFileTab,
     markTabDirty,
+    markTabBusy,
     getFileContent,
   };
 }

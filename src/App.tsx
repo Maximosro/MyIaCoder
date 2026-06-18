@@ -25,6 +25,7 @@ function App() {
     markTabDirty,
     getFileContent,
     openTodoTab,
+    markTabBusy,
   } = useTabs();
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -212,6 +213,7 @@ function App() {
               onSaveFile={handleSaveFile}
               onFileDirtyChange={handleFileDirtyChange}
               getFileContent={getFileContent}
+              onTabActivity={markTabBusy}
             />
           )}
 

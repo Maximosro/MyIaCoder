@@ -36,6 +36,18 @@ describe('getFileType', () => {
     expect(getFileType('CHANGELOG.MD')).toBe('markdown');
   });
 
+  it('.yaml → yaml', () => {
+    expect(getFileType('docker-compose.yaml')).toBe('yaml');
+  });
+
+  it('.yml → yaml', () => {
+    expect(getFileType('config.yml')).toBe('yaml');
+  });
+
+  it('.YML → yaml (case insensitive)', () => {
+    expect(getFileType('CONFIG.YML')).toBe('yaml');
+  });
+
   it('.ts → null (unsupported)', () => {
     expect(getFileType('main.ts')).toBeNull();
   });
@@ -67,6 +79,12 @@ describe('getTabColorClass', () => {
     const cls = getTabColorClass('markdown');
     expect(cls).toContain('9b7bc4');
   });
+
+  it('yaml returns amber classes', () => {
+    const cls = getTabColorClass('yaml');
+    expect(cls).toContain('#d4a44a');
+    expect(cls).toContain('border');
+  });
 });
 
 // ── getTabColorHex ────────────────────────────────────────────
@@ -75,6 +93,7 @@ describe('getTabColorHex', () => {
   it('text → #6ba86b', () => expect(getTabColorHex('text')).toBe('#6ba86b'));
   it('json → #7b9ec4', () => expect(getTabColorHex('json')).toBe('#7b9ec4'));
   it('markdown → #d4784a', () => expect(getTabColorHex('markdown')).toBe('#d4784a'));
+  it('yaml → #d4a44a', () => expect(getTabColorHex('yaml')).toBe('#d4a44a'));
 });
 
 // ── Type guards ───────────────────────────────────────────────
@@ -138,13 +157,43 @@ describe('isTerminalTab', () => {
 // ── SUPPORTED_EXTENSIONS ──────────────────────────────────────
 
 describe('SUPPORTED_EXTENSIONS', () => {
-  it('contains .txt, .json, .md', () => {
+  it('contains .txt, .json, .md, .yaml, .yml', () => {
     expect(SUPPORTED_EXTENSIONS.has('.txt')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.json')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.md')).toBe(true);
+    expect(SUPPORTED_EXTENSIONS.has('.yaml')).toBe(true);
+    expect(SUPPORTED_EXTENSIONS.has('.yml')).toBe(true);
   });
 
   it('does not contain .ts', () => {
     expect(SUPPORTED_EXTENSIONS.has('.ts')).toBe(false);
+  });
+});
+
+// ── Tab busy field ────────────────────────────────────────────
+
+describe('Tab busy field', () => {
+  it('accepts busy: true', () => {
+    const tab: Tab = {
+      id: '1',
+      kind: 'terminal',
+      projectName: 'test',
+      projectPath: '/test',
+      title: 'claude',
+      command: 'claude',
+      busy: true,
+    };
+    expect(tab.busy).toBe(true);
+  });
+
+  it('busy defaults to undefined when omitted', () => {
+    const tab: Tab = {
+      id: '1',
+      kind: 'terminal',
+      projectName: 'test',
+      projectPath: '/test',
+      title: 'bash',
+    };
+    expect(tab.busy).toBeUndefined();
   });
 });

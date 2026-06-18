@@ -6,12 +6,18 @@ import type { TerminalTab } from '../types/terminal';
 interface TerminalTabProps {
   tab: TerminalTab;
   isActive: boolean;
+  /** Called when the PTY emits output (non-empty data received from polling).
+   *  Used by parent to track terminal activity for the busy indicator. */
+  onActivity?: (tabId: string) => void;
 }
 
-export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
+export function TerminalTabComponent({ tab, isActive, onActivity }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  // Suppress activity callbacks for a window after resize to avoid false positives
+  // (ptyResize triggers terminal redraw which produces output unrelated to AI activity)
+  const suppressActivityUntilRef = useRef(0);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -81,6 +87,7 @@ export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
       const observer = new ResizeObserver(() => {
         fitAddon.fit();
         if (term.cols > 0 && term.rows > 0) {
+          suppressActivityUntilRef.current = Date.now() + 500;
           window.electronAPI.ptyResize(tab.id, term.cols, term.rows);
         }
       });
@@ -109,6 +116,9 @@ export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
         const data = await window.electronAPI.ptyRead(tab.id);
         if (data && alive) {
           term.write(data);
+          if (Date.now() > suppressActivityUntilRef.current) {
+            onActivity?.(tab.id);
+          }
         }
       } catch {
         // tab might have been killed
@@ -133,12 +143,14 @@ export function TerminalTabComponent({ tab, isActive }: TerminalTabProps) {
         fitAddonRef.current?.fit();
         const term = terminalRef.current;
         if (term && term.cols > 0 && term.rows > 0) {
+          suppressActivityUntilRef.current = Date.now() + 500;
           window.electronAPI.ptyResize(tab.id, term.cols, term.rows);
         }
         // Second refit to catch any layout settling
         setTimeout(() => {
           fitAddonRef.current?.fit();
           if (term && term.cols > 0 && term.rows > 0) {
+            suppressActivityUntilRef.current = Date.now() + 500;
             window.electronAPI.ptyResize(tab.id, term.cols, term.rows);
           }
         }, 100);

@@ -2,7 +2,7 @@
 
 export type TabKind = 'terminal' | 'file' | 'diff' | 'todo';
 
-export type FileType = 'text' | 'json' | 'markdown';
+export type FileType = 'text' | 'json' | 'markdown' | 'yaml';
 
 export interface Tab {
   id: string;
@@ -16,6 +16,10 @@ export interface Tab {
   filePath?: string;
   fileType?: FileType;
   isDirty?: boolean;
+  /** Whether the terminal tab is currently receiving output.
+   *  Used for the activity indicator (breathing border) on Claude/Copilot tabs.
+   *  Automatically cleared after 5 seconds of inactivity. */
+  busy?: boolean;
   // Diff-specific fields
   diffContent?: string;
 }
@@ -43,7 +47,7 @@ export function isDiffTab(tab: Tab): tab is Tab & { kind: 'diff'; filePath: stri
 
 // ── File type helpers ────────────────────────────────────────────
 
-export const SUPPORTED_EXTENSIONS: ReadonlySet<string> = new Set(['.txt', '.json', '.md']);
+export const SUPPORTED_EXTENSIONS: ReadonlySet<string> = new Set(['.txt', '.json', '.md', '.yaml', '.yml']);
 
 export function getFileType(fileName: string): FileType | null {
   const dotIndex = fileName.lastIndexOf('.');
@@ -56,6 +60,9 @@ export function getFileType(fileName: string): FileType | null {
       return 'json';
     case '.md':
       return 'markdown';
+    case '.yaml':
+    case '.yml':
+      return 'yaml';
     default:
       return null;
   }
@@ -70,6 +77,8 @@ export function getTabColorClass(fileType: FileType): string {
       return 'border-[#7b9ec4] text-[#7b9ec4]';
     case 'markdown':
       return 'border-[#9b7bc4] text-[#9b7bc4]';
+    case 'yaml':
+      return 'border-[#d4a44a] text-[#d4a44a]';
   }
 }
 
@@ -81,6 +90,8 @@ export function getTabColorHex(fileType: FileType): string {
     case 'json':
       return '#7b9ec4';
     case 'markdown':
-      return '#9b7bc4';
+      return '#d4784a';
+    case 'yaml':
+      return '#d4a44a';
   }
 }
