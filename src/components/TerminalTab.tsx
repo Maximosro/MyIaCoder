@@ -55,7 +55,7 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
         allowProposedApi: true,
         allowTransparency: false,
         windowsMode: true,
-        scrollback: 5000,
+        scrollback: 100000,
         tabStopWidth: 4,
       });
 

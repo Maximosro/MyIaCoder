@@ -38,12 +38,6 @@ export function useTabs(): UseTabsReturn {
   // ── Terminal tabs ──────────────────────────────────────────
 
   const openTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
-    const existing = tabs.find((t) => t.kind === 'terminal' && t.projectPath === project.path);
-    if (existing) {
-      setActiveTabId(existing.id);
-      return;
-    }
-
     const tabId = generateTabId();
     const newTab: Tab = {
       id: tabId,
@@ -58,7 +52,7 @@ export function useTabs(): UseTabsReturn {
     setActiveTabId(tabId);
 
     await window.electronAPI.ptySpawn(tabId, project.path, command, title);
-  }, [tabs]);
+  }, []);
 
   const forceOpenTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
     const tabId = generateTabId();

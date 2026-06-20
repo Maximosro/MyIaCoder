@@ -68,11 +68,12 @@ export function useTasks(
   }, [refresh]);
 
   // A CLI process exiting writes nothing to disk, so fs.watch can't see it.
-  // Poll only while a session is shown, to drop tasks shortly after the
-  // terminal closes. Stops itself once nothing is live.
+  // Poll while sessions are shown to drop tasks after the terminal closes.
+  // Also poll at a slower rate when no sessions exist yet, so newly launched
+  // terminals are discovered even if the fs.watch event is missed.
   useEffect(() => {
-    if (sessions.length === 0) return;
-    const id = setInterval(refresh, 4000);
+    const interval = sessions.length === 0 ? 2000 : 4000;
+    const id = setInterval(refresh, interval);
     return () => clearInterval(id);
   }, [sessions.length, refresh]);
 

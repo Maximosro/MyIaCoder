@@ -78,6 +78,11 @@ function SessionNode({ session, label, defaultOpen }: { session: TaskSession; la
                       {task.agentType}
                     </span>
                   )}
+                  {task.kind === 'subagent' && task.model && (
+                    <span className="ml-1 text-[9px] text-[#d4784a]/70 bg-[#1a0f0a] border border-[#d4784a]/20 rounded px-1 py-px align-middle">
+                      {task.model}
+                    </span>
+                  )}
                 </span>
               </div>
             );
@@ -123,13 +128,7 @@ export function TasksTree({ projectPath, refreshKey }: TasksTreeProps) {
   );
 
   let body: React.ReactNode;
-  if (source === 'claude') {
-    body = (
-      <div className="py-2 px-3">
-        <span className="text-[10px] font-mono text-[#d4784a]/70 tracking-wider">Claude tasks — coming soon</span>
-      </div>
-    );
-  } else if (loading && sessions.length === 0) {
+  if (loading && sessions.length === 0) {
     body = (
       <div className="flex items-center gap-2 py-1.5 px-3">
         <RefreshCw className="w-3 h-3 text-[#d4784a] animate-spin" />
@@ -145,7 +144,7 @@ export function TasksTree({ projectPath, refreshKey }: TasksTreeProps) {
   } else if (total === 0) {
     body = (
       <div className="py-2 px-3">
-        <span className="text-[10px] font-mono text-[#8b5a3c] tracking-wider">No active Copilot session</span>
+        <span className="text-[10px] font-mono text-[#8b5a3c] tracking-wider">No active {source} session</span>
       </div>
     );
   } else {

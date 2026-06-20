@@ -1,4 +1,5 @@
 import * as nodePty from 'node-pty';
+import { registerClaudeSession, unregisterClaudeSession } from './services/tasks';
 
 /**
  * Sanitises a tab title for safe use inside a cmd.exe command line.
@@ -16,9 +17,9 @@ function sanitizeSessionName(title: string): string {
  * Other commands (e.g. 'claude') are launched as-is.
  */
 function buildLaunchCommand(command: string, tabId: string, title?: string): string {
-  if (command === 'copilot') {
+  if (command === 'copilot' || command === 'claude') {
     const name = sanitizeSessionName(title ?? '');
-    return `copilot --session-id=${tabId} --name="${name}"`;
+    return `${command} --session-id=${tabId} --name="${name}"`;
   }
   return command;
 }
@@ -66,6 +67,11 @@ export class PTYManager {
 
     // Type the command and press enter — exactly like the user would
     pty.write(`${buildLaunchCommand(command, tabId, title)}\r\n`);
+
+    // Track this session so the task panel can discover its subagents.
+    if (command === 'claude') {
+      registerClaudeSession(tabId);
+    }
   }
 
   /** Read and clear buffered data for a tab. Called by renderer via polling. */
@@ -100,12 +106,14 @@ export class PTYManager {
     if (session) {
       session.pty.kill();
       this.sessions.delete(tabId);
+      unregisterClaudeSession(tabId);
     }
   }
 
   killAll(): void {
-    for (const [, session] of this.sessions) {
+    for (const [tabId, session] of this.sessions) {
       session.pty.kill();
+      unregisterClaudeSession(tabId);
     }
     this.sessions.clear();
   }
