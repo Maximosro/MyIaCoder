@@ -8,6 +8,8 @@ files:
   - dist-electron/**/*
   - package.json
 # node-pty ships N-API prebuilds; skip the from-source rebuild (no VS toolchain).
+# better-sqlite3 prebuilds are Node-ABI only, so build:electron runs the
+# `rebuild:sqlite` script first to fetch the matching Electron-ABI binary.
 npmRebuild: false
 # No auto-update server; skip update metadata generation (latest.yml).
 publish: null
