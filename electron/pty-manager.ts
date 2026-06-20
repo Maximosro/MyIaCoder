@@ -1,5 +1,28 @@
 import * as nodePty from 'node-pty';
 
+/**
+ * Sanitises a tab title for safe use inside a cmd.exe command line.
+ * Keeps only letters, digits, spaces and a few separators — this both prevents
+ * command injection (the title is user input) and avoids quoting headaches.
+ */
+function sanitizeSessionName(title: string): string {
+  return title.replace(/[^\p{L}\p{N} _.\-]/gu, '').trim().slice(0, 60) || 'session';
+}
+
+/**
+ * Builds the CLI launch command. For Copilot, binds the session to the tab's
+ * UUID (`--session-id`) and labels it with the tab title (`--name`), so the
+ * task panel can map each live session back to its terminal tab exactly.
+ * Other commands (e.g. 'claude') are launched as-is.
+ */
+function buildLaunchCommand(command: string, tabId: string, title?: string): string {
+  if (command === 'copilot') {
+    const name = sanitizeSessionName(title ?? '');
+    return `copilot --session-id=${tabId} --name="${name}"`;
+  }
+  return command;
+}
+
 interface PTYSession {
   pty: nodePty.IPty;
   projectPath: string;
@@ -14,7 +37,7 @@ interface PTYSession {
 export class PTYManager {
   private sessions = new Map<string, PTYSession>();
 
-  spawn(tabId: string, projectPath: string, command: string = 'claude'): void {
+  spawn(tabId: string, projectPath: string, command: string = 'claude', title?: string): void {
     this.kill(tabId);
 
     const pty = nodePty.spawn('cmd.exe', [], {
@@ -42,7 +65,7 @@ export class PTYManager {
     });
 
     // Type the command and press enter — exactly like the user would
-    pty.write(`${command}\r\n`);
+    pty.write(`${buildLaunchCommand(command, tabId, title)}\r\n`);
   }
 
   /** Read and clear buffered data for a tab. Called by renderer via polling. */

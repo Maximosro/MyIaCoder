@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
-import { GitChangesPanel } from './components/GitChangesPanel';
-import { StatusBar } from './components/StatusBar';
 import { ConfigModal } from './components/ConfigModal';
 import { TitleBar } from './components/TitleBar';
 import { ProjectInfo } from './components/ProjectInfo';
@@ -24,7 +22,6 @@ function App() {
     saveFileTab,
     markTabDirty,
     getFileContent,
-    openTodoTab,
     markTabBusy,
   } = useTabs();
 
@@ -32,6 +29,7 @@ function App() {
   const [workspacePath, setWorkspacePath] = useState('C:\\Workspace');
   const [plansPath, setPlansPath] = useState('');
   const [skillsPath, setSkillsPath] = useState('');
+  const [promptsPath, setPromptsPath] = useState('');
   const [configOpen, setConfigOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
@@ -40,6 +38,7 @@ function App() {
       setWorkspacePath(s.workspacePath);
       setPlansPath(s.plansPath);
       setSkillsPath(s.skillsPath || '');
+      setPromptsPath(s.promptsPath || '');
     });
   }, []);
 
@@ -70,22 +69,40 @@ function App() {
     setConfigOpen(true);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string) => {
     const currentSettings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({
       ...currentSettings,
       workspacePath: newWorkspacePath,
       plansPath: newPlansPath,
       skillsPath: newSkillsPath,
+      promptsPath: newPromptsPath,
     });
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
     setSkillsPath(newSkillsPath);
+    setPromptsPath(newPromptsPath);
     refresh();
+    setTreeRefreshKey((k) => k + 1);
   };
 
-  const handleOpenTodos = () => {
-    openTodoTab();
+  const handleCreatePrompt = async (rawName: string) => {
+    if (!promptsPath) return;
+    const trimmed = rawName.trim();
+    if (!trimmed) return;
+    const name = /\.md$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+    const sep = promptsPath.includes('\\') ? '\\' : '/';
+    const base = promptsPath.endsWith(sep) ? promptsPath.slice(0, -1) : promptsPath;
+    const filePath = `${base}${sep}${name}`;
+    try {
+      await window.electronAPI.createFile(filePath, '');
+      setTreeRefreshKey((k) => k + 1);
+      await handleFileOpen(filePath);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create prompt';
+      console.error('Create prompt failed:', message);
+      setTreeRefreshKey((k) => k + 1);
+    }
   };
 
   const handleOpenTab = (project: Project, title: string, command?: string) => {
@@ -97,14 +114,15 @@ function App() {
   };
 
   const handleFileOpen = async (filePath: string) => {
-    // Use selected project if available, otherwise derive from file path
+    // Plans/skills files are autonomous: they open in a file tab without
+    // selecting a project (avoids triggering the git panel on a non-repo folder).
+    const sep = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'));
+    const dir = sep >= 0 ? filePath.substring(0, sep) : filePath;
     const project = selectedProject ?? {
-      name: 'plans',
-      path: filePath.substring(0, filePath.lastIndexOf('\\')),
+      name: dir.replace(/\\/g, '/').split('/').pop() || 'file',
+      path: dir,
       branch: '',
     };
-    // Ensure a project is selected so TerminalPanel shows the tab bar
-    if (!selectedProject) setSelectedProject(project);
     await openFileTab(project, filePath);
   };
 
@@ -145,7 +163,6 @@ function App() {
   };
 
   const openTabPaths = new Set(tabs.map((t) => t.projectPath));
-  const showGitPanel = selectedProject !== null && tabs.length === 0;
   const showTerminalPanel = tabs.length > 0;
 
   return (
@@ -167,37 +184,28 @@ function App() {
           openTabPaths={openTabPaths}
           plansPath={plansPath}
           skillsPath={skillsPath}
+          promptsPath={promptsPath}
           treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
           onRefresh={refresh}
           onBack={handleBackToProjects}
           onConfig={handleOpenConfig}
-          onOpenTodos={handleOpenTodos}
           onFileClick={handleFileOpen}
           onDeleteFile={handleDeleteFile}
           onOpenDiff={handleOpenDiff}
+          onCreatePrompt={handleCreatePrompt}
+          onLaunchClaude={() => selectedProject && handleOpenTab(selectedProject, selectedProject.name, 'claude')}
+          onLaunchCopilot={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'copilot')}
+          onLaunchVscode={handleLaunchVscode}
         />
 
         {/* Main panel */}
         <main className="flex-1 flex flex-col min-w-0 relative z-10">
-          {/* No project selected, no tabs: welcome */}
-          {!selectedProject && tabs.length === 0 && (
+          {/* No tabs open: project info / welcome. Git lives in the sidebar. */}
+          {!showTerminalPanel && (
             <div className="flex-1 flex items-center justify-center">
-              <ProjectInfo project={null} />
+              <ProjectInfo project={selectedProject} />
             </div>
-          )}
-
-          {/* Project selected, no tabs: Git changes view */}
-          {showGitPanel && selectedProject && (
-            <GitChangesPanel
-              project={selectedProject}
-              onOpenTab={handleOpenTab}
-              onForceOpenTab={handleForceOpenTab}
-              onLaunchVscode={handleLaunchVscode}
-              onRefresh={() => setTreeRefreshKey((k) => k + 1)}
-              refreshKey={treeRefreshKey}
-              onOpenDiff={handleOpenDiff}
-            />
           )}
 
           {/* Tabs open: Terminal panel */}
@@ -216,11 +224,6 @@ function App() {
               onTabActivity={markTabBusy}
             />
           )}
-
-          <StatusBar
-            workspacePath={workspacePath}
-            selectedProject={selectedProject}
-          />
         </main>
 
         {/* Config Modal */}
@@ -229,6 +232,7 @@ function App() {
           workspacePath={workspacePath}
           plansPath={plansPath}
           skillsPath={skillsPath}
+          promptsPath={promptsPath}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
         />

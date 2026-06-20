@@ -1,18 +1,23 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 export interface Settings {
   workspacePath: string;
   plansPath: string;
   skillsPath: string;
+  promptsPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 
+const HOME = os.homedir();
+
 const DEFAULTS: Settings = {
   workspacePath: 'C:\\Workspace',
-  plansPath: 'C:\\Users\\Rothar\\.claude\\plans',
-  skillsPath: 'C:\\Users\\Rothar\\.claude\\skills',
+  plansPath: path.join(HOME, '.claude', 'plans'),
+  skillsPath: path.join(HOME, '.claude', 'skills'),
+  promptsPath: path.join(HOME, '.claude', 'prompts'),
   theme: 'system',
 };
 

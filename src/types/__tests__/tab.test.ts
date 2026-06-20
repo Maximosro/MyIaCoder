@@ -3,11 +3,10 @@ import {
   getFileType,
   getTabColorClass,
   getTabColorHex,
-  isFileTab,
-  isTerminalTab,
   SUPPORTED_EXTENSIONS,
-} from '../terminal';
-import type { Tab } from '../terminal';
+} from '../../utils/tabUtils';
+import { isFileTab, isTerminalTab } from '../tab';
+import type { Tab } from '../tab';
 
 // ── getFileType ───────────────────────────────────────────────
 

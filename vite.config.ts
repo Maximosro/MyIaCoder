@@ -14,7 +14,7 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ['node-pty'],
+              external: ['node-pty', 'better-sqlite3'],
             },
           },
         },
@@ -32,9 +32,6 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'src'),
     },
-  },
-  optimizeDeps: {
-    include: ['monaco-editor'],
   },
   build: {
     rollupOptions: {

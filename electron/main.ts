@@ -1,16 +1,70 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-import { exec } from 'node:child_process';
-import { scanWorkspace, readDirectoryTree, readClaudeGithubTree, readFileContent, writeFileContent, deleteEntry } from './services/filesystem';
-import { getGitBranch, getGitChanges, getGitDiff, getGitFileVersions } from './services/git';
-import { loadSettings, saveSettings } from './services/settings';
-import { loadTodos, saveTodos } from './services/todos';
-import type { TodoItem } from './services/todos';
-import type { Settings } from './services/settings';
 import { PTYManager } from './pty-manager';
+import { registerFilesystemIpc } from './ipc/filesystem.ipc';
+import { registerGitIpc } from './ipc/git.ipc';
+import { registerSettingsIpc } from './ipc/settings.ipc';
+import { registerPtyIpc } from './ipc/pty.ipc';
+import { registerWindowIpc } from './ipc/window.ipc';
+import { registerTasksIpc } from './ipc/tasks.ipc';
 
 let mainWindow: BrowserWindow | null = null;
+let splashWindow: BrowserWindow | null = null;
+let disposeTasksWatcher: (() => void) | null = null;
 const ptyManager = new PTYManager();
+
+// Lightweight splash shown instantly while the main window loads in the
+// background. Inlined as a data URL so no extra file needs bundling/copying.
+const SPLASH_HTML = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html,body{margin:0;height:100%;overflow:hidden;background:transparent;
+    font-family:'Segoe UI',system-ui,sans-serif;-webkit-user-select:none;}
+  .card{height:100vh;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:18px;background:#050505;border:1px solid #1f1a15;
+    border-radius:14px;box-shadow:0 0 40px rgba(212,120,74,0.12);}
+  .logo{width:72px;height:72px;animation:float 3s ease-in-out infinite;
+    filter:drop-shadow(0 0 12px rgba(212,120,74,0.35));}
+  .name{font-size:12px;letter-spacing:.28em;text-transform:uppercase;
+    color:rgba(212,120,74,.8);font-weight:500;}
+  .bar{width:160px;height:3px;border-radius:3px;background:#1f1a15;overflow:hidden;}
+  .bar i{display:block;height:100%;width:40%;border-radius:3px;
+    background:linear-gradient(90deg,#8b5a3c,#d4784a,#e8956a);
+    animation:slide 1.2s ease-in-out infinite;}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
+</style></head><body><div class="card">
+  <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs>
+    <linearGradient id="g1" x1="12" y1="4" x2="52" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8956a"/><stop offset="45%" stop-color="#d4784a"/><stop offset="100%" stop-color="#6b3a22"/></linearGradient>
+    <linearGradient id="g2" x1="18" y1="18" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f0c4a0"/><stop offset="30%" stop-color="#d4784a"/><stop offset="60%" stop-color="#8b5a3c"/><stop offset="100%" stop-color="#4a2a1a"/></linearGradient>
+    <radialGradient id="g3" cx="32" cy="30" r="11" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#050505"/><stop offset="70%" stop-color="#0a0a0a"/><stop offset="100%" stop-color="#1a0a04"/></radialGradient></defs>
+    <polygon points="32,3 55,16 55,44 32,57 9,44 9,16" fill="url(#g1)" opacity="0.9" stroke="#d4784a" stroke-width="1.2" stroke-linejoin="round"/>
+    <circle cx="32" cy="30" r="15" fill="none" stroke="url(#g2)" stroke-width="7" opacity="0.9"/>
+    <circle cx="32" cy="30" r="11" fill="url(#g3)"/>
+    <circle cx="32" cy="30" r="11.5" fill="none" stroke="#f0ece8" stroke-width="0.8" opacity="0.35"/></svg>
+  <div class="name">Focusxide Code Manager</div>
+  <div class="bar"><i></i></div>
+</div></body></html>`;
+
+function createSplash(): void {
+  splashWindow = new BrowserWindow({
+    width: 320,
+    height: 220,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    center: true,
+    alwaysOnTop: true,
+    backgroundColor: '#00000000',
+    webPreferences: { sandbox: true },
+  });
+  splashWindow.loadURL('data:text/html;charset=UTF-8,' + encodeURIComponent(SPLASH_HTML));
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
+}
 
 function createWindow(): void {
   const preloadPath = path.join(__dirname, 'preload.js');
@@ -20,6 +74,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 900,
     minHeight: 600,
+    show: false,
     frame: false,
     backgroundColor: '#050505',
     autoHideMenuBar: true,
@@ -42,197 +97,49 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  // Reveal the main window only once its first frame is painted, then drop
+  // the splash. Avoids the long white-screen flash during startup.
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+    splashWindow?.destroy();
+  });
+
+  // ponytail: safety net so a missed 'ready-to-show' can't leave the splash stuck.
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+      splashWindow?.destroy();
+    }
+  }, 15000);
+
+  // Notify renderer when maximize state changes
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window-maximized-changed', true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window-maximized-changed', false);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
-// ── IPC Handlers ──────────────────────────────────────────────
-
 function registerIpcHandlers(): void {
-  ipcMain.handle('list-projects', async () => {
-    const settings = loadSettings();
-    return scanWorkspace(settings.workspacePath);
-  });
-
-  ipcMain.handle('refresh-branch', async (_event, projectPath: string) => {
-    return getGitBranch(projectPath);
-  });
-
-  ipcMain.handle('git-changes', async (_event, projectPath: string) => {
-    return getGitChanges(projectPath);
-  });
-
-  ipcMain.handle('git-diff', async (_event, projectPath: string, filePath: string) => {
-    return getGitDiff(projectPath, filePath);
-  });
-
-  ipcMain.handle('git-file-versions', async (_event, projectPath: string, filePath: string) => {
-    return getGitFileVersions(projectPath, filePath);
-  });
-
-  ipcMain.handle('get-settings', async () => loadSettings());
-
-  ipcMain.handle('save-settings', async (_event, settings: Settings) => {
-    saveSettings(settings);
-  });
-
-  ipcMain.handle('load-todos', async () => {
-    return loadTodos();
-  });
-
-  ipcMain.handle('save-todos', async (_event, items: TodoItem[]) => {
-    saveTodos(items);
-  });
-
-  ipcMain.handle('pick-workspace', async () => {
-    if (!mainWindow) return null;
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory'],
-      title: 'Select Workspace Folder',
-    });
-    return result.canceled ? null : result.filePaths[0];
-  });
-
-  ipcMain.handle('pick-folder', async (_event, title: string) => {
-    if (!mainWindow) return null;
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory'],
-      title,
-    });
-    return result.canceled ? null : result.filePaths[0];
-  });
-
-  ipcMain.handle('read-plans-tree', async () => {
-    const settings = loadSettings();
-    return readDirectoryTree(settings.plansPath);
-  });
-
-  ipcMain.handle('read-skills-tree', async () => {
-    const settings = loadSettings();
-    return readDirectoryTree(settings.skillsPath);
-  });
-
-  ipcMain.handle('read-project-tree', async (_event, projectPath: string) => {
-    return readClaudeGithubTree(projectPath);
-  });
-
-  ipcMain.handle('read-file-content', async (_event, filePath: string) => {
-    const settings = loadSettings();
-    const resolved = path.resolve(filePath);
-    const workspaceRoot = path.resolve(settings.workspacePath);
-    const plansRoot = path.resolve(settings.plansPath);
-    const skillsRoot = path.resolve(settings.skillsPath);
-    const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
-    const inPlans = plansRoot && resolved.startsWith(plansRoot);
-    const inSkills = skillsRoot && resolved.startsWith(skillsRoot);
-    if (!inWorkspace && !inPlans && !inSkills) {
-      throw new Error('PATH_TRAVERSAL');
-    }
-    return readFileContent(filePath);
-  });
-
-  ipcMain.handle('write-file-content', async (_event, filePath: string, content: string) => {
-    const settings = loadSettings();
-    const resolved = path.resolve(filePath);
-    const workspaceRoot = path.resolve(settings.workspacePath);
-    const plansRoot = path.resolve(settings.plansPath);
-    const skillsRoot = path.resolve(settings.skillsPath);
-    const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
-    const inPlans = plansRoot && resolved.startsWith(plansRoot);
-    const inSkills = skillsRoot && resolved.startsWith(skillsRoot);
-    if (!inWorkspace && !inPlans && !inSkills) {
-      throw new Error('PATH_TRAVERSAL');
-    }
-    writeFileContent(filePath, content);
-  });
-
-  ipcMain.handle('delete-file', async (_event, filePath: string) => {
-    const settings = loadSettings();
-    const resolved = path.resolve(filePath);
-    const workspaceRoot = path.resolve(settings.workspacePath);
-    const plansRoot = path.resolve(settings.plansPath);
-    const skillsRoot = path.resolve(settings.skillsPath);
-    const inWorkspace = workspaceRoot && resolved.startsWith(workspaceRoot);
-    const inPlans = plansRoot && resolved.startsWith(plansRoot);
-    const inSkills = skillsRoot && resolved.startsWith(skillsRoot);
-    if (!inWorkspace && !inPlans && !inSkills) {
-      throw new Error('PATH_TRAVERSAL');
-    }
-    deleteEntry(filePath);
-  });
-
-  // PTY handlers — polling-based (no webContents.send, sandbox-compatible)
-  ipcMain.handle('pty-spawn', async (_event, tabId: string, projectPath: string, command?: string) => {
-    ptyManager.spawn(tabId, projectPath, command);
-  });
-
-  ipcMain.handle('pty-read', async (_event, tabId: string) => {
-    return ptyManager.read(tabId);
-  });
-
-  ipcMain.handle('pty-is-alive', async (_event, tabId: string) => {
-    return ptyManager.isAlive(tabId);
-  });
-
-  ipcMain.handle('pty-input', async (_event, tabId: string, data: string) => {
-    ptyManager.input(tabId, data);
-  });
-
-  ipcMain.handle('pty-resize', async (_event, tabId: string, cols: number, rows: number) => {
-    ptyManager.resize(tabId, cols, rows);
-  });
-
-  ipcMain.handle('pty-kill', async (_event, tabId: string) => {
-    ptyManager.kill(tabId);
-  });
-
-  ipcMain.handle('launch-vscode', async (_event, projectPath: string) => {
-    const cmd = process.platform === 'win32'
-      ? `code "${projectPath}"`
-      : `code '${projectPath}'`;
-    exec(cmd, (error) => {
-      if (error) {
-        // Fallback: try opening the folder in explorer / finder
-        shell.openPath(projectPath);
-      }
-    });
-  });
-
-  // ── Window controls (frameless custom title bar) ─────────
-  ipcMain.handle('window-minimize', () => {
-    mainWindow?.minimize();
-  });
-
-  ipcMain.handle('window-maximize', () => {
-    if (mainWindow?.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow?.maximize();
-    }
-  });
-
-  ipcMain.handle('window-is-maximized', () => {
-    return mainWindow?.isMaximized() ?? false;
-  });
-
-  ipcMain.handle('window-close', () => {
-    mainWindow?.close();
-  });
-
-  // Notify renderer when maximize state changes
-  mainWindow?.on('maximize', () => {
-    mainWindow?.webContents.send('window-maximized-changed', true);
-  });
-  mainWindow?.on('unmaximize', () => {
-    mainWindow?.webContents.send('window-maximized-changed', false);
-  });
+  const getWindow = () => mainWindow;
+  registerFilesystemIpc(getWindow);
+  registerGitIpc();
+  registerSettingsIpc();
+  registerPtyIpc(ptyManager);
+  registerWindowIpc(getWindow);
+  disposeTasksWatcher = registerTasksIpc(getWindow);
 }
 
 // ── App Lifecycle ─────────────────────────────────────────────
 
 app.whenReady().then(() => {
   registerIpcHandlers();
+  createSplash();
   createWindow();
 
   app.on('activate', () => {
@@ -248,4 +155,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   ptyManager.killAll();
+  disposeTasksWatcher?.();
 });

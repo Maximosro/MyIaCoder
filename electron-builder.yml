@@ -1,5 +1,5 @@
-appId: com.rothar.ai-code-manager
-productName: AI Code Manager
+appId: com.focusxide.code-manager
+productName: Focusxide Code Manager
 directories:
   output: release
   buildResources: resources
@@ -7,14 +7,28 @@ files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
+# node-pty ships N-API prebuilds; skip the from-source rebuild (no VS toolchain).
+npmRebuild: false
+# No auto-update server; skip update metadata generation (latest.yml).
+publish: null
+# node-pty ships native .node prebuilds that must live outside the asar to load.
+asarUnpack:
+  - "**/node_modules/node-pty/**"
+  - "**/node_modules/better-sqlite3/**"
+  - "**/*.node"
 win:
   target:
     - target: nsis
       arch:
         - x64
   icon: resources/icon.ico
-  artifactName: AI-Code-Manager-${version}.${ext}
+  artifactName: Focusxide-Code-Manager-${version}.${ext}
 nsis:
   oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Focusxide Code Manager
   installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico

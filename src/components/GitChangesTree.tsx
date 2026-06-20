@@ -3,18 +3,14 @@ import {
   ChevronRight,
   GitBranch,
   RefreshCw,
-  Edit3,
-  Plus,
-  Trash2,
-  FileQuestion,
-  FileText,
   Folder,
   FolderOpen,
+  Undo2,
 } from 'lucide-react';
 import { useGitChanges } from '../hooks/useGitChanges';
-import { SUPPORTED_EXTENSIONS } from '../types/terminal';
-import type { GitChange } from '../types/project';
-import type { TreeNode } from '../types/project';
+import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
+import { GIT_STATUS_META } from '../utils/gitStatus';
+import type { GitChange, GitTreeNode } from '../types/project';
 
 interface GitChangesTreeProps {
   projectPath: string;
@@ -23,26 +19,14 @@ interface GitChangesTreeProps {
   onOpenDiff?: (filePath: string) => void;
 }
 
-/** Maps git status to display metadata. */
-const STATUS_META: Record<string, { icon: typeof Edit3; color: string }> = {
-  M:  { icon: Edit3,       color: '#d4a44a' },
-  A:  { icon: Plus,        color: '#6ba86b' },
-  D:  { icon: Trash2,      color: '#e05555' },
-  R:  { icon: Edit3,       color: '#7b9ec4' },
-  '??': { icon: FileQuestion, color: '#8b5a3c' },
-  MM: { icon: Edit3,       color: '#d4a44a' },
-  AM: { icon: Plus,        color: '#6ba86b' },
-  RM: { icon: Edit3,       color: '#7b9ec4' },
-};
-
 /**
  * Converts a flat list of GitChange entries into a tree structure
  * grouped by directory, for display in the sidebar.
  * Changes at the repo root appear directly under the top-level group.
  */
-function buildChangeTree(changes: GitChange[]): TreeNode[] {
-  const root: TreeNode[] = [];
-  const dirMap = new Map<string, TreeNode>();
+function buildChangeTree(changes: GitChange[]): GitTreeNode[] {
+  const root: GitTreeNode[] = [];
+  const dirMap = new Map<string, GitTreeNode>();
 
   for (const change of changes) {
     const normalized = change.file.replace(/\\/g, '/');
@@ -54,8 +38,7 @@ function buildChangeTree(changes: GitChange[]): TreeNode[] {
         name: parts[0],
         path: change.file,
         type: 'file',
-        // Attach git metadata via a namespaced property
-        ...({ _gitStatus: change.status } as any),
+        gitStatus: change.status,
       });
     } else {
       // File inside a directory — build intermediate nodes
@@ -77,13 +60,13 @@ function buildChangeTree(changes: GitChange[]): TreeNode[] {
         name: fileName,
         path: change.file,
         type: 'file',
-        ...({ _gitStatus: change.status } as any),
+        gitStatus: change.status,
       });
     }
   }
 
   // Sort: directories first, then files, both alphabetically
-  const sortNodes = (nodes: TreeNode[]) => {
+  const sortNodes = (nodes: GitTreeNode[]) => {
     nodes.sort((a, b) => {
       if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -104,14 +87,17 @@ function ChangeFileRow({
   status,
   onFileClick,
   onOpenDiff,
+  onDiscard,
 }: {
   name: string;
   fullPath: string;
   status: string;
   onFileClick?: (filePath: string) => void;
   onOpenDiff?: (filePath: string) => void;
+  onDiscard?: (filePath: string) => void;
 }) {
-  const meta = STATUS_META[status] ?? STATUS_META['M'];
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const meta = GIT_STATUS_META[status] ?? GIT_STATUS_META['M'];
   const Icon = meta.icon;
   const isSupported = (() => {
     const dotIdx = name.lastIndexOf('.');
@@ -120,6 +106,7 @@ function ChangeFileRow({
   })();
 
   const handleClick = () => {
+    if (confirmDiscard) return;
     // Prioritize opening diff for git changes
     if (onOpenDiff) {
       onOpenDiff(fullPath);
@@ -129,15 +116,49 @@ function ChangeFileRow({
   };
 
   return (
-    <button
-      onClick={handleClick}
-      className="w-full flex items-center gap-1.5 py-[3px] text-left font-mono transition-colors duration-150 border-l-2 border-transparent hover:bg-[#0f0f0f] hover:border-[#d4784a]/20 cursor-pointer"
-      title={`${fullPath} — ${status}`}
-      style={{ paddingLeft: '36px' }}
-    >
-      <Icon className="w-3 h-3 flex-shrink-0 opacity-70" style={{ color: meta.color }} />
-      <span className="text-[11px] text-[#b0a89a] truncate">{name}</span>
-    </button>
+    <div className="group relative">
+      <button
+        onClick={handleClick}
+        className="w-full flex items-center gap-1.5 py-[3px] text-left font-mono transition-colors duration-150 border-l-2 border-transparent hover:bg-[#0f0f0f] hover:border-[#d4784a]/20 cursor-pointer"
+        title={`${fullPath} — ${status}`}
+        style={{ paddingLeft: '36px' }}
+      >
+        <Icon className="w-3 h-3 flex-shrink-0 opacity-70" style={{ color: meta.color }} />
+        <span className="text-[11px] text-[#b0a89a] truncate flex-1">{name}</span>
+
+        {/* Discard button — visible on hover */}
+        {onDiscard && !confirmDiscard && (
+          <span
+            onClick={(e) => { e.stopPropagation(); setConfirmDiscard(true); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex-shrink-0 pr-2"
+            title="Descartar cambios"
+          >
+            <Undo2 className="w-3 h-3 text-[#e05555] hover:text-[#ff6b6b] transition-colors duration-150" />
+          </span>
+        )}
+      </button>
+
+      {/* Inline discard confirmation */}
+      {confirmDiscard && (
+        <div className="flex items-center gap-1.5 py-1 animate-fade-in" style={{ paddingLeft: '36px' }}>
+          <span className="text-[10px] font-mono text-[#e05555] tracking-wider truncate flex-1">
+            DISCARD "{name}"?
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDiscard(false); onDiscard?.(fullPath); }}
+            className="px-2 py-0.5 text-[10px] font-mono bg-[#e05555]/20 text-[#e05555] border border-[#e05555]/40 rounded hover:bg-[#e05555]/40 transition-all duration-150"
+          >
+            YES
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDiscard(false); }}
+            className="px-2 py-0.5 text-[10px] font-mono bg-transparent text-[#8b5a3c] border border-[#8b5a3c]/30 rounded hover:bg-[#0f0f0f] transition-all duration-150 mr-2"
+          >
+            NO
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -147,11 +168,13 @@ function ChangeDirNode({
   depth,
   onFileClick,
   onOpenDiff,
+  onDiscard,
 }: {
-  node: TreeNode;
+  node: GitTreeNode;
   depth: number;
   onFileClick?: (filePath: string) => void;
   onOpenDiff?: (filePath: string) => void;
+  onDiscard?: (filePath: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true); // expanded by default
   const hasChildren = node.children && node.children.length > 0;
@@ -184,15 +207,17 @@ function ChangeDirNode({
                 depth={depth + 1}
                 onFileClick={onFileClick}
                 onOpenDiff={onOpenDiff}
+                onDiscard={onDiscard}
               />
             ) : (
               <ChangeFileRow
                 key={child.path}
                 name={child.name}
                 fullPath={child.path}
-                status={(child as any)._gitStatus || 'M'}
+                status={child.gitStatus || 'M'}
                 onFileClick={onFileClick}
                 onOpenDiff={onOpenDiff}
+                onDiscard={onDiscard}
               />
             ),
           )}
@@ -204,7 +229,16 @@ function ChangeDirNode({
 
 export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDiff }: GitChangesTreeProps) {
   const [expanded, setExpanded] = useState(true);
-  const { changes, loading, error } = useGitChanges(projectPath, refreshKey);
+  const { changes, loading, error, refresh } = useGitChanges(projectPath, refreshKey);
+
+  const handleDiscard = async (filePath: string) => {
+    try {
+      await window.electronAPI.discardGitChanges(projectPath, filePath);
+    } catch {
+      // Surfaced by the refresh below — the file simply stays listed on failure.
+    }
+    await refresh();
+  };
 
   const tree = useMemo(() => buildChangeTree(changes), [changes]);
 
@@ -262,15 +296,17 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
               depth={0}
               onFileClick={onFileClick}
               onOpenDiff={onOpenDiff}
+              onDiscard={handleDiscard}
             />
           ) : (
             <ChangeFileRow
               key={node.path}
               name={node.name}
               fullPath={node.path}
-              status={(node as any)._gitStatus || 'M'}
+              status={node.gitStatus || 'M'}
               onFileClick={onFileClick}
               onOpenDiff={onOpenDiff}
+              onDiscard={handleDiscard}
             />
           ),
         )}

@@ -1,17 +1,7 @@
 import { useState } from 'react';
-import { Folder, FolderOpen, FileText, ChevronRight, RefreshCw, ClipboardList, Trash2 } from 'lucide-react';
+import { Folder, FolderOpen, FileText, ChevronRight, Trash2 } from 'lucide-react';
 import type { TreeNode } from '../types/project';
-import { SUPPORTED_EXTENSIONS } from '../types/terminal';
-
-interface RpiPlansTreeProps {
-  tree: TreeNode[];
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => void;
-  onOpenTodos: () => void;
-  onFileClick?: (filePath: string) => void;
-  onDeleteFile?: (filePath: string) => void;
-}
+import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
 
 export interface TreeNodeItemProps {
   node: TreeNode;
@@ -158,77 +148,6 @@ export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNod
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-export function RpiPlansTree({ tree, loading, error, onRefresh, onOpenTodos, onFileClick, onDeleteFile }: RpiPlansTreeProps) {
-  return (
-    <div className="border-t border-[#1f1a15] flex flex-col min-h-0">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <FolderOpen className="w-3.5 h-3.5 text-[#d4784a] flex-shrink-0" />
-          <span className="text-[10px] font-mono font-semibold text-[#f0ece8] tracking-wider">
-            /Plans
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onOpenTodos}
-            className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4a44a]"
-            title="ToDos — Kanban board"
-          >
-            <ClipboardList className="w-3 h-3" />
-          </button>
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a] disabled:opacity-30"
-            title="Refresh RPI plans tree"
-          >
-            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="max-h-[40vh] overflow-y-auto px-1 pb-2">
-        {/* Loading state */}
-        {loading && tree.length === 0 && (
-          <div className="flex items-center justify-center py-4">
-            <RefreshCw className="w-3.5 h-3.5 text-[#d4784a] animate-spin" />
-          </div>
-        )}
-
-        {/* Error state */}
-        {error && (
-          <div className="px-2 py-4 text-center animate-fade-in">
-            <p className="text-[#e05555] text-[10px] font-mono">{error}</p>
-            <button
-              onClick={onRefresh}
-              className="mt-1 text-[10px] font-mono text-[#d4784a] hover:text-[#e8956a] transition-colors tracking-wider"
-            >
-              RETRY_
-            </button>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && !error && tree.length === 0 && (
-          <div className="px-2 py-4 text-center animate-fade-in">
-            <p className="text-[#8b5a3c] text-[10px] font-mono tracking-wider">
-              RPI_PATH_NOT_FOUND
-            </p>
-          </div>
-        )}
-
-        {/* Tree nodes */}
-        {!loading &&
-          tree.map((node) => (
-            <TreeNodeItem key={node.path} node={node} depth={0} onFileClick={onFileClick} onDeleteFile={onDeleteFile} />
-          ))}
-      </div>
     </div>
   );
 }

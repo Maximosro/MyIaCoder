@@ -1,12 +1,14 @@
-import { RefreshCw, FolderOpen, ArrowLeft, ChevronRight, FolderGit2 } from 'lucide-react';
-import { useState } from 'react';
+import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import type { Project } from '../types/project';
 import { ProjectItem } from './ProjectItem';
-import { TreeNodeItem } from './RpiPlansTree';
-import { RpiPanelTabs } from './RpiPanelTabs';
+import { TreeNodeItem } from './TreeNodeItem';
+import { PlansPanelTabs } from './PlansPanelTabs';
 import { GitChangesTree } from './GitChangesTree';
+import { TasksTree } from './TasksTree';
 import { usePlansTree } from '../hooks/usePlansTree';
 import { useSkillsTree } from '../hooks/useSkillsTree';
+import { usePromptsTree } from '../hooks/usePromptsTree';
 import { useProjectTree } from '../hooks/useProjectTree';
 
 interface SidebarProps {
@@ -17,15 +19,19 @@ interface SidebarProps {
   openTabPaths: Set<string>;
   plansPath: string;
   skillsPath: string;
+  promptsPath: string;
   treeRefreshKey: number;
   onSelectProject: (project: Project) => void;
   onRefresh: () => void;
   onBack?: () => void;
   onConfig: () => void;
-  onOpenTodos: () => void;
   onFileClick?: (filePath: string) => void;
   onDeleteFile?: (filePath: string) => void;
   onOpenDiff?: (filePath: string) => void;
+  onCreatePrompt: (name: string) => void | Promise<void>;
+  onLaunchClaude: () => void;
+  onLaunchCopilot: () => void;
+  onLaunchVscode: () => void;
 }
 
 export function Sidebar({
@@ -36,23 +42,42 @@ export function Sidebar({
   openTabPaths,
   plansPath,
   skillsPath,
+  promptsPath,
   treeRefreshKey,
   onSelectProject,
   onRefresh,
   onBack,
   onConfig,
-  onOpenTodos,
   onFileClick,
   onDeleteFile,
   onOpenDiff,
+  onCreatePrompt,
+  onLaunchClaude,
+  onLaunchCopilot,
+  onLaunchVscode,
 }: SidebarProps) {
   const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath, treeRefreshKey);
   const { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: refreshSkills } = useSkillsTree(treeRefreshKey);
+  const { tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: refreshPrompts } = usePromptsTree(promptsPath, treeRefreshKey);
   const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath, treeRefreshKey);
-  const [claudeExpanded, setClaudeExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState<'files' | 'changes' | 'tasks'>('files');
+  const [launchMenuOpen, setLaunchMenuOpen] = useState(false);
+  const launchMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the launch menu on any click outside it (robust across stacking contexts).
+  useEffect(() => {
+    if (!launchMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (launchMenuRef.current && !launchMenuRef.current.contains(e.target as Node)) {
+        setLaunchMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [launchMenuOpen]);
 
   return (
-    <aside className="w-[280px] flex-shrink-0 border-r border-[#1f1a15] flex flex-col h-full bg-[#0a0a0a] relative z-10">
+    <aside className="w-[380px] flex-shrink-0 border-r border-[#1f1a15] flex flex-col h-full bg-[#0a0a0a] relative z-10">
       {/* Header */}
       <div className="p-4 border-b border-[#1f1a15]">
         <div className="flex items-center justify-between">
@@ -70,6 +95,48 @@ export function Sidebar({
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
+
+            {/* Launch menu — only when a project is selected */}
+            {selectedPath && (
+              <div className="relative animate-fade-in" ref={launchMenuRef}>
+                <button
+                  onClick={() => setLaunchMenuOpen((o) => !o)}
+                  className={`p-1.5 rounded transition-all duration-200 hover:bg-[#0f0f0f] ${
+                    launchMenuOpen ? 'text-[#d4784a] bg-[#0f0f0f]' : 'text-[#8b5a3c] hover:text-[#d4784a]'
+                  }`}
+                  title="Lanzar terminal"
+                >
+                  <MessageSquarePlus className="w-4 h-4" />
+                </button>
+
+                {launchMenuOpen && (
+                  <div className="absolute right-0 mt-1 w-44 z-30 bg-[#0a0a0a] border border-[#1f1a15] rounded shadow-[0_8px_30px_rgba(0,0,0,0.6)] py-1 animate-fade-in">
+                    <button
+                      onClick={() => { setLaunchMenuOpen(false); onLaunchClaude(); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#d4784a] hover:bg-[#1a0f0a] transition-colors"
+                    >
+                      <Terminal className="w-3.5 h-3.5" />
+                      CLAUDE
+                    </button>
+                    <button
+                      onClick={() => { setLaunchMenuOpen(false); onLaunchCopilot(); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#6ba86b] hover:bg-[#0a1a0e] transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      COPILOT
+                    </button>
+                    <button
+                      onClick={() => { setLaunchMenuOpen(false); onLaunchVscode(); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#7b9ec4] hover:bg-[#0a1520] transition-colors"
+                    >
+                      <Code2 className="w-3.5 h-3.5" />
+                      VSCODE
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={onRefresh}
               disabled={loading}
@@ -131,71 +198,89 @@ export function Sidebar({
               hasOpenTab={openTabPaths.has(project.path)}
               onClick={() => onSelectProject(project)}
             />
-            {/* Project .claude / .github + Git changes — separate sections when selected */}
+            {/* Project explorer: Files (.claude/.github) · Changes · Tasks tabs */}
             {project.path === selectedPath && (
-              <div className="slide-expand border-t border-[#1f1a15]/30 divide-y divide-[#1f1a15]/20">
-                {/* ── Section 1: Claude & GitHub folders ── */}
-                {projectTree.length > 0 && (
+              <div className="slide-expand border-t border-[#1f1a15]/30">
+                {/* Tab bar */}
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-[#0a0a0a]">
+                  <button
+                    onClick={() => setActiveTab('files')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono tracking-wider rounded transition-colors ${
+                      activeTab === 'files'
+                        ? 'bg-[#1a0f0a] text-[#d4784a] border border-[#d4784a]/30'
+                        : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+                    }`}
+                  >
+                    <FolderGit2 className="w-3 h-3" />
+                    FILES
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('changes')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono tracking-wider rounded transition-colors ${
+                      activeTab === 'changes'
+                        ? 'bg-[#1a0f0a] text-[#d4784a] border border-[#d4784a]/30'
+                        : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+                    }`}
+                  >
+                    <GitCompare className="w-3 h-3" />
+                    CHANGES
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('tasks')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono tracking-wider rounded transition-colors ${
+                      activeTab === 'tasks'
+                        ? 'bg-[#1a0f0a] text-[#d4784a] border border-[#d4784a]/30'
+                        : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+                    }`}
+                  >
+                    <ListTodo className="w-3 h-3" />
+                    TASKS
+                  </button>
+                </div>
+
+                {/* ── FILES tab: full project file tree ── */}
+                {activeTab === 'files' && (
                   <div>
-                    <button
-                      onClick={() => setClaudeExpanded((prev) => !prev)}
-                      className="w-full flex items-center gap-1.5 py-1.5 px-3 text-left font-mono transition-colors duration-150 border-l-2 border-transparent hover:bg-[#0f0f0f] hover:border-[#8b5a3c]/30"
-                    >
-                      <ChevronRight
-                        className={`w-3 h-3 text-[#8b5a3c] transition-transform duration-200 flex-shrink-0 ${claudeExpanded ? 'rotate-90' : 'rotate-0'}`}
-                      />
-                      <FolderGit2 className="w-3.5 h-3.5 text-[#7b9ec4] flex-shrink-0" />
-                      <span className="text-[11px] text-[#f0ece8] tracking-wider">Claude & GitHub</span>
-                      <span className="text-[10px] text-[#7b9ec4] ml-auto">{projectTree.length}</span>
-                    </button>
-                    <div
-                      className={`transition-all duration-300 ease-out ${
-                        claudeExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-                      }`}
-                    >
-                      {projectTreeLoading && (
-                        <div className="flex items-center justify-center py-3">
-                          <RefreshCw className="w-3 h-3 text-[#d4784a] animate-spin" />
-                        </div>
-                      )}
-                      {projectTree.map((node) => (
-                        <TreeNodeItem key={node.path} node={node} depth={1} onFileClick={onFileClick} onDeleteFile={onDeleteFile} />
-                      ))}
-                    </div>
+                    {projectTreeLoading && (
+                      <div className="flex items-center justify-center py-3">
+                        <RefreshCw className="w-3 h-3 text-[#d4784a] animate-spin" />
+                      </div>
+                    )}
+                    {!projectTreeLoading && projectTree.length === 0 && (
+                      <div className="px-2 py-2 text-center">
+                        <p className="text-[#8b5a3c] text-[10px] font-mono tracking-wider">
+                          EMPTY_PROJECT
+                        </p>
+                      </div>
+                    )}
+                    {projectTree.map((node) => (
+                      <TreeNodeItem key={node.path} node={node} depth={0} onFileClick={onFileClick} onDeleteFile={onDeleteFile} />
+                    ))}
                   </div>
                 )}
 
-                {/* Loading state for claude/github when tree is empty */}
-                {projectTreeLoading && projectTree.length === 0 && (
-                  <div className="flex items-center justify-center py-3">
-                    <RefreshCw className="w-3 h-3 text-[#d4784a] animate-spin" />
-                  </div>
+                {/* ── CHANGES tab: git changes ── */}
+                {activeTab === 'changes' && (
+                  <GitChangesTree
+                    projectPath={project.path}
+                    refreshKey={treeRefreshKey}
+                    onFileClick={onFileClick}
+                    onOpenDiff={onOpenDiff}
+                  />
                 )}
 
-                {/* Empty state for claude/github (not loading, no folders) */}
-                {!projectTreeLoading && projectTree.length === 0 && (
-                  <div className="px-2 py-2 text-center">
-                    <p className="text-[#8b5a3c] text-[10px] font-mono tracking-wider">
-                      NO_CLAUDE_OR_GITHUB
-                    </p>
-                  </div>
+                {/* ── TASKS tab: live CLI tasks ── */}
+                {activeTab === 'tasks' && (
+                  <TasksTree projectPath={project.path} refreshKey={treeRefreshKey} />
                 )}
-
-                {/* ── Section 2: Git Changes ── */}
-                <GitChangesTree
-                  projectPath={project.path}
-                  refreshKey={treeRefreshKey}
-                  onFileClick={onFileClick}
-                  onOpenDiff={onOpenDiff}
-                />
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* RPI Panel Tabs — Plans / Skills with shared ToDos */}
-      <RpiPanelTabs
+      {/* Plans / Skills / Prompt panel tabs */}
+      <PlansPanelTabs
         plansTree={tree}
         plansLoading={plansLoading}
         plansError={plansError}
@@ -204,7 +289,11 @@ export function Sidebar({
         skillsLoading={skillsLoading}
         skillsError={skillsError}
         onRefreshSkills={refreshSkills}
-        onOpenTodos={onOpenTodos}
+        promptsTree={promptsTree}
+        promptsLoading={promptsLoading}
+        promptsError={promptsError}
+        onRefreshPrompts={refreshPrompts}
+        onCreatePrompt={onCreatePrompt}
         onFileClick={onFileClick}
         onDeleteFile={onDeleteFile}
       />

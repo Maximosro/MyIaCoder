@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Editor, loader } from '@monaco-editor/react';
 import { Lock, LockOpen, Save, Eye, EyeOff } from 'lucide-react';
-import type { Tab, FileType } from '../types/terminal';
-import { isFileTab } from '../types/terminal';
+import type { Tab, FileType } from '../types/tab';
+import { isFileTab } from '../types/tab';
 import * as monaco from 'monaco-editor';
 
 // ── Monaco initialization (synchronous, must run before Editor mounts) ──
@@ -54,9 +54,24 @@ interface FileEditorProps {
   onDirtyChange: (isDirty: boolean) => void;
 }
 
+type FileTab = Tab & { kind: 'file'; filePath: string; fileType: FileType };
+
+interface FileEditorContentProps {
+  tab: FileTab;
+  initialContent: string;
+  onSave: (content: string) => Promise<void>;
+  onDirtyChange: (isDirty: boolean) => void;
+}
+
+// Guard kept outside the component with hooks so hooks always run unconditionally (Rules of Hooks).
 export function FileEditor({ tab, initialContent, onSave, onDirtyChange }: FileEditorProps) {
   if (!isFileTab(tab)) return null;
+  return (
+    <FileEditorContent tab={tab} initialContent={initialContent} onSave={onSave} onDirtyChange={onDirtyChange} />
+  );
+}
 
+function FileEditorContent({ tab, initialContent, onSave, onDirtyChange }: FileEditorContentProps) {
   const [readOnly, setReadOnly] = useState(true);
   const [content, setContent] = useState(initialContent);
   const [isDirty, setIsDirty] = useState(false);
@@ -145,12 +160,6 @@ export function FileEditor({ tab, initialContent, onSave, onDirtyChange }: FileE
 
         // 3. Render non-mermaid markdown to HTML
         let html = markedRef.current.marked.parse(md) as string;
-
-        // Debug: prepend mermaid block count
-        const debugInfo = mermaidBlocks.length > 0
-          ? `<div class="text-[10px] font-mono text-[#4a2a1a] mb-2">mermaid: ${mermaidBlocks.length} block(s) detected</div>`
-          : `<div class="text-[10px] font-mono text-[#4a2a1a] mb-2">mermaid: none</div>`;
-        html = debugInfo + html;
 
         // 4. Render mermaid diagrams and inject into HTML
         if (mermaidBlocks.length > 0) {

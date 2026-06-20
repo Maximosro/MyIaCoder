@@ -1,5 +1,5 @@
 import { FolderGit2 } from 'lucide-react';
-import { getBranchStyle, getBranchLabel } from '../types/project';
+import { getBranchStyle, getBranchLabel } from '../utils/branchUtils';
 import type { Project } from '../types/project';
 
 interface ProjectItemProps {
@@ -13,7 +13,6 @@ export function ProjectItem({ project, isSelected, hasOpenTab, onClick }: Projec
   return (
     <button
       onClick={onClick}
-      title={project.path}
       className={`w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer text-left
         transition-all duration-300 border-l-2 font-mono shimmer-surface
         ${isSelected
@@ -36,6 +35,7 @@ export function ProjectItem({ project, isSelected, hasOpenTab, onClick }: Projec
           className={`text-sm truncate transition-all duration-200 ${
             isSelected ? 'text-[#f0ece8]' : 'text-[#b0a89a]'
           }`}
+          title={project.path}
         >
           {project.name}
         </span>
@@ -52,6 +52,7 @@ export function ProjectItem({ project, isSelected, hasOpenTab, onClick }: Projec
       {/* Branch badge — unified */}
       <span
         className={`text-[11px] px-1.5 py-0.5 rounded border flex-shrink-0 max-w-[120px] truncate transition-all duration-200 ${getBranchStyle(project.branch)}`}
+        title={project.branch || undefined}
       >
         {getBranchLabel(project.branch)}
       </span>

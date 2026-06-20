@@ -1,17 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import type { TerminalTab } from '../types/terminal';
+import type { Tab } from '../types/tab';
 
 interface TerminalTabProps {
-  tab: TerminalTab;
+  tab: Tab;
   isActive: boolean;
   /** Called when the PTY emits output (non-empty data received from polling).
    *  Used by parent to track terminal activity for the busy indicator. */
   onActivity?: (tabId: string) => void;
 }
 
-export function TerminalTabComponent({ tab, isActive, onActivity }: TerminalTabProps) {
+export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -81,7 +81,6 @@ export function TerminalTabComponent({ tab, isActive, onActivity }: TerminalTabP
       });
 
       terminalRef.current = term;
-      console.log(`[TerminalTab] Terminal created for tab=${tab.id} cols=${term.cols} rows=${term.rows}`);
 
       // ResizeObserver
       const observer = new ResizeObserver(() => {

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal, X, Plus, FileText, Code2, ClipboardList, GitCompare } from 'lucide-react';
-import { TerminalTabComponent } from './TerminalTab';
-import { FileEditor } from './FileEditor';
-import { DiffViewer } from './DiffViewer';
+import { Terminal, X, FileText, Code2, GitCompare } from 'lucide-react';
+import { TerminalTab } from './TerminalTab';
 import { UnsavedDialog } from './UnsavedDialog';
 import { CloseTerminalDialog } from './CloseTerminalDialog';
-import { TodoKanban } from './TodoKanban';
-import type { Tab } from '../types/terminal';
-import { isFileTab, isTodoTab, isDiffTab, isTerminalTab, getTabColorClass } from '../types/terminal';
+import { FileEditor } from './FileEditor';
+import { DiffViewer } from './DiffViewer';
+import type { Tab } from '../types/tab';
+import { isFileTab, isDiffTab, isTerminalTab } from '../types/tab';
+import { getTabColorClass } from '../utils/tabUtils';
 import type { Project } from '../types/project';
 
 interface TerminalPanelProps {
@@ -42,7 +42,6 @@ export function TerminalPanel({
   const [promptValue, setPromptValue] = useState('');
   const [promptAction, setPromptAction] = useState<'open' | 'force'>('open');
   const [pendingCommand, setPendingCommand] = useState<string | undefined>(undefined);
-  const [showLaunchOverlay, setShowLaunchOverlay] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Unsaved changes dialog state
@@ -88,11 +87,6 @@ export function TerminalPanel({
     setPromptVisible(true);
   };
 
-  const handleNewTab = () => {
-    if (!activeProject) return;
-    setShowLaunchOverlay(true);
-  };
-
   const submitPrompt = () => {
     const title = promptValue.trim() || activeProject?.name || 'terminal';
     setPromptVisible(false);
@@ -130,8 +124,13 @@ export function TerminalPanel({
   };
 
   const handleUnsavedSave = async () => {
+    const tabId = unsavedDialog.tabId;
     setUnsavedDialog({ open: false, tabId: '', fileName: '' });
-    onCloseTab(unsavedDialog.tabId);
+    const content = getFileContent?.(tabId);
+    if (content !== undefined) {
+      await onSaveFile?.(tabId, content);
+    }
+    await onCloseTab(tabId);
   };
 
   const handleUnsavedDiscard = () => {
@@ -145,34 +144,29 @@ export function TerminalPanel({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-transparent">
-      {/* Tab bar — visible when a project is selected or any tab is open (e.g. ToDos) */}
+      {/* Tab bar — visible when a project is selected or any tab is open */}
       {(activeProject || tabs.length > 0) && (
         <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto">
           {tabs.map((tab) => {
             const file = isFileTab(tab);
             const diff = isDiffTab(tab);
-            const todo = isTodoTab(tab);
             const isActive = tab.id === activeTabId;
 
-            // Accent colors: terminal = copper, copilot = emerald, diff = amber, files = type-dependent, todo = amber
-            const accentBorder = todo
+            // Accent colors: terminal = copper, copilot = emerald, diff = amber, files = type-dependent
+            const accentBorder = diff
               ? 'border-[#d4a44a]'
-              : diff
-                ? 'border-[#d4a44a]'
-                : file
-                  ? getTabColorClass(tab.fileType).split(' ')[0]
-                  : tab.command === 'copilot'
-                    ? 'border-[#6ba86b]'
-                    : 'border-[#d4784a]';
-            const accentText = todo
+              : file
+                ? getTabColorClass(tab.fileType).split(' ')[0]
+                : tab.command === 'copilot'
+                  ? 'border-[#6ba86b]'
+                  : 'border-[#d4784a]';
+            const accentText = diff
               ? 'text-[#d4a44a]'
-              : diff
-                ? 'text-[#d4a44a]'
-                : file
-                  ? getTabColorClass(tab.fileType).split(' ')[1]
-                  : tab.command === 'copilot'
-                    ? 'text-[#6ba86b]'
-                    : 'text-[#d4784a]';
+              : file
+                ? getTabColorClass(tab.fileType).split(' ')[1]
+                : tab.command === 'copilot'
+                  ? 'text-[#6ba86b]'
+                  : 'text-[#d4784a]';
 
             const activeClass = isActive
               ? `${accentBorder} ${accentText}`
@@ -199,9 +193,7 @@ export function TerminalPanel({
                 style={busyStyle}
               >
                 {/* Icon */}
-                {todo ? (
-                  <ClipboardList className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-                ) : diff ? (
+                {diff ? (
                   <GitCompare className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
                 ) : file ? (
                   <FileText className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
@@ -230,16 +222,6 @@ export function TerminalPanel({
               </div>
             );
           })}
-          {/* + New tab — only for terminal tabs */}
-          {tabs.length > 0 && (
-            <button
-              onClick={handleNewTab}
-              className="flex items-center justify-center w-6 h-6 rounded hover:bg-[#0f0f0f] text-[#8b5a3c] hover:text-[#d4784a] flex-shrink-0 transition-all duration-200 ml-0.5"
-              title="New launch"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       )}
 
@@ -250,9 +232,7 @@ export function TerminalPanel({
             key={tab.id}
             className={tab.id === activeTabId ? 'absolute inset-0' : 'hidden'}
           >
-            {isTodoTab(tab) ? (
-              <TodoKanban />
-            ) : isDiffTab(tab) ? (
+            {isDiffTab(tab) ? (
               <DiffViewer
                 fileName={tab.title.replace(' (diff)', '')}
                 projectPath={tab.projectPath}
@@ -270,7 +250,7 @@ export function TerminalPanel({
                 }}
               />
             ) : (
-              <TerminalTabComponent
+              <TerminalTab
                 tab={tab}
                 isActive={tab.id === activeTabId}
                 onActivity={onTabActivity}
@@ -317,81 +297,8 @@ export function TerminalPanel({
           </div>
         )}
 
-        {/* Launch overlay — shown when + is clicked on tab bar */}
-        {showLaunchOverlay && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#050505]/80 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-6 animate-fade-in">
-              <p className="text-[10px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-                LAUNCH_TERMINAL
-                <span className="animate-cursor-blink">_</span>
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    setShowLaunchOverlay(false);
-                    handleLaunch(true);
-                  }}
-                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1f1a15] hover:border-[#d4784a]/40 rounded cursor-pointer
-                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#1a0f0a] hover:shadow-[0_0_30px_rgba(212,120,74,0.15)] animate-glow-pulse"
-                >
-                  <Terminal className="w-10 h-10 text-[#d4784a] group-hover:scale-110 transition-transform duration-500 ease-out" />
-                  <span className="font-mono text-sm text-[#f0ece8] text-glow tracking-wider">
-                    LAUNCH_CLAUDE
-                    <span className="animate-cursor-blink">_</span>
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowLaunchOverlay(false);
-                    handleLaunchCopilot(true);
-                  }}
-                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1a1a0f] hover:border-[#6ba86b]/40 rounded cursor-pointer
-                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1a0e] hover:shadow-[0_0_30px_rgba(107,168,107,0.15)] animate-glow-pulse-copilot"
-                >
-                  <svg
-                    className="w-10 h-10 text-[#6ba86b] group-hover:scale-110 transition-transform duration-500 ease-out"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 2 3 22h6.5l2.5-7 2.5 7H21L12 2z" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                  <span className="font-mono text-sm text-[#f0ece8] text-glow-copilot tracking-wider">
-                    LAUNCH_COPILOT
-                    <span className="animate-cursor-blink">_</span>
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowLaunchOverlay(false);
-                    handleLaunchVscode();
-                  }}
-                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#0f1a25] hover:border-[#3388cc]/40 rounded cursor-pointer
-                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1520] hover:shadow-[0_0_30px_rgba(51,136,204,0.15)] animate-glow-pulse-vscode"
-                >
-                  <Code2 className="w-10 h-10 text-[#3388cc] group-hover:scale-110 transition-transform duration-500 ease-out" />
-                  <span className="font-mono text-sm text-[#f0ece8] text-glow-vscode tracking-wider">
-                    LAUNCH_VSCODE
-                    <span className="animate-cursor-blink">_</span>
-                  </span>
-                </button>
-              </div>
-              <button
-                onClick={() => setShowLaunchOverlay(false)}
-                className="px-4 py-1.5 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#b0a89a] border border-[#1f1a15] font-mono transition-colors"
-              >
-                CANCEL
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Empty state — no tabs yet */}
-        {!promptVisible && !showLaunchOverlay && tabs.length === 0 && (
+        {!promptVisible && tabs.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {activeProject ? (
               <div className="flex gap-4">

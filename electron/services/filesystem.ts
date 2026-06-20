@@ -1,6 +1,5 @@
-import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, rmdirSync, statSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, rmdirSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { getGitBranch } from './git';
 
 export interface Project {
   name: string;
@@ -16,31 +15,18 @@ export interface TreeNode {
 }
 
 /**
- * Scans the workspace directory for git projects (folders containing .git).
- * Returns an array of projects with their current git branch.
+ * Fast scan of the workspace directory for git projects (folders containing .git).
+ * Does NOT resolve git branches (that runs in the background) so the UI can render
+ * immediately. Branch starts empty and is filled in later via 'project-branch-loaded'.
  * Returns empty array if workspacePath does not exist.
  */
-export async function scanWorkspace(workspacePath: string): Promise<Project[]> {
+export function listWorkspaceProjects(workspacePath: string): Project[] {
   try {
     const entries = readdirSync(workspacePath, { withFileTypes: true });
-    const directories = entries.filter((d) => d.isDirectory());
-
-    const projects = await Promise.all(
-      directories.map(async (dirent) => {
-        const fullPath = path.join(workspacePath, dirent.name);
-        const hasGit = existsSync(path.join(fullPath, '.git'));
-        if (!hasGit) return null;
-
-        const branch = getGitBranch(fullPath);
-        return {
-          name: dirent.name,
-          path: fullPath,
-          branch,
-        } as Project;
-      }),
-    );
-
-    return projects.filter((p): p is Project => p !== null);
+    return entries
+      .filter((d) => d.isDirectory())
+      .map((d) => ({ name: d.name, path: path.join(workspacePath, d.name), branch: '' }))
+      .filter((p) => existsSync(path.join(p.path, '.git')));
   } catch {
     // Workspace path doesn't exist or is inaccessible
     return [];
@@ -50,9 +36,10 @@ export async function scanWorkspace(workspacePath: string): Promise<Project[]> {
 /**
  * Reads a directory tree recursively.
  * Returns directories first, then files, both sorted alphabetically (case-insensitive).
+ * Directory names in `exclude` are skipped entirely (e.g. node_modules, .git).
  * Returns empty array if rootPath does not exist or is inaccessible.
  */
-export function readDirectoryTree(rootPath: string): TreeNode[] {
+export function readDirectoryTree(rootPath: string, exclude?: Set<string>): TreeNode[] {
   try {
     if (!existsSync(rootPath)) return [];
 
@@ -62,11 +49,12 @@ export function readDirectoryTree(rootPath: string): TreeNode[] {
     for (const entry of entries) {
       const fullPath = path.join(rootPath, entry.name);
       if (entry.isDirectory()) {
+        if (exclude?.has(entry.name)) continue;
         nodes.push({
           name: entry.name,
           path: fullPath,
           type: 'directory',
-          children: readDirectoryTree(fullPath),
+          children: readDirectoryTree(fullPath, exclude),
         });
       } else {
         nodes.push({
@@ -88,26 +76,19 @@ export function readDirectoryTree(rootPath: string): TreeNode[] {
 }
 
 /**
- * Reads only .claude and .github directories from a project path.
- * Returns tree nodes for whichever of the two folders exist.
+ * Heavy / generated directories never worth showing in the project file tree.
+ * Keeps the recursive scan fast and the tree readable.
  */
-export function readClaudeGithubTree(projectPath: string): TreeNode[] {
-  const folders = ['.claude', '.github'];
-  const nodes: TreeNode[] = [];
+const PROJECT_TREE_EXCLUDE = new Set([
+  'node_modules', '.git', 'dist', 'dist-electron', 'build', 'out', 'target',
+  'release', 'coverage', '.next', '.nuxt', '.turbo', '.cache', '.gradle',
+]);
 
-  for (const folder of folders) {
-    const folderPath = path.join(projectPath, folder);
-    if (existsSync(folderPath)) {
-      nodes.push({
-        name: folder,
-        path: folderPath,
-        type: 'directory',
-        children: readDirectoryTree(folderPath),
-      });
-    }
-  }
-
-  return nodes;
+/**
+ * Reads the full file tree of a project, skipping heavy/generated folders.
+ */
+export function readProjectFileTree(projectPath: string): TreeNode[] {
+  return readDirectoryTree(projectPath, PROJECT_TREE_EXCLUDE);
 }
 
 /**
@@ -160,5 +141,17 @@ export function deleteDirectory(dirPath: string): void {
  * Throws if the path is not writable.
  */
 export function writeFileContent(filePath: string, content: string): void {
+  writeFileSync(filePath, content, 'utf-8');
+}
+
+/**
+ * Creates a new file with the given content, creating parent directories as
+ * needed. Throws FILE_EXISTS if a file already exists at that path.
+ */
+export function createFile(filePath: string, content = ''): void {
+  if (existsSync(filePath)) {
+    throw new Error('FILE_EXISTS');
+  }
+  mkdirSync(path.dirname(filePath), { recursive: true });
   writeFileSync(filePath, content, 'utf-8');
 }

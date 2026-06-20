@@ -6,14 +6,16 @@ interface ConfigModalProps {
   workspacePath: string;
   plansPath: string;
   skillsPath: string;
+  promptsPath: string;
   onClose: () => void;
-  onSave: (workspacePath: string, plansPath: string, skillsPath: string) => void;
+  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string) => void;
 }
 
-export function ConfigModal({ open, workspacePath, plansPath, skillsPath, onClose, onSave }: ConfigModalProps) {
+export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
   const [sp, setSp] = useState(skillsPath);
+  const [prp, setPrp] = useState(promptsPath);
   const [saving, setSaving] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -22,8 +24,9 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, onClos
       setWp(workspacePath);
       setPp(plansPath);
       setSp(skillsPath);
+      setPrp(promptsPath);
     }
-  }, [open, workspacePath, plansPath, skillsPath]);
+  }, [open, workspacePath, plansPath, skillsPath, promptsPath]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -50,10 +53,15 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, onClos
     if (folder) setSp(folder);
   };
 
+  const handleBrowsePrompts = async () => {
+    const folder = await window.electronAPI.pickFolder('Select Prompts Folder');
+    if (folder) setPrp(folder);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(wp, pp, sp);
+      await onSave(wp, pp, sp, prp);
       onClose();
     } finally {
       setSaving(false);
@@ -167,6 +175,33 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, onClos
             </div>
             <p className="text-[10px] text-[#4a2a1a] font-mono">
               Folder containing .claude/skills structure for the skills tree
+            </p>
+          </div>
+
+          {/* Prompts Path */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+              Prompts Path
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={prp}
+                onChange={(e) => setPrp(e.target.value)}
+                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                placeholder="C:\Users\...\.claude\prompts"
+                spellCheck={false}
+              />
+              <button
+                onClick={handleBrowsePrompts}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                BROWSE
+              </button>
+            </div>
+            <p className="text-[10px] text-[#4a2a1a] font-mono">
+              Folder where markdown prompts are created and listed
             </p>
           </div>
         </div>

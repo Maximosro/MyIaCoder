@@ -1,6 +1,9 @@
-import { execSync } from 'node:child_process';
+import { execSync, execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+
+const execFileAsync = promisify(execFile);
 
 /** Represents a single file change detected by git. */
 export interface GitChange {
@@ -28,6 +31,24 @@ export function getGitBranch(projectPath: string): string {
       { encoding: 'utf-8', timeout: 5000, windowsHide: true },
     );
     return result.trim() || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Async, non-blocking variant of getGitBranch.
+ * Uses execFile so the main process event loop stays responsive while
+ * branches load in the background. Returns "unknown" on any failure.
+ */
+export async function getGitBranchAsync(projectPath: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', projectPath, 'branch', '--show-current'],
+      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
+    );
+    return stdout.trim() || 'unknown';
   } catch {
     return 'unknown';
   }
@@ -264,5 +285,70 @@ export function getGitDiff(projectPath: string, filePath: string): string {
     return header + body + noNewline;
   } catch {
     return `# Unable to generate diff for: ${filePath}\n# The file may be binary or inaccessible.`;
+  }
+}
+
+/** Result of a discard operation. */
+export interface DiscardResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Discards working-tree changes for a single file, reverting it like
+ * GitHub Desktop's "Discard changes":
+ *  - Files that exist in HEAD (modified, deleted, staged) are restored with
+ *    `git checkout HEAD -- <file>` (reverts both index and working tree).
+ *  - New files (untracked or staged-added, absent from HEAD) are unstaged and
+ *    deleted from disk.
+ *
+ * This is destructive and cannot be undone. Never throws — returns ok/error.
+ */
+export function discardFileChanges(projectPath: string, filePath: string): DiscardResult {
+  // Guard against path traversal — the resolved file must stay inside the repo.
+  const absPath = path.resolve(projectPath, filePath);
+  if (absPath !== path.resolve(projectPath) && !absPath.startsWith(path.resolve(projectPath) + path.sep)) {
+    return { ok: false, error: 'Path is outside the project' };
+  }
+
+  // git tracks paths with forward slashes.
+  const gitPath = filePath.replace(/\\/g, '/');
+
+  const inHead = (() => {
+    try {
+      execFileSync('git', ['-C', projectPath, 'cat-file', '-e', `HEAD:${gitPath}`], {
+        timeout: 10_000,
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  try {
+    if (inHead) {
+      execFileSync('git', ['-C', projectPath, 'checkout', 'HEAD', '--', gitPath], {
+        timeout: 10_000,
+        windowsHide: true,
+      });
+    } else {
+      // New file: drop it from the index if staged (ignore failure if it isn't)…
+      try {
+        execFileSync('git', ['-C', projectPath, 'rm', '-f', '--cached', '--', gitPath], {
+          timeout: 10_000,
+          windowsHide: true,
+          stdio: 'ignore',
+        });
+      } catch {
+        // Not staged — fine.
+      }
+      // …then remove it from disk.
+      if (existsSync(absPath)) unlinkSync(absPath);
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Discard failed' };
   }
 }

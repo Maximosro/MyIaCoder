@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Project } from '../types/project';
-import type { Tab } from '../types/terminal';
-import { getFileType, isFileTab, isDiffTab } from '../types/terminal';
+import type { Tab } from '../types/tab';
+import { isFileTab, isDiffTab } from '../types/tab';
+import { getFileType } from '../utils/tabUtils';
 
 function generateTabId(): string {
   return crypto.randomUUID();
@@ -18,7 +19,6 @@ interface UseTabsReturn {
   forceOpenTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   openFileTab: (project: Project, filePath: string) => Promise<string>;
   openDiffTab: (project: Project, filePath: string) => Promise<string>;
-  openTodoTab: () => void;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
   setActiveTab: (tabId: string) => void;
   saveFileTab: (tabId: string, content: string) => Promise<void>;
@@ -34,7 +34,6 @@ export function useTabs(): UseTabsReturn {
   const fileContentsRef = useRef<Map<string, string>>(new Map());
   const busyTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const BUSY_TIMEOUT_MS = 5000;
-  const [, setTick] = useState(0); // Force re-render for content updates
 
   // ── Terminal tabs ──────────────────────────────────────────
 
@@ -58,7 +57,7 @@ export function useTabs(): UseTabsReturn {
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(tabId);
 
-    await window.electronAPI.ptySpawn(tabId, project.path, command);
+    await window.electronAPI.ptySpawn(tabId, project.path, command, title);
   }, [tabs]);
 
   const forceOpenTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
@@ -75,7 +74,7 @@ export function useTabs(): UseTabsReturn {
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(tabId);
 
-    await window.electronAPI.ptySpawn(tabId, project.path, command);
+    await window.electronAPI.ptySpawn(tabId, project.path, command, title);
   }, []);
 
   // ── File tabs ──────────────────────────────────────────────
@@ -99,8 +98,9 @@ export function useTabs(): UseTabsReturn {
     let content = '';
     try {
       content = await window.electronAPI.readFileContent(filePath);
-    } catch {
+    } catch (err) {
       // File not found or path traversal — don't open
+      console.error('[useTabs] Failed to read file:', filePath, err);
       return '';
     }
 
@@ -209,29 +209,6 @@ export function useTabs(): UseTabsReturn {
     return fileContentsRef.current.get(tabId);
   }, []);
 
-  // ── ToDo tab (unique singleton) ────────────────────────────
-
-  const openTodoTab = useCallback(() => {
-    const TODO_TAB_ID = 'todo-tab';
-
-    const existing = tabs.find((t) => t.id === TODO_TAB_ID);
-    if (existing) {
-      setActiveTabId(existing.id);
-      return;
-    }
-
-    const newTab: Tab = {
-      id: TODO_TAB_ID,
-      kind: 'todo',
-      projectName: 'Focusxide',
-      projectPath: '',
-      title: 'ToDos',
-    };
-
-    setTabs((prev) => [...prev, newTab]);
-    setActiveTabId(TODO_TAB_ID);
-  }, [tabs]);
-
   // ── Shared tab operations ──────────────────────────────────
 
   const closeTab = useCallback(async (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => {
@@ -284,7 +261,6 @@ export function useTabs(): UseTabsReturn {
     forceOpenTerminalTab,
     openFileTab,
     openDiffTab,
-    openTodoTab,
     closeTab,
     setActiveTab,
     saveFileTab,

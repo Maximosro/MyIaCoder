@@ -31,5 +31,11 @@ export function useProjects(): UseProjectsReturn {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    return window.electronAPI.onProjectBranchLoaded(({ path, branch }) => {
+      setProjects((prev) => prev.map((p) => (p.path === path ? { ...p, branch } : p)));
+    });
+  }, []);
+
   return { projects, loading, error, refresh };
 }

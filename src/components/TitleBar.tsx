@@ -27,7 +27,7 @@ export function TitleBar({ onConfig }: { onConfig: () => void }) {
     >
       {/* App logo + title */}
       <div className="flex items-center gap-2.5 pl-3">
-        <img src="/logo.svg" alt="Focusxide" className="w-5 h-5 opacity-90" />
+        <img src="./logo.svg" alt="Focusxide" className="w-5 h-5 opacity-90" />
         <span className="text-[10px] tracking-[0.2em] uppercase text-[#d4784a]/70 font-medium">
           Focusxide Code Manager
         </span>
