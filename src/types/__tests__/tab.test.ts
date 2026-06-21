@@ -74,7 +74,7 @@ describe('getTabColorClass', () => {
   it('text returns green classes', () => {
     const cls = getTabColorClass('text');
     expect(cls).toContain('#6ba86b');
-    expect(cls).toContain('border');
+    expect(cls).toContain('text-[');
   });
 
   it('json returns blue classes', () => {
@@ -90,13 +90,13 @@ describe('getTabColorClass', () => {
   it('yaml returns amber classes', () => {
     const cls = getTabColorClass('yaml');
     expect(cls).toContain('#d4a44a');
-    expect(cls).toContain('border');
+    expect(cls).toContain('text-[');
   });
 
   it('toml returns teal classes', () => {
     const cls = getTabColorClass('toml');
     expect(cls).toContain('#4ab8b8');
-    expect(cls).toContain('border');
+    expect(cls).toContain('text-[');
   });
 });
 

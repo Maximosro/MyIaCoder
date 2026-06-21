@@ -138,16 +138,14 @@ body {
   to { width: 100%; }
 }
 
-@keyframes tabBreathing {
+@keyframes tabBusyGlow {
   0%, 100% {
-    border-bottom-color: var(--busy-color-dim, rgba(212, 120, 74, 0.15));
+    box-shadow: inset 0 0 8px var(--busy-glow, rgba(212, 120, 74, 0.05));
     background-color: transparent;
-    box-shadow: none;
   }
   50% {
-    border-bottom-color: var(--busy-color, #d4784a);
-    background-color: var(--busy-bg, rgba(212, 120, 74, 0.05));
-    box-shadow: inset 0 0 18px var(--busy-glow, rgba(212, 120, 74, 0.07));
+    box-shadow: inset 0 0 20px var(--busy-glow-strong, rgba(212, 120, 74, 0.14));
+    background-color: var(--busy-bg, rgba(212, 120, 74, 0.04));
   }
 }
 
@@ -199,8 +197,8 @@ body {
   animation: borderPulse 3s ease-in-out infinite;
 }
 
-.animate-tab-breathing {
-  animation: tabBreathing 2s ease-in-out infinite;
+.animate-tab-busy-glow {
+  animation: tabBusyGlow 2s ease-in-out infinite;
 }
 
 .animate-cursor-blink {
@@ -271,24 +269,6 @@ body {
   animation: warmPulse 6s ease-in-out infinite;
 }
 
-/* ── Underline draw effect for tabs ─────────────────────── */
-.tab-underline {
-  position: relative;
-}
-.tab-underline::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  background: var(--color-copper);
-  width: 0%;
-  transition: width 0.3s ease;
-}
-.tab-underline:hover::after,
-.tab-underline.active::after {
-  width: 100%;
-}
 
 /* ── RPI Plans Tree ─────────────────────────────────────── */
 @keyframes treeExpand {

@@ -23,20 +23,44 @@ export function getFileType(fileName: string): FileType | null {
   }
 }
 
-/** Returns Tailwind border + text classes for the tab accent color. */
+/** Returns Tailwind text class for the tab accent color. */
 export function getTabColorClass(fileType: FileType): string {
   switch (fileType) {
     case 'text':
-      return 'border-[#6ba86b] text-[#6ba86b]';
+      return 'text-[#6ba86b]';
     case 'json':
-      return 'border-[#7b9ec4] text-[#7b9ec4]';
+      return 'text-[#7b9ec4]';
     case 'markdown':
-      return 'border-[#e05555] text-[#e05555]';
+      return 'text-[#e05555]';
     case 'yaml':
-      return 'border-[#d4a44a] text-[#d4a44a]';
+      return 'text-[#d4a44a]';
     case 'toml':
-      return 'border-[#4ab8b8] text-[#4ab8b8]';
+      return 'text-[#4ab8b8]';
   }
+}
+
+// ponytail: single source of truth for command colors
+/** Returns the hex accent color for a terminal command. */
+export function getCommandColor(command?: string): string {
+  switch (command) {
+    case 'copilot':
+      return '#6ba86b';
+    case 'reasonix':
+      return '#a98bd4';
+    case 'codewhale':
+      return '#c4a36b';
+    case 'opencode':
+      return '#6bc4b0';
+    case 'terminal':
+      return '#b0a89a';
+    default:
+      return '#d4784a'; // claude + unknown fallback
+  }
+}
+
+/** Returns a Tailwind text class for a terminal command's accent color. */
+export function getCommandColorClass(command?: string): string {
+  return `text-[${getCommandColor(command)}]`;
 }
 
 /** Returns a hex color string for the file type (used for icons, indicators). */

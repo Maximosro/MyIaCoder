@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Terminal, X, FileText, GitCompare } from 'lucide-react';
+import { Terminal, X, FileText, GitCompare, Sparkles, Brain, Bot, Cpu, SquareTerminal } from 'lucide-react';
 import { TerminalTab } from './TerminalTab';
 import { UnsavedDialog } from './UnsavedDialog';
 import { CloseTerminalDialog } from './CloseTerminalDialog';
@@ -7,7 +7,7 @@ import { FileEditor } from './FileEditor';
 import { DiffViewer } from './DiffViewer';
 import type { Tab } from '../types/tab';
 import { isFileTab, isDiffTab, isTerminalTab } from '../types/tab';
-import { getTabColorClass } from '../utils/tabUtils';
+import { getTabColorClass, getCommandColor, getCommandColorClass } from '../utils/tabUtils';
 import type { Project } from '../types/project';
 import { ProjectInfo } from './ProjectInfo';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -53,15 +53,17 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
     isDragging,
   } = useSortable({ id: tab.id });
 
-  const isAiTab = tab.command === 'claude' || tab.command === 'copilot' || tab.command === 'reasonix';
+  const isAiTab = tab.command === 'claude' || tab.command === 'copilot' || tab.command === 'reasonix' || tab.command === 'codewhale' || tab.command === 'opencode';
   const isBusy = isAiTab && tab.busy && !isActive;
-  const busyBorderClass = isBusy ? 'animate-tab-breathing' : '';
-  const busyStyle = isBusy ? {
-    '--busy-color': tab.command === 'copilot' ? '#6ba86b' : tab.command === 'reasonix' ? '#a98bd4' : '#d4784a',
-    '--busy-color-dim': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.15)' : tab.command === 'reasonix' ? 'rgba(169, 139, 212, 0.15)' : 'rgba(212, 120, 74, 0.15)',
-    '--busy-bg': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.05)' : tab.command === 'reasonix' ? 'rgba(169, 139, 212, 0.05)' : 'rgba(212, 120, 74, 0.05)',
-    '--busy-glow': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.07)' : tab.command === 'reasonix' ? 'rgba(169, 139, 212, 0.07)' : 'rgba(212, 120, 74, 0.07)',
-  } as React.CSSProperties : undefined;
+  const busyGlowClass = isBusy ? 'animate-tab-busy-glow' : '';
+  const busyStyle = isBusy ? (() => {
+    const c = getCommandColor(tab.command);
+    return {
+      '--busy-bg': c + '0A',
+      '--busy-glow': c + '0F',
+      '--busy-glow-strong': c + '24',
+    } as React.CSSProperties;
+  })() : undefined;
 
   // ── Style composition: DnD only during drag, busy only when active ──
   // ponytail: idle state = no inline style (preserves CSS animation from className)
@@ -87,32 +89,26 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
   const file = isFileTab(tab);
   const diff = isDiffTab(tab);
 
-  const accentBorder = diff
-    ? 'border-[#d4a44a]'
-    : file
-      ? getTabColorClass(tab.fileType).split(' ')[0]
-      : tab.command === 'copilot'
-        ? 'border-[#6ba86b]'
-        : tab.command === 'reasonix'
-          ? 'border-[#a98bd4]'
-          : tab.command === 'terminal'
-            ? 'border-[#b0a89a]'
-            : 'border-[#d4784a]';
+  // Color: all tab types use Tailwind text-[color] classes (same mechanism as JSON tabs)
   const accentText = diff
     ? 'text-[#d4a44a]'
     : file
-      ? getTabColorClass(tab.fileType).split(' ')[1]
-      : tab.command === 'copilot'
-        ? 'text-[#6ba86b]'
-        : tab.command === 'reasonix'
-          ? 'text-[#a98bd4]'
-          : tab.command === 'terminal'
-            ? 'text-[#b0a89a]'
-            : 'text-[#d4784a]';
+      ? getTabColorClass(tab.fileType)
+      : getCommandColorClass(tab.command);
+
+  // Icon: map command to distinctive lucide icon (matching Sidebar menu)
+  const IconComponent = diff ? GitCompare
+    : file ? FileText
+    : tab.command === 'copilot' ? Sparkles
+    : tab.command === 'reasonix' ? Brain
+    : tab.command === 'codewhale' ? Bot
+    : tab.command === 'opencode' ? Cpu
+    : tab.command === 'terminal' ? SquareTerminal
+    : Terminal;
 
   const activeClass = isActive
-    ? `${accentBorder} ${accentText}`
-    : `${accentBorder}/30 ${accentText}/70 hover:${accentBorder}/60 hover:${accentText}`;
+    ? `bg-[#050505] -mb-[1px] border-b border-[#050505] ${accentText}`
+    : `bg-transparent hover:bg-[#0f0f0f] ${accentText}/70 hover:${accentText}`;
 
   return (
     <div
@@ -121,15 +117,11 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
       {...attributes}
       {...listeners}
       onClick={() => onSelect(tab.id)}
-      className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[220px] min-w-[80px] shrink border-b-2 font-mono select-none ${activeClass} ${busyBorderClass}`}
+      className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-200 max-w-[220px] min-w-[80px] shrink font-mono select-none rounded-t-md ${activeClass} ${busyGlowClass}`}
     >
-      {diff ? (
-        <GitCompare className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-      ) : file ? (
-        <FileText className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-      ) : (
-        <Terminal className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-      )}
+      <IconComponent
+        className="w-3 h-3 flex-shrink-0 transition-colors duration-300"
+      />
 
       <span className="truncate">{tab.title}</span>
 
@@ -277,7 +269,7 @@ export function TerminalPanel({
   }, [tabs, onReorderTabs]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+    <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-hidden">
       {/* Tab bar — visible when a project is selected or any tab is open */}
       {(activeProject || tabs.length > 0) && (
         <DndContext
@@ -289,7 +281,7 @@ export function TerminalPanel({
             items={tabs.map((t) => t.id)}
             strategy={horizontalListSortingStrategy}
           >
-            <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto">
+            <div className="flex items-end gap-0 px-2 pt-1 pb-0 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto overflow-y-hidden flex-nowrap">
               {tabs.map((tab) => (
                 <SortableTabItem
                   key={tab.id}
@@ -299,6 +291,8 @@ export function TerminalPanel({
                   onClose={handleCloseTab}
                 />
               ))}
+              {/* TailwindCSS safelist: /70 opacity variants for runtime template-literal class construction. */}
+              <span className="text-[#6ba86b]/70 text-[#7b9ec4]/70 text-[#e05555]/70 text-[#d4a44a]/70 text-[#4ab8b8]/70 text-[#d4784a]/70 text-[#a98bd4]/70 text-[#b0a89a]/70 text-[#c4a36b]/70 text-[#6bc4b0]/70" />
             </div>
           </SortableContext>
         </DndContext>
