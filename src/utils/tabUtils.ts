@@ -31,7 +31,7 @@ export function getTabColorClass(fileType: FileType): string {
     case 'json':
       return 'border-[#7b9ec4] text-[#7b9ec4]';
     case 'markdown':
-      return 'border-[#9b7bc4] text-[#9b7bc4]';
+      return 'border-[#e05555] text-[#e05555]';
     case 'yaml':
       return 'border-[#d4a44a] text-[#d4a44a]';
     case 'toml':
@@ -47,7 +47,7 @@ export function getTabColorHex(fileType: FileType): string {
     case 'json':
       return '#7b9ec4';
     case 'markdown':
-      return '#d4784a';
+      return '#e05555';
     case 'yaml':
       return '#d4a44a';
     case 'toml':

@@ -84,7 +84,7 @@ describe('getTabColorClass', () => {
 
   it('markdown returns copper classes', () => {
     const cls = getTabColorClass('markdown');
-    expect(cls).toContain('9b7bc4');
+    expect(cls).toContain('e05555');
   });
 
   it('yaml returns amber classes', () => {
@@ -105,7 +105,7 @@ describe('getTabColorClass', () => {
 describe('getTabColorHex', () => {
   it('text → #6ba86b', () => expect(getTabColorHex('text')).toBe('#6ba86b'));
   it('json → #7b9ec4', () => expect(getTabColorHex('json')).toBe('#7b9ec4'));
-  it('markdown → #d4784a', () => expect(getTabColorHex('markdown')).toBe('#d4784a'));
+  it('markdown → #e05555', () => expect(getTabColorHex('markdown')).toBe('#e05555'));
   it('yaml → #d4a44a', () => expect(getTabColorHex('yaml')).toBe('#d4a44a'));
   it('toml → #4ab8b8', () => expect(getTabColorHex('toml')).toBe('#4ab8b8'));
 });

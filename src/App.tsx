@@ -3,7 +3,6 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { TitleBar } from './components/TitleBar';
-import { ProjectInfo } from './components/ProjectInfo';
 import { useProjects } from './hooks/useProjects';
 import { useTabs } from './hooks/useTabs';
 import type { Project } from './types/project';
@@ -43,6 +42,9 @@ function App() {
   const [clients, setClients] = useState<ClientsConfig>(DEFAULT_CLIENTS);
   const [configOpen, setConfigOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
+  // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
+  // Sidebar and empty-state buttons both use this instead of opening tabs directly.
+  const [launchTrigger, setLaunchTrigger] = useState<{ command?: string; force: boolean; tick: number }>({ force: false, tick: 0 });
 
   useEffect(() => {
     window.electronAPI.getSettings().then((s) => {
@@ -70,6 +72,10 @@ function App() {
     if (selectedProject) {
       window.electronAPI.launchVscode(selectedProject.path);
     }
+  };
+
+  const requestLaunch = (command?: string, force = false) => {
+    setLaunchTrigger((prev) => ({ command, force, tick: prev.tick + 1 }));
   };
 
   const handleOpenDiff = async (filePath: string) => {
@@ -177,8 +183,6 @@ function App() {
   };
 
   const openTabPaths = new Set(tabs.map((t) => t.projectPath));
-  const showTerminalPanel = tabs.length > 0;
-
   return (
     <div className="flex flex-col h-screen bg-[#050505] text-[#f0ece8] relative overflow-hidden">
       {/* Custom title bar (replaces native Windows frame) */}
@@ -208,42 +212,35 @@ function App() {
           onDeleteFile={handleDeleteFile}
           onOpenDiff={handleOpenDiff}
           onCreatePrompt={handleCreatePrompt}
-          onLaunchClaude={() => selectedProject && handleOpenTab(selectedProject, selectedProject.name, 'claude')}
-          onLaunchCopilot={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'copilot')}
+          onLaunchClaude={() => selectedProject && requestLaunch('claude', false)}
+          onLaunchCopilot={() => selectedProject && requestLaunch('copilot', true)}
           onLaunchVscode={handleLaunchVscode}
-          onLaunchCodewhale={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'codewhale')}
-          onLaunchReasonix={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'reasonix')}
-          onLaunchOpencode={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'opencode')}
-          onLaunchTerminal={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'terminal')}
+          onLaunchCodewhale={() => selectedProject && requestLaunch('codewhale', true)}
+          onLaunchReasonix={() => selectedProject && requestLaunch('reasonix', true)}
+          onLaunchOpencode={() => selectedProject && requestLaunch('opencode', true)}
+          onLaunchTerminal={() => selectedProject && requestLaunch('terminal', true)}
           clients={clients}
         />
 
-        {/* Main panel */}
+        {/* Main panel — TerminalPanel handles its own empty state:
+            project info when no project, launch buttons when project selected,
+            tab bar + content when tabs exist, prompt overlay on demand. */}
         <main className="flex-1 flex flex-col min-w-0 relative z-10">
-          {/* No tabs open: project info / welcome. Git lives in the sidebar. */}
-          {!showTerminalPanel && (
-            <div className="flex-1 flex items-center justify-center">
-              <ProjectInfo project={selectedProject} />
-            </div>
-          )}
-
-          {/* Tabs open: Terminal panel */}
-          {showTerminalPanel && (
-            <TerminalPanel
-              tabs={tabs}
-              activeTabId={activeTabId}
-              activeProject={selectedProject}
-              onOpenTab={handleOpenTab}
-              onForceOpenTab={handleForceOpenTab}
-              onCloseTab={closeTab}
-              onSelectTab={setActiveTab}
-              onSaveFile={handleSaveFile}
-              onFileDirtyChange={handleFileDirtyChange}
-              getFileContent={getFileContent}
-              onTabActivity={markTabBusy}
-              onReorderTabs={moveTab}
-            />
-          )}
+          <TerminalPanel
+            tabs={tabs}
+            activeTabId={activeTabId}
+            activeProject={selectedProject}
+            launchTrigger={launchTrigger}
+            onOpenTab={handleOpenTab}
+            onForceOpenTab={handleForceOpenTab}
+            onCloseTab={closeTab}
+            onSelectTab={setActiveTab}
+            onSaveFile={handleSaveFile}
+            onFileDirtyChange={handleFileDirtyChange}
+            getFileContent={getFileContent}
+            onTabActivity={markTabBusy}
+            onReorderTabs={moveTab}
+          />
         </main>
 
         {/* Config Modal */}

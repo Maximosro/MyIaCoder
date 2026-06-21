@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Terminal, X, FileText, Code2, GitCompare } from 'lucide-react';
+import { Terminal, X, FileText, GitCompare } from 'lucide-react';
 import { TerminalTab } from './TerminalTab';
 import { UnsavedDialog } from './UnsavedDialog';
 import { CloseTerminalDialog } from './CloseTerminalDialog';
@@ -9,6 +9,7 @@ import type { Tab } from '../types/tab';
 import { isFileTab, isDiffTab, isTerminalTab } from '../types/tab';
 import { getTabColorClass } from '../utils/tabUtils';
 import type { Project } from '../types/project';
+import { ProjectInfo } from './ProjectInfo';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -29,6 +30,8 @@ interface TerminalPanelProps {
   onTabActivity?: (tabId: string) => void;
   /** Called when the user finishes dragging a tab to a new position. */
   onReorderTabs: (fromIndex: number, toIndex: number) => void;
+  /** External launch trigger from Sidebar. When tick increments, shows the name prompt. */
+  launchTrigger: { command?: string; force: boolean; tick: number };
 }
 
 // ── Sortable tab item (drag handle = entire tab, close button excluded) ──
@@ -50,11 +53,36 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
     isDragging,
   } = useSortable({ id: tab.id });
 
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const isAiTab = tab.command === 'claude' || tab.command === 'copilot' || tab.command === 'reasonix';
+  const isBusy = isAiTab && tab.busy && !isActive;
+  const busyBorderClass = isBusy ? 'animate-tab-breathing' : '';
+  const busyStyle = isBusy ? {
+    '--busy-color': tab.command === 'copilot' ? '#6ba86b' : tab.command === 'reasonix' ? '#a98bd4' : '#d4784a',
+    '--busy-color-dim': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.15)' : tab.command === 'reasonix' ? 'rgba(169, 139, 212, 0.15)' : 'rgba(212, 120, 74, 0.15)',
+    '--busy-bg': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.05)' : tab.command === 'reasonix' ? 'rgba(169, 139, 212, 0.05)' : 'rgba(212, 120, 74, 0.05)',
+    '--busy-glow': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.07)' : tab.command === 'reasonix' ? 'rgba(169, 139, 212, 0.07)' : 'rgba(212, 120, 74, 0.07)',
+  } as React.CSSProperties : undefined;
+
+  // ── Style composition: DnD only during drag, busy only when active ──
+  // ponytail: idle state = no inline style (preserves CSS animation from className)
+
+  const dndTransform = CSS.Transform.toString(transform);
+
+  let combinedStyle: React.CSSProperties | undefined;
+  if (isDragging) {
+    combinedStyle = {
+      transform: dndTransform,
+      transition,
+      opacity: 0.5,
+      ...busyStyle,
+    };
+  } else if (busyStyle) {
+    combinedStyle = {
+      transform: dndTransform,
+      transition,
+      ...busyStyle,
+    };
+  }
 
   const file = isFileTab(tab);
   const diff = isDiffTab(tab);
@@ -65,33 +93,27 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
       ? getTabColorClass(tab.fileType).split(' ')[0]
       : tab.command === 'copilot'
         ? 'border-[#6ba86b]'
-        : 'border-[#d4784a]';
+        : tab.command === 'reasonix'
+          ? 'border-[#a98bd4]'
+          : 'border-[#d4784a]';
   const accentText = diff
     ? 'text-[#d4a44a]'
     : file
       ? getTabColorClass(tab.fileType).split(' ')[1]
       : tab.command === 'copilot'
         ? 'text-[#6ba86b]'
-        : 'text-[#d4784a]';
+        : tab.command === 'reasonix'
+          ? 'text-[#a98bd4]'
+          : 'text-[#d4784a]';
 
   const activeClass = isActive
     ? `${accentBorder} ${accentText}`
     : `${accentBorder}/30 ${accentText}/70 hover:${accentBorder}/60 hover:${accentText}`;
 
-  const isAiTab = tab.command === 'claude' || tab.command === 'copilot';
-  const isBusy = isAiTab && tab.busy && !isActive;
-  const busyBorderClass = isBusy ? 'animate-tab-breathing' : '';
-  const busyStyle = isBusy ? {
-    '--busy-color': tab.command === 'copilot' ? '#6ba86b' : '#d4784a',
-    '--busy-color-dim': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.15)' : 'rgba(212, 120, 74, 0.15)',
-    '--busy-bg': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.05)' : 'rgba(212, 120, 74, 0.05)',
-    '--busy-glow': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.07)' : 'rgba(212, 120, 74, 0.07)',
-  } as React.CSSProperties : undefined;
-
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, ...busyStyle }}
+      style={combinedStyle}
       {...attributes}
       {...listeners}
       onClick={() => onSelect(tab.id)}
@@ -139,6 +161,7 @@ export function TerminalPanel({
   getFileContent,
   onTabActivity,
   onReorderTabs,
+  launchTrigger,
 }: TerminalPanelProps) {
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptValue, setPromptValue] = useState('');
@@ -167,27 +190,14 @@ export function TerminalPanel({
     }
   }, [promptVisible]);
 
-  const handleLaunch = (force = false) => {
-    if (!activeProject) return;
+  // External launch trigger (from Sidebar) — show the name prompt
+  useEffect(() => {
+    if (launchTrigger.tick === 0 || !activeProject) return;
     setPromptValue(activeProject.name);
-    setPromptAction(force ? 'force' : 'open');
-    setPendingCommand('claude');
+    setPromptAction(launchTrigger.force ? 'force' : 'open');
+    setPendingCommand(launchTrigger.command);
     setPromptVisible(true);
-  };
-
-  const handleLaunchVscode = () => {
-    if (!activeProject) return;
-    window.electronAPI.launchVscode(activeProject.path);
-  };
-
-  const handleLaunchCopilot = (force = false) => {
-    if (!activeProject) return;
-    setPromptValue(activeProject.name);
-    setPromptAction(force ? 'force' : 'open');
-    // Store copilot command intent — will be passed when user confirms
-    setPendingCommand('copilot');
-    setPromptVisible(true);
-  };
+  }, [launchTrigger.tick]);
 
   const submitPrompt = () => {
     const title = promptValue.trim() || activeProject?.name || 'terminal';
@@ -364,63 +374,8 @@ export function TerminalPanel({
 
         {/* Empty state — no tabs yet */}
         {!promptVisible && tabs.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            {activeProject ? (
-              <div className="flex gap-4">
-                <button
-                  onClick={() => handleLaunch()}
-                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1f1a15] hover:border-[#d4784a]/40 rounded cursor-pointer
-                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#1a0f0a] hover:shadow-[0_0_30px_rgba(212,120,74,0.15)] animate-glow-pulse"
-                >
-                  <Terminal className="w-10 h-10 text-[#d4784a] group-hover:scale-110 transition-transform duration-500 ease-out" />
-                  <span className="font-mono text-sm text-[#f0ece8] text-glow tracking-wider">
-                    LAUNCH_CLAUDE
-                    <span className="animate-cursor-blink">_</span>
-                  </span>
-                </button>
-                <button
-                  onClick={() => handleLaunchCopilot()}
-                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#1a1a0f] hover:border-[#6ba86b]/40 rounded cursor-pointer
-                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1a0e] hover:shadow-[0_0_30px_rgba(107,168,107,0.15)] animate-glow-pulse-copilot"
-                >
-                  <svg
-                    className="w-10 h-10 text-[#6ba86b] group-hover:scale-110 transition-transform duration-500 ease-out"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 2 3 22h6.5l2.5-7 2.5 7H21L12 2z" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                  <span className="font-mono text-sm text-[#f0ece8] text-glow-copilot tracking-wider">
-                    LAUNCH_COPILOT
-                    <span className="animate-cursor-blink">_</span>
-                  </span>
-                </button>
-                <button
-                  onClick={handleLaunchVscode}
-                  className="group flex flex-col items-center gap-3 px-8 py-6 bg-[#0a0a0a] border border-[#0f1a25] hover:border-[#3388cc]/40 rounded cursor-pointer
-                    transition-all duration-500 hover:scale-[1.02] hover:bg-[#0a1520] hover:shadow-[0_0_30px_rgba(51,136,204,0.15)] animate-glow-pulse-vscode"
-                >
-                  <Code2 className="w-10 h-10 text-[#3388cc] group-hover:scale-110 transition-transform duration-500 ease-out" />
-                  <span className="font-mono text-sm text-[#f0ece8] text-glow-vscode tracking-wider">
-                    LAUNCH_VSCODE
-                    <span className="animate-cursor-blink">_</span>
-                  </span>
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <Terminal className="w-12 h-12 text-[#1f1a15] animate-float" />
-                <p className="font-mono text-xs text-[#4a2a1a] tracking-wider">
-                  TERMINAL_READY
-                  <span className="text-[#1f1a15]">...</span>
-                </p>
-              </div>
-            )}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <ProjectInfo project={activeProject} />
           </div>
         )}
       </div>
