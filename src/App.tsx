@@ -32,6 +32,7 @@ function App() {
     markTabDirty,
     getFileContent,
     markTabBusy,
+    moveTab,
   } = useTabs();
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -240,6 +241,7 @@ function App() {
               onFileDirtyChange={handleFileDirtyChange}
               getFileContent={getFileContent}
               onTabActivity={markTabBusy}
+              onReorderTabs={moveTab}
             />
           )}
         </main>

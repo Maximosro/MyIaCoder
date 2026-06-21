@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Terminal, X, FileText, Code2, GitCompare } from 'lucide-react';
 import { TerminalTab } from './TerminalTab';
 import { UnsavedDialog } from './UnsavedDialog';
@@ -9,6 +9,10 @@ import type { Tab } from '../types/tab';
 import { isFileTab, isDiffTab, isTerminalTab } from '../types/tab';
 import { getTabColorClass } from '../utils/tabUtils';
 import type { Project } from '../types/project';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TerminalPanelProps {
   tabs: Tab[];
@@ -23,6 +27,103 @@ interface TerminalPanelProps {
   getFileContent?: (tabId: string) => string | undefined;
   /** Called when a terminal tab receives PTY output. Propagated from App → useTabs.markTabBusy. */
   onTabActivity?: (tabId: string) => void;
+  /** Called when the user finishes dragging a tab to a new position. */
+  onReorderTabs: (fromIndex: number, toIndex: number) => void;
+}
+
+// ── Sortable tab item (drag handle = entire tab, close button excluded) ──
+
+interface SortableTabItemProps {
+  tab: Tab;
+  isActive: boolean;
+  onSelect: (tabId: string) => void;
+  onClose: (tab: Tab) => void;
+}
+
+function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tab.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const file = isFileTab(tab);
+  const diff = isDiffTab(tab);
+
+  const accentBorder = diff
+    ? 'border-[#d4a44a]'
+    : file
+      ? getTabColorClass(tab.fileType).split(' ')[0]
+      : tab.command === 'copilot'
+        ? 'border-[#6ba86b]'
+        : 'border-[#d4784a]';
+  const accentText = diff
+    ? 'text-[#d4a44a]'
+    : file
+      ? getTabColorClass(tab.fileType).split(' ')[1]
+      : tab.command === 'copilot'
+        ? 'text-[#6ba86b]'
+        : 'text-[#d4784a]';
+
+  const activeClass = isActive
+    ? `${accentBorder} ${accentText}`
+    : `${accentBorder}/30 ${accentText}/70 hover:${accentBorder}/60 hover:${accentText}`;
+
+  const isAiTab = tab.command === 'claude' || tab.command === 'copilot';
+  const isBusy = isAiTab && tab.busy && !isActive;
+  const busyBorderClass = isBusy ? 'animate-tab-breathing' : '';
+  const busyStyle = isBusy ? {
+    '--busy-color': tab.command === 'copilot' ? '#6ba86b' : '#d4784a',
+    '--busy-color-dim': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.15)' : 'rgba(212, 120, 74, 0.15)',
+    '--busy-bg': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.05)' : 'rgba(212, 120, 74, 0.05)',
+    '--busy-glow': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.07)' : 'rgba(212, 120, 74, 0.07)',
+  } as React.CSSProperties : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ ...style, ...busyStyle }}
+      {...attributes}
+      {...listeners}
+      onClick={() => onSelect(tab.id)}
+      className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[220px] min-w-[80px] shrink border-b-2 font-mono select-none ${activeClass} ${busyBorderClass}`}
+    >
+      {diff ? (
+        <GitCompare className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
+      ) : file ? (
+        <FileText className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
+      ) : (
+        <Terminal className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
+      )}
+
+      <span className="truncate">{tab.title}</span>
+
+      {file && tab.isDirty && (
+        <span className="w-1.5 h-1.5 rounded-full bg-[#d4a44a] flex-shrink-0" title="Unsaved changes" />
+      )}
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose(tab);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="ml-auto p-0.5 rounded hover:bg-[#1a0a0a] text-[#8b5a3c] hover:text-[#e05555] flex-shrink-0 transition-all duration-200"
+        title={file ? 'Close editor' : 'Close terminal'}
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
 }
 
 export function TerminalPanel({
@@ -37,6 +138,7 @@ export function TerminalPanel({
   onFileDirtyChange,
   getFileContent,
   onTabActivity,
+  onReorderTabs,
 }: TerminalPanelProps) {
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptValue, setPromptValue] = useState('');
@@ -142,87 +244,50 @@ export function TerminalPanel({
     setUnsavedDialog({ open: false, tabId: '', fileName: '' });
   };
 
+  // ── Drag & drop sensors ────────────────────────────────────
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = tabs.findIndex((t) => t.id === active.id);
+    const newIndex = tabs.findIndex((t) => t.id === over.id);
+    if (oldIndex !== -1 && newIndex !== -1) {
+      onReorderTabs(oldIndex, newIndex);
+    }
+  }, [tabs, onReorderTabs]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-transparent">
       {/* Tab bar — visible when a project is selected or any tab is open */}
       {(activeProject || tabs.length > 0) && (
-        <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto">
-          {tabs.map((tab) => {
-            const file = isFileTab(tab);
-            const diff = isDiffTab(tab);
-            const isActive = tab.id === activeTabId;
-
-            // Accent colors: terminal = copper, copilot = emerald, diff = amber, files = type-dependent
-            const accentBorder = diff
-              ? 'border-[#d4a44a]'
-              : file
-                ? getTabColorClass(tab.fileType).split(' ')[0]
-                : tab.command === 'copilot'
-                  ? 'border-[#6ba86b]'
-                  : 'border-[#d4784a]';
-            const accentText = diff
-              ? 'text-[#d4a44a]'
-              : file
-                ? getTabColorClass(tab.fileType).split(' ')[1]
-                : tab.command === 'copilot'
-                  ? 'text-[#6ba86b]'
-                  : 'text-[#d4784a]';
-
-            const activeClass = isActive
-              ? `${accentBorder} ${accentText}`
-              : `${accentBorder}/30 ${accentText}/70 hover:${accentBorder}/60 hover:${accentText}`;
-
-            // Activity indicator: breathing tab for Claude/Copilot tabs that are busy
-            // Only show on inactive tabs — if the user is already focused on the tab,
-            // they can see terminal output directly.
-            const isAiTab = tab.command === 'claude' || tab.command === 'copilot';
-            const isBusy = isAiTab && tab.busy && !isActive;
-            const busyBorderClass = isBusy ? 'animate-tab-breathing' : '';
-            const busyStyle = isBusy ? {
-              '--busy-color': tab.command === 'copilot' ? '#6ba86b' : '#d4784a',
-              '--busy-color-dim': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.15)' : 'rgba(212, 120, 74, 0.15)',
-              '--busy-bg': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.05)' : 'rgba(212, 120, 74, 0.05)',
-              '--busy-glow': tab.command === 'copilot' ? 'rgba(107, 168, 107, 0.07)' : 'rgba(212, 120, 74, 0.07)',
-            } as React.CSSProperties : undefined;
-
-            return (
-              <div
-                key={tab.id}
-                onClick={() => onSelectTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[220px] min-w-[80px] shrink border-b-2 font-mono ${activeClass} ${busyBorderClass}`}
-                style={busyStyle}
-              >
-                {/* Icon */}
-                {diff ? (
-                  <GitCompare className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-                ) : file ? (
-                  <FileText className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-                ) : (
-                  <Terminal className={`w-3 h-3 flex-shrink-0 transition-colors duration-300 ${accentText}`} />
-                )}
-
-                <span className="truncate">{tab.title}</span>
-
-                {/* Dirty indicator (yellow dot) */}
-                {file && tab.isDirty && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#d4a44a] flex-shrink-0" title="Unsaved changes" />
-                )}
-
-                {/* Close button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCloseTab(tab);
-                  }}
-                  className="ml-auto p-0.5 rounded hover:bg-[#1a0a0a] text-[#8b5a3c] hover:text-[#e05555] flex-shrink-0 transition-all duration-200"
-                  title={file ? 'Close editor' : 'Close terminal'}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={tabs.map((t) => t.id)}
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15] overflow-x-auto">
+              {tabs.map((tab) => (
+                <SortableTabItem
+                  key={tab.id}
+                  tab={tab}
+                  isActive={tab.id === activeTabId}
+                  onSelect={onSelectTab}
+                  onClose={handleCloseTab}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Content area */}

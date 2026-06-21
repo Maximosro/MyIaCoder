@@ -3,6 +3,7 @@ import type { Project } from '../types/project';
 import type { Tab } from '../types/tab';
 import { isFileTab, isDiffTab } from '../types/tab';
 import { getFileType } from '../utils/tabUtils';
+import { arrayMove } from '@dnd-kit/sortable';
 
 function generateTabId(): string {
   return crypto.randomUUID();
@@ -26,6 +27,8 @@ interface UseTabsReturn {
   /** Mark a terminal tab as busy (receiving output). Auto-clears after 5s of inactivity. */
   markTabBusy: (tabId: string) => void;
   getFileContent: (tabId: string) => string | undefined;
+  /** Reorder tabs by moving the tab at fromIndex to toIndex. No-op on invalid indices. */
+  moveTab: (fromIndex: number, toIndex: number) => void;
 }
 
 export function useTabs(): UseTabsReturn {
@@ -203,6 +206,17 @@ export function useTabs(): UseTabsReturn {
     return fileContentsRef.current.get(tabId);
   }, []);
 
+  // ── Reorder ────────────────────────────────────────────────
+
+  const moveTab = useCallback((fromIndex: number, toIndex: number) => {
+    setTabs((prev) => {
+      if (fromIndex === toIndex) return prev;
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      if (fromIndex >= prev.length || toIndex >= prev.length) return prev;
+      return arrayMove(prev, fromIndex, toIndex);
+    });
+  }, []);
+
   // ── Shared tab operations ──────────────────────────────────
 
   const closeTab = useCallback(async (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => {
@@ -261,5 +275,6 @@ export function useTabs(): UseTabsReturn {
     markTabDirty,
     markTabBusy,
     getFileContent,
+    moveTab,
   };
 }

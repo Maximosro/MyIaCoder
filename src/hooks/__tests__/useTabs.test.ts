@@ -164,3 +164,106 @@ describe('useTabs — markTabBusy', () => {
     expect(result.current.tabs).toHaveLength(0);
   });
 });
+
+describe('useTabs — moveTab', () => {
+  const project = { name: 'test', path: '/test', branch: 'main' };
+
+  it('reorders tab from index 0 to index 2', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    // Open 4 tabs: A, B, C, D
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'C', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'D', 'claude'); });
+
+    act(() => { result.current.moveTab(0, 2); });
+
+    expect(result.current.tabs.map((t) => t.title)).toEqual(['B', 'C', 'A', 'D']);
+  });
+
+  it('reorders tab from index 2 to index 0', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'C', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'D', 'claude'); });
+
+    act(() => { result.current.moveTab(2, 0); });
+
+    expect(result.current.tabs.map((t) => t.title)).toEqual(['C', 'A', 'B', 'D']);
+  });
+
+  it('same index is a no-op', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+
+    const titlesBefore = result.current.tabs.map((t) => t.title);
+
+    act(() => { result.current.moveTab(0, 0); });
+
+    expect(result.current.tabs.map((t) => t.title)).toEqual(titlesBefore);
+  });
+
+  it('negative fromIndex is a no-op', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+
+    const titlesBefore = result.current.tabs.map((t) => t.title);
+
+    act(() => { result.current.moveTab(-1, 1); });
+
+    expect(result.current.tabs.map((t) => t.title)).toEqual(titlesBefore);
+  });
+
+  it('negative toIndex is a no-op', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+
+    const titlesBefore = result.current.tabs.map((t) => t.title);
+
+    act(() => { result.current.moveTab(0, -1); });
+
+    expect(result.current.tabs.map((t) => t.title)).toEqual(titlesBefore);
+  });
+
+  it('out-of-bounds toIndex is a no-op', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+
+    const titlesBefore = result.current.tabs.map((t) => t.title);
+
+    act(() => { result.current.moveTab(0, 5); });
+
+    expect(result.current.tabs.map((t) => t.title)).toEqual(titlesBefore);
+  });
+
+  it('preserves activeTabId after reorder', async () => {
+    const { result } = renderHook(() => useTabs());
+
+    await act(async () => { await result.current.openTerminalTab(project, 'A', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'B', 'claude'); });
+    await act(async () => { await result.current.openTerminalTab(project, 'C', 'claude'); });
+
+    const tabCId = result.current.tabs[2].id;
+
+    // Set C as active
+    act(() => { result.current.setActiveTab(tabCId); });
+    expect(result.current.activeTabId).toBe(tabCId);
+
+    // Move C (index 2) to front (index 0)
+    act(() => { result.current.moveTab(2, 0); });
+
+    expect(result.current.activeTabId).toBe(tabCId);
+    expect(result.current.tabs[0].title).toBe('C');
+  });
+});
