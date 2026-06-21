@@ -124,4 +124,19 @@ export function registerFilesystemIpc(getWindow: () => BrowserWindow | null): vo
       }
     });
   });
+
+  // Open an external terminal window (Windows Terminal or PowerShell) with no specific path.
+  ipcMain.handle('launch-terminal', async (_event, kind: 'wt' | 'powershell') => {
+    if (process.platform !== 'win32') return;
+    // `start "" <prog>` detaches the new window from this process.
+    const cmd = kind === 'wt'
+      ? 'start "" wt.exe'
+      : 'start "" powershell.exe -NoExit';
+    exec(cmd, (error) => {
+      if (error && kind === 'wt') {
+        // Windows Terminal not installed — fall back to PowerShell.
+        exec('start "" powershell.exe -NoExit');
+      }
+    });
+  });
 }

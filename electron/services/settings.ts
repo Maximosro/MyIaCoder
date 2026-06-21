@@ -3,12 +3,21 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+export interface ClientsConfig {
+  claude: boolean;
+  copilot: boolean;
+  codewhale: boolean;
+  reasonix: boolean;
+  opencode: boolean;
+}
+
 export interface Settings {
   workspacePath: string;
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
   theme: 'system' | 'light' | 'dark';
+  clients: ClientsConfig;
 }
 
 const HOME = os.homedir();
@@ -19,6 +28,13 @@ const DEFAULTS: Settings = {
   skillsPath: path.join(HOME, '.claude', 'skills'),
   promptsPath: path.join(HOME, '.claude', 'prompts'),
   theme: 'system',
+  clients: {
+    claude: true,
+    copilot: true,
+    codewhale: true,
+    reasonix: true,
+    opencode: true,
+  },
 };
 
 function getSettingsPath(): string {
@@ -32,7 +48,12 @@ export function loadSettings(): Settings {
     if (existsSync(filePath)) {
       const raw = readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<Settings>;
-      return { ...DEFAULTS, ...parsed };
+      // Deep-merge `clients` so a partial saved config keeps defaults for new clients.
+      return {
+        ...DEFAULTS,
+        ...parsed,
+        clients: { ...DEFAULTS.clients, ...parsed.clients },
+      };
     }
   } catch {
     // Corrupted file — reset to defaults
