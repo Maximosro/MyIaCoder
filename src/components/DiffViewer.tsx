@@ -78,6 +78,7 @@ export function DiffViewer({ fileName, projectPath, filePath }: DiffViewerProps)
       case '.py': return 'python';
       case '.java': return 'java';
       case '.yml': case '.yaml': return 'yaml';
+      case '.toml': return 'toml';
       case '.xml': return 'xml';
       case '.sh': case '.bash': return 'shell';
       case '.ps1': return 'powershell';

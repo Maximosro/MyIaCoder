@@ -4,3 +4,5 @@ dist-electron/
 release/
 out/
 *.tsbuildinfo
+*.toml
+*.md

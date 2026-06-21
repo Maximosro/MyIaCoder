@@ -9,6 +9,41 @@ import * as monaco from 'monaco-editor';
 
 loader.config({ monaco });
 
+// ── TOML language registration (Monaco doesn't ship TOML) ──
+monaco.languages.register({ id: 'toml' });
+monaco.languages.setMonarchTokensProvider('toml', {
+  tokenizer: {
+    root: [
+      [/#.*$/, 'comment'],
+      [/"""/, { token: 'string', next: '@mlstring_double' }],
+      [/'''/, { token: 'string', next: '@mlstring_single' }],
+      [/"([^"\\]|\\.)*"/, 'string'],
+      [/'[^']*'/, 'string'],
+      [/\b(true|false)\b/, 'keyword'],
+      [
+        /\b(0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|\d[\d_]*\.?\d*(?:[eE][+-]?\d+)?)\b/,
+        'number',
+      ],
+      [/\b(inf|nan)\b/, 'number'],
+      [/[A-Za-z_][\w-]*/, 'identifier'],
+      [/\[\[?[\w.-]+\]\]?/, 'type'],
+      [/[{}[\]]/, 'delimiter'],
+      [/\./, 'delimiter'],
+      [/=/, 'operator'],
+    ],
+    mlstring_double: [
+      [/"""/, { token: 'string', next: '@pop' }],
+      [/[^"]+/, 'string'],
+      [/"/, 'string'],
+    ],
+    mlstring_single: [
+      [/'''/, { token: 'string', next: '@pop' }],
+      [/[^']+/, 'string'],
+      [/'/, 'string'],
+    ],
+  },
+});
+
 // ── Helpers ────────────────────────────────────────────────────
 
 function mapFileTypeToLanguage(fileType: FileType): string {
@@ -21,6 +56,8 @@ function mapFileTypeToLanguage(fileType: FileType): string {
       return 'markdown';
     case 'yaml':
       return 'yaml';
+    case 'toml':
+      return 'toml';
   }
 }
 
@@ -34,6 +71,8 @@ function getFileTypeBadge(fileType: FileType): { label: string; className: strin
       return { label: 'MD', className: 'bg-[#1a0f0a] text-[#d4784a] border-[#d4784a]/30' };
     case 'yaml':
       return { label: 'YAML', className: 'bg-[#1a140a] text-[#d4a44a] border-[#d4a44a]/30' };
+    case 'toml':
+      return { label: 'TOML', className: 'bg-[#0a1515] text-[#4ab8b8] border-[#4ab8b8]/30' };
   }
 }
 

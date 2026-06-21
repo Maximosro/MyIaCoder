@@ -39,6 +39,14 @@ describe('getFileType', () => {
     expect(getFileType('docker-compose.yaml')).toBe('yaml');
   });
 
+  it('.toml → toml', () => {
+    expect(getFileType('config.toml')).toBe('toml');
+  });
+
+  it('.TOML → toml (case insensitive)', () => {
+    expect(getFileType('CONFIG.TOML')).toBe('toml');
+  });
+
   it('.yml → yaml', () => {
     expect(getFileType('config.yml')).toBe('yaml');
   });
@@ -84,6 +92,12 @@ describe('getTabColorClass', () => {
     expect(cls).toContain('#d4a44a');
     expect(cls).toContain('border');
   });
+
+  it('toml returns teal classes', () => {
+    const cls = getTabColorClass('toml');
+    expect(cls).toContain('#4ab8b8');
+    expect(cls).toContain('border');
+  });
 });
 
 // ── getTabColorHex ────────────────────────────────────────────
@@ -93,6 +107,7 @@ describe('getTabColorHex', () => {
   it('json → #7b9ec4', () => expect(getTabColorHex('json')).toBe('#7b9ec4'));
   it('markdown → #d4784a', () => expect(getTabColorHex('markdown')).toBe('#d4784a'));
   it('yaml → #d4a44a', () => expect(getTabColorHex('yaml')).toBe('#d4a44a'));
+  it('toml → #4ab8b8', () => expect(getTabColorHex('toml')).toBe('#4ab8b8'));
 });
 
 // ── Type guards ───────────────────────────────────────────────
@@ -156,12 +171,13 @@ describe('isTerminalTab', () => {
 // ── SUPPORTED_EXTENSIONS ──────────────────────────────────────
 
 describe('SUPPORTED_EXTENSIONS', () => {
-  it('contains .txt, .json, .md, .yaml, .yml', () => {
+  it('contains .txt, .json, .md, .yaml, .yml, .toml', () => {
     expect(SUPPORTED_EXTENSIONS.has('.txt')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.json')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.md')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.yaml')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.yml')).toBe(true);
+    expect(SUPPORTED_EXTENSIONS.has('.toml')).toBe(true);
   });
 
   it('does not contain .ts', () => {

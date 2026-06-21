@@ -1,4 +1,4 @@
-import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare } from 'lucide-react';
+import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import type { Project } from '../types/project';
 import type { ClientsConfig } from '../../electron/preload';
@@ -77,6 +77,8 @@ export function Sidebar({
   const launchMenuRef = useRef<HTMLDivElement>(null);
   const [termMenuOpen, setTermMenuOpen] = useState(false);
   const termMenuRef = useRef<HTMLDivElement>(null);
+  const [editorMenuOpen, setEditorMenuOpen] = useState(false);
+  const editorMenuRef = useRef<HTMLDivElement>(null);
 
   // The Tasks tab only makes sense when at least one CLI client (Claude/Copilot)
   // that registers live sessions is enabled.
@@ -118,6 +120,18 @@ export function Sidebar({
     return () => document.removeEventListener('mousedown', onDown);
   }, [termMenuOpen]);
 
+  // Close the editor menu on any click outside it.
+  useEffect(() => {
+    if (!editorMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (editorMenuRef.current && !editorMenuRef.current.contains(e.target as Node)) {
+        setEditorMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [editorMenuOpen]);
+
   return (
     <aside className="w-[380px] flex-shrink-0 border-r border-[#1f1a15] flex flex-col h-full bg-[#0a0a0a] relative z-10">
       {/* Header */}
@@ -136,6 +150,33 @@ export function Sidebar({
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
+            )}
+
+            {/* Editor menu — only when a project is selected */}
+            {selectedPath && (
+              <div className="relative animate-fade-in" ref={editorMenuRef}>
+                <button
+                  onClick={() => setEditorMenuOpen((o) => !o)}
+                  className={`p-1.5 rounded transition-all duration-200 hover:bg-[#0f0f0f] ${
+                    editorMenuOpen ? 'text-[#d4784a] bg-[#0f0f0f]' : 'text-[#8b5a3c] hover:text-[#d4784a]'
+                  }`}
+                  title="Editores"
+                >
+                  <FileCode className="w-4 h-4" />
+                </button>
+
+                {editorMenuOpen && (
+                  <div className="absolute right-0 mt-1 w-44 z-30 bg-[#0a0a0a] border border-[#1f1a15] rounded shadow-[0_8px_30px_rgba(0,0,0,0.6)] py-1 animate-fade-in">
+                    <button
+                      onClick={() => { setEditorMenuOpen(false); onLaunchVscode(); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#7b9ec4] hover:bg-[#0a1520] transition-colors"
+                    >
+                      <Code2 className="w-3.5 h-3.5" />
+                      VSCODE
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Launch menu — only when a project is selected */}
@@ -171,13 +212,6 @@ export function Sidebar({
                       COPILOT
                     </button>
                     )}
-                    <button
-                      onClick={() => { setLaunchMenuOpen(false); onLaunchVscode(); }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#7b9ec4] hover:bg-[#0a1520] transition-colors"
-                    >
-                      <Code2 className="w-3.5 h-3.5" />
-                      VSCODE
-                    </button>
                     {clients.codewhale && (
                     <button
                       onClick={() => { setLaunchMenuOpen(false); onLaunchCodewhale(); }}

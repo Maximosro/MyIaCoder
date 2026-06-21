@@ -200,7 +200,7 @@ function App() {
           promptsPath={promptsPath}
           treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
-          onRefresh={refresh}
+          onRefresh={() => { refresh(); setTreeRefreshKey((k) => k + 1); }}
           onBack={handleBackToProjects}
           onConfig={handleOpenConfig}
           onFileClick={handleFileOpen}

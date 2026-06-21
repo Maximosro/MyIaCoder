@@ -1,6 +1,6 @@
 import type { FileType } from '../types/tab';
 
-export const SUPPORTED_EXTENSIONS: ReadonlySet<string> = new Set(['.txt', '.json', '.md', '.yaml', '.yml']);
+export const SUPPORTED_EXTENSIONS: ReadonlySet<string> = new Set(['.txt', '.json', '.md', '.yaml', '.yml', '.toml']);
 
 export function getFileType(fileName: string): FileType | null {
   const dotIndex = fileName.lastIndexOf('.');
@@ -16,6 +16,8 @@ export function getFileType(fileName: string): FileType | null {
     case '.yaml':
     case '.yml':
       return 'yaml';
+    case '.toml':
+      return 'toml';
     default:
       return null;
   }
@@ -32,6 +34,8 @@ export function getTabColorClass(fileType: FileType): string {
       return 'border-[#9b7bc4] text-[#9b7bc4]';
     case 'yaml':
       return 'border-[#d4a44a] text-[#d4a44a]';
+    case 'toml':
+      return 'border-[#4ab8b8] text-[#4ab8b8]';
   }
 }
 
@@ -46,5 +50,7 @@ export function getTabColorHex(fileType: FileType): string {
       return '#d4784a';
     case 'yaml':
       return '#d4a44a';
+    case 'toml':
+      return '#4ab8b8';
   }
 }
