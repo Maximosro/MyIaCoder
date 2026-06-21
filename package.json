@@ -1,6 +1,6 @@
 {
   "name": "ai-code-manager",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Desktop app to manage multiple projects with integrated Claude Code terminal",
   "main": "dist-electron/main.js",
   "scripts": {

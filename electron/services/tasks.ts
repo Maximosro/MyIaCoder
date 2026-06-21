@@ -4,7 +4,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
-export type TaskSource = 'copilot' | 'claude';
+export type TaskSource = 'copilot' | 'claude' | 'reasonix';
 export type TaskKind = 'todo' | 'subagent';
 
 /** A single task extracted from a CLI session store (todo list or subagent run). */
@@ -46,6 +46,34 @@ const HOME = os.homedir();
 const COPILOT_SESSIONS = path.join(HOME, '.copilot', 'session-state');
 const CLAUDE_SESSIONS = path.join(HOME, '.claude', 'sessions');
 const CLAUDE_PROJECTS = path.join(HOME, '.claude', 'projects');
+// The reasonix npm client persists chat sessions under ~/.reasonix/sessions as a
+// transcript (<name>.jsonl), an event-log sidecar (<name>.events.jsonl), and
+// metadata (<name>.meta.json whose `workspace` is the project cwd).
+const REASONIX_SESSIONS = path.join(HOME, '.reasonix', 'sessions');
+
+/** Reasonix subagent skills are surfaced to the model as ordinary tools; a tool
+ *  call whose name is in this set is an agent dispatch (shown as a subagent),
+ *  everything else is a plain tool invocation.
+ *  ponytail: fixed builtin set from the reasonix binary; extend if new
+ *  runAs=subagent skills are added. */
+const REASONIX_SUBAGENT_TOOLS = new Set(['explore', 'research', 'review', 'securityReview', 'task']);
+
+/** Set of session IDs (tab UUIDs) for Reasonix terminals launched from this app.
+ *  Reasonix is launched with `reasonix chat --session=<tabId>`, so the sidecar
+ *  file is named `<tabId>.events.jsonl`. Only these sessions are shown — external
+ *  Reasonix instances are hidden, and membership also doubles as the liveness
+ *  signal (pty-manager unregisters the tab when its terminal closes). */
+const activeReasonixSessionIds = new Set<string>();
+
+/** Register a Reasonix session as "ours" so its tools/agents appear in the panel. */
+export function registerReasonixSession(sessionId: string): void {
+  activeReasonixSessionIds.add(sessionId);
+}
+
+/** Unregister a Reasonix session when its terminal tab is closed. */
+export function unregisterReasonixSession(sessionId: string): void {
+  activeReasonixSessionIds.delete(sessionId);
+}
 
 /** Set of session IDs (tab UUIDs) for Claude terminals launched from this app.
  *  Only sessions whose sessionId is in this set are shown — external Claude
@@ -519,6 +547,169 @@ function getClaudeTasks(projectPath: string): ProjectTasksResult {
   return { source: 'claude', sessions };
 }
 
+/** Short, human-readable subject pulled from a tool call's JSON args. */
+function reasonixArgSubject(argsRaw?: string): string {
+  if (!argsRaw) return '';
+  let a: Record<string, unknown>;
+  try {
+    a = JSON.parse(argsRaw);
+  } catch {
+    return '';
+  }
+  for (const k of ['task', 'description', 'prompt', 'command', 'path', 'file_path', 'pattern', 'query']) {
+    const v = a[k];
+    if (typeof v === 'string' && v.trim()) return v.trim().replace(/\s+/g, ' ').slice(0, 80);
+  }
+  return '';
+}
+
+interface ReasonixEvent {
+  type?: string;
+  ts?: string;
+  callId?: string;
+  name?: string;
+  args?: string;
+  ok?: boolean;
+}
+
+/**
+ * Parses a Reasonix `<name>.events.jsonl` sidecar into tasks. Each tool call
+ * (`tool.preparing` then `tool.intent`, sharing a callId) becomes a task; a
+ * matching `tool.result` completes it (`ok:false` → blocked). Tool names in
+ * REASONIX_SUBAGENT_TOOLS are shown as agents (subagents), the rest as plain
+ * tool invocations — so the panel surfaces both the tools and agents the client
+ * uses live. Exported for unit testing.
+ */
+export function parseReasonixEvents(raw: string): Task[] {
+  const order: string[] = [];
+  const starts = new Map<string, Task>();
+
+  for (const line of raw.split('\n')) {
+    if (!line) continue;
+    let e: ReasonixEvent;
+    try {
+      e = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const id = e.callId;
+    if (!id) continue;
+
+    if ((e.type === 'tool.preparing' || e.type === 'tool.intent') && e.name) {
+      const isSub = REASONIX_SUBAGENT_TOOLS.has(e.name);
+      const subject = reasonixArgSubject(e.args);
+      let task = starts.get(id);
+      if (!task) {
+        task = {
+          id,
+          title: e.name,
+          description: subject,
+          status: 'in_progress',
+          kind: isSub ? 'subagent' : 'todo',
+          agentType: isSub ? e.name : undefined,
+          createdAt: e.ts ?? '',
+          updatedAt: e.ts ?? '',
+          dependsOn: [],
+        };
+        starts.set(id, task);
+        order.push(id);
+      }
+      // tool.intent (fired after tool.preparing) carries the args — refresh once known.
+      if (subject) {
+        task.description = subject;
+        task.title = isSub ? `${e.name}: ${subject}` : `${e.name} ${subject}`;
+      }
+      task.updatedAt = e.ts ?? task.updatedAt;
+    } else if (e.type === 'tool.result') {
+      const task = starts.get(id);
+      if (task) {
+        task.status = e.ok === false ? 'blocked' : 'done';
+        task.updatedAt = e.ts ?? task.updatedAt;
+      }
+    }
+  }
+
+  const tasks = order.map((id) => starts.get(id)!);
+  // ponytail: cap to the most recent 50 calls so a long session doesn't flood the panel.
+  return tasks.slice(-50);
+}
+
+/** Reads tasks from one session's event-log sidecar. */
+function readReasonixSessionEvents(eventsPath: string): Task[] {
+  let raw: string;
+  try {
+    raw = readFileSync(eventsPath, 'utf-8');
+  } catch {
+    return [];
+  }
+  return parseReasonixEvents(raw);
+}
+
+/** Reads a Reasonix session's metadata (workspace cwd + summary). */
+function readReasonixMeta(metaPath: string): { workspace?: string; summary?: string } | null {
+  try {
+    return JSON.parse(readFileSync(metaPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads Reasonix tasks for a project by scanning `~/.reasonix/sessions` for the
+ * event-log sidecars of sessions launched from this app (file name == tab UUID),
+ * matching each session's `meta.json.workspace` to the project path. Only
+ * registered (open) sessions are returned, so tasks disappear when the terminal
+ * closes — same behaviour as Copilot/Claude.
+ */
+function getReasonixTasks(projectPath: string): ProjectTasksResult {
+  const target = normPath(projectPath);
+  const sessions: TaskSession[] = [];
+
+  if (!existsSync(REASONIX_SESSIONS)) {
+    return { source: 'reasonix', sessions };
+  }
+
+  let files: string[];
+  try {
+    files = readdirSync(REASONIX_SESSIONS, { withFileTypes: true })
+      .filter((d) => d.isFile() && d.name.endsWith('.events.jsonl'))
+      .map((d) => d.name);
+  } catch (err) {
+    return { source: 'reasonix', sessions, error: err instanceof Error ? err.message : 'Cannot read reasonix sessions' };
+  }
+
+  for (const file of files) {
+    const name = file.replace(/\.events\.jsonl$/, '');
+    // Only sessions launched from this app (file name == tab UUID via --session);
+    // membership also means the terminal tab is still open (live).
+    if (!activeReasonixSessionIds.has(name)) continue;
+
+    const eventsPath = path.join(REASONIX_SESSIONS, file);
+    const meta = readReasonixMeta(path.join(REASONIX_SESSIONS, `${name}.meta.json`));
+    if (!meta?.workspace || normPath(meta.workspace) !== target) continue;
+
+    let updatedAt = '';
+    try {
+      updatedAt = statSync(eventsPath).mtime.toISOString();
+    } catch {
+      /* keep '' */
+    }
+
+    try {
+      const tasks = readReasonixSessionEvents(eventsPath);
+      if (tasks.length > 0) {
+        const label = meta.summary?.trim().slice(0, 40) || name;
+        sessions.push({ sessionId: name, name: label, updatedAt, live: true, tasks });
+      }
+    } catch {
+      // Sidecar locked/corrupt — skip this session, keep the rest.
+    }
+  }
+
+  sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return { source: 'reasonix', sessions };
+}
+
 /**
  * Copilot is read from `~/.copilot/session-state/*`. Claude is not wired yet —
  * it returns an empty result so the UI can show a "coming soon" state.
@@ -526,6 +717,9 @@ function getClaudeTasks(projectPath: string): ProjectTasksResult {
 export function getProjectTasks(projectPath: string, source: TaskSource): ProjectTasksResult {
   if (source === 'claude') {
     return getClaudeTasks(projectPath);
+  }
+  if (source === 'reasonix') {
+    return getReasonixTasks(projectPath);
   }
   return getCopilotTasks(projectPath);
 }
@@ -558,9 +752,10 @@ export function watchTasks(onChange: () => void): () => void {
 
   const copilotWatcher = watchDir(COPILOT_SESSIONS);
   const claudeWatcher = watchDir(CLAUDE_SESSIONS);
+  const reasonixWatcher = watchDir(REASONIX_SESSIONS);
 
   // If neither watcher could be started, return a no-op disposer.
-  if (!copilotWatcher && !claudeWatcher) {
+  if (!copilotWatcher && !claudeWatcher && !reasonixWatcher) {
     return () => {};
   }
 
@@ -568,5 +763,6 @@ export function watchTasks(onChange: () => void): () => void {
     if (timer) clearTimeout(timer);
     copilotWatcher?.close();
     claudeWatcher?.close();
+    reasonixWatcher?.close();
   };
 }

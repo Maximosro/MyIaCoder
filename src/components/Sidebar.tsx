@@ -83,6 +83,7 @@ export function Sidebar({
   const taskSources: TaskSource[] = [
     ...(clients.copilot ? (['copilot'] as const) : []),
     ...(clients.claude ? (['claude'] as const) : []),
+    ...(clients.reasonix ? (['reasonix'] as const) : []),
   ];
   const tasksEnabled = taskSources.length > 0;
 

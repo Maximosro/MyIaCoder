@@ -1,5 +1,5 @@
 import * as nodePty from 'node-pty';
-import { registerClaudeSession, unregisterClaudeSession, registerCopilotSession, unregisterCopilotSession } from './services/tasks';
+import { registerClaudeSession, unregisterClaudeSession, registerCopilotSession, unregisterCopilotSession, registerReasonixSession, unregisterReasonixSession } from './services/tasks';
 
 /**
  * Sanitises a tab title for safe use inside a cmd.exe command line.
@@ -24,6 +24,11 @@ function buildLaunchCommand(command: string, tabId: string, title?: string): str
   if (command === 'copilot' || command === 'claude') {
     const name = sanitizeSessionName(title ?? '');
     return `${command} --session-id=${tabId} --name="${name}"`;
+  }
+  // Reasonix: launch the interactive chat bound to the tab UUID so the task panel
+  // can map its events sidecar (~/.reasonix/sessions/<tabId>.events.jsonl) to this tab.
+  if (command === 'reasonix') {
+    return `reasonix chat --session=${tabId}`;
   }
   return command;
 }
@@ -82,6 +87,8 @@ export class PTYManager {
       registerClaudeSession(tabId);
     } else if (command === 'copilot') {
       registerCopilotSession(tabId);
+    } else if (command === 'reasonix') {
+      registerReasonixSession(tabId);
     }
   }
 
@@ -119,6 +126,7 @@ export class PTYManager {
       this.sessions.delete(tabId);
       unregisterClaudeSession(tabId);
       unregisterCopilotSession(tabId);
+      unregisterReasonixSession(tabId);
     }
   }
 
@@ -127,6 +135,7 @@ export class PTYManager {
       session.pty.kill();
       unregisterClaudeSession(tabId);
       unregisterCopilotSession(tabId);
+      unregisterReasonixSession(tabId);
     }
     this.sessions.clear();
   }

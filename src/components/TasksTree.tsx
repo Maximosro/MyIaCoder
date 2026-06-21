@@ -8,6 +8,7 @@ import {
   Ban,
   Sparkles,
   Terminal,
+  Cpu,
 } from 'lucide-react';
 import { useTasks } from '../hooks/useTasks';
 import type { TaskStatus, TaskSession, TaskSource } from '../types/task';
@@ -98,7 +99,7 @@ function SessionNode({ session, label, defaultOpen }: { session: TaskSession; la
 /**
  * Compact tasks list for the sidebar — CLI tasks for the selected project,
  * grouped by session, refreshing live as the terminal runs.
- * Copilot is wired; Claude is a prepared "coming soon" source.
+ * Copilot, Claude, and Reasonix are all wired.
  */
 export function TasksTree({ projectPath, refreshKey, sources }: TasksTreeProps) {
   const [source, setSource] = useState<TaskSource>(sources[0] ?? 'copilot');
@@ -136,6 +137,17 @@ export function TasksTree({ projectPath, refreshKey, sources }: TasksTreeProps) 
         >
           <Terminal className="w-2.5 h-2.5" />
           CLAUDE
+        </button>
+      )}
+      {sources.includes('reasonix') && (
+        <button
+          onClick={() => setSource('reasonix')}
+          className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono tracking-wider rounded transition-colors ${
+            source === 'reasonix' ? 'bg-[#140f1a] text-[#a07bd4] border border-[#a07bd4]/30' : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+          }`}
+        >
+          <Cpu className="w-2.5 h-2.5" />
+          REASONIX
         </button>
       )}
     </div>
