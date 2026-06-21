@@ -16,7 +16,7 @@ function sanitizeSessionName(title: string): string {
  * task panel can map each live session back to its terminal tab exactly.
  * Other commands (e.g. 'claude') are launched as-is.
  */
-function buildLaunchCommand(command: string, tabId: string, title?: string): string {
+function buildLaunchCommand(command: string, tabId: string, projectPath: string, title?: string): string {
   // Plain terminal tab: open the shell at the project path without running any CLI.
   if (command === 'terminal') {
     return '';
@@ -25,10 +25,12 @@ function buildLaunchCommand(command: string, tabId: string, title?: string): str
     const name = sanitizeSessionName(title ?? '');
     return `${command} --session-id=${tabId} --name="${name}"`;
   }
-  // Reasonix: launch the interactive chat bound to the tab UUID so the task panel
-  // can map its events sidecar (~/.reasonix/sessions/<tabId>.events.jsonl) to this tab.
+  // Reasonix ≥ 1.8.0 auto-generates session names — the --session flag was
+  // removed.  The task panel shows all sessions for a project as long as a
+  // Reasonix terminal tab is open, because session files are created lazily
+  // (when the user first types a message).
   if (command === 'reasonix') {
-    return `reasonix chat --session=${tabId}`;
+    return `reasonix chat --dir="${projectPath}"`;
   }
   return command;
 }
@@ -76,7 +78,7 @@ export class PTYManager {
 
     // Type the command and press enter — exactly like the user would.
     // An empty command (plain terminal) leaves the shell at the project path untouched.
-    const launchCommand = buildLaunchCommand(command, tabId, title);
+    const launchCommand = buildLaunchCommand(command, tabId, projectPath, title);
     if (launchCommand) {
       pty.write(`${launchCommand}\r\n`);
     }
@@ -88,7 +90,11 @@ export class PTYManager {
     } else if (command === 'copilot') {
       registerCopilotSession(tabId);
     } else if (command === 'reasonix') {
-      registerReasonixSession(tabId);
+      // Reasonix ≥ 1.8.0 creates session files lazily (on first message).
+      // Instead of discovering a specific file, we mark this project as
+      // having an open Reasonix tab — getReasonixTasks shows ALL sessions
+      // for a project that has at least one open tab.
+      registerReasonixSession(tabId, projectPath);
     }
   }
 

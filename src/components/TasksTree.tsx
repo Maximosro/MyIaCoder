@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ChevronRight,
   RefreshCw,
@@ -96,14 +96,43 @@ function SessionNode({ session, label, defaultOpen }: { session: TaskSession; la
   );
 }
 
+/** Invisible component that subscribes to one task source via useTasks and
+ *  pushes results into a shared store.  All sources listen for `tasks-changed`
+ *  instantly, but only the active tab polls aggressively — inactive sources
+ *  poll slowly (10 s / 5 s) just for liveness detection. */
+function TaskSourceWatcher({
+  projectPath,
+  source,
+  active,
+  store,
+  refreshKey,
+}: {
+  projectPath: string;
+  source: TaskSource;
+  active: boolean;
+  store: React.MutableRefObject<Map<TaskSource, { sessions: TaskSession[]; loading: boolean; error: string | null }>>;
+  refreshKey: number;
+}) {
+  const { sessions, loading, error } = useTasks(projectPath, source, refreshKey, active);
+
+  useEffect(() => {
+    store.current.set(source, { sessions, loading, error });
+  });
+
+  return null;
+}
+
 /**
  * Compact tasks list for the sidebar — CLI tasks for the selected project,
  * grouped by session, refreshing live as the terminal runs.
- * Copilot, Claude, and Reasonix are all wired.
+ * All enabled sources (Copilot, Claude, Reasonix) are subscribed simultaneously
+ * so tasks from any source appear the moment the user switches tabs.
  */
 export function TasksTree({ projectPath, refreshKey, sources }: TasksTreeProps) {
   const [source, setSource] = useState<TaskSource>(sources[0] ?? 'copilot');
-  const { sessions, loading, error } = useTasks(projectPath, source, refreshKey);
+
+  // Shared store for all source subscriptions, keyed by source name.
+  const store = useRef<Map<TaskSource, { sessions: TaskSession[]; loading: boolean; error: string | null }>>(new Map());
 
   // Keep the active source within the enabled set (e.g. when a client is disabled in config).
   useEffect(() => {
@@ -111,6 +140,12 @@ export function TasksTree({ projectPath, refreshKey, sources }: TasksTreeProps) 
       setSource(sources[0]);
     }
   }, [sources, source]);
+
+  // Read current source's data from the store.
+  const current = store.current.get(source);
+  const sessions = current?.sessions ?? [];
+  const loading = current?.loading ?? false;
+  const error = current?.error ?? null;
 
   const total = useMemo(() => sessions.reduce((n, s) => n + s.tasks.length, 0), [sessions]);
 
@@ -193,6 +228,11 @@ export function TasksTree({ projectPath, refreshKey, sources }: TasksTreeProps) 
 
   return (
     <div className="py-1">
+      {/* Invisible watchers — all sources listen for tasks-changed instantly;
+           only the active tab polls aggressively. */}
+      {sources.map((s) => (
+        <TaskSourceWatcher key={s} projectPath={projectPath} source={s} active={s === source} store={store} refreshKey={refreshKey} />
+      ))}
       {sourceToggle}
       {body}
     </div>

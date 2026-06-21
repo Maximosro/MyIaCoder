@@ -12,11 +12,16 @@ interface UseTasksReturn {
  * Fetches CLI tasks for a project + source via IPC, and re-fetches live when the
  * main process signals 'tasks-changed' (a session store on disk changed).
  * Returns an empty list when projectPath is null.
+ *
+ * When `active` is false, polling runs at a slower pace — the source still
+ * listens for `tasks-changed` instantly, so switching tabs shows fresh data
+ * immediately without unnecessary IPC traffic for background sources.
  */
 export function useTasks(
   projectPath: string | null,
   source: TaskSource,
   refreshKey?: number,
+  active = true,
 ): UseTasksReturn {
   const [sessions, setSessions] = useState<TaskSession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,15 +72,20 @@ export function useTasks(
     return unsubscribe;
   }, [refresh]);
 
-  // A CLI process exiting writes nothing to disk, so fs.watch can't see it.
-  // Poll while sessions are shown to drop tasks after the terminal closes.
-  // Also poll at a slower rate when no sessions exist yet, so newly launched
-  // terminals are discovered even if the fs.watch event is missed.
+  // Poll for liveness.  Active sources poll fast so tasks appear quickly even
+  // if a watcher event is missed; inactive sources poll slowly — just enough to
+  // drop tasks when a terminal exits (which writes nothing to disk).
   useEffect(() => {
-    const interval = sessions.length === 0 ? 2000 : 4000;
+    let interval: number;
+    if (active) {
+      interval = sessions.length === 0 ? 500 : 1500;
+    } else {
+      // Background: 10 s when waiting for first session, 5 s for liveness.
+      interval = sessions.length === 0 ? 10_000 : 5_000;
+    }
     const id = setInterval(refresh, interval);
     return () => clearInterval(id);
-  }, [sessions.length, refresh]);
+  }, [sessions.length, refresh, active]);
 
   return { sessions, loading, error, refresh };
 }

@@ -27,7 +27,7 @@ win:
   artifactName: Focusxide-Code-Manager-${version}.${ext}
 nsis:
   oneClick: false
-  perMachine: false
+  perMachine: true
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
