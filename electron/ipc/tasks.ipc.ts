@@ -3,7 +3,7 @@ import { getProjectTasks, watchTasks, type TaskSource } from '../services/tasks'
 
 /**
  * Registers task-related IPC and starts a single filesystem watcher that
- * notifies the renderer ('tasks-changed') whenever any Copilot session store
+ * notifies the renderer ('tasks-changed') whenever any CLI session store
  * changes, so open task panels refresh live.
  */
 export function registerTasksIpc(getWindow: () => BrowserWindow | null): () => void {

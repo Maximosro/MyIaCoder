@@ -263,9 +263,7 @@ function readSessionTodos(dbPath: string): Task[] {
 /**
  * Reads subagent tasks from a session's events.jsonl. These are the live
  * "tasks" the Copilot CLI tracks (`/tasks`) when the agent dispatches subagents
- * via the `task` tool — they never reach the todos table. A task is `done` once
- * a matching `subagent.completed` / `tool.execution_complete` event appears,
- * otherwise it is `in_progress`.
+ * via the `task` tool — they never reach the todos table.
  */
 function readSessionSubagents(sessionDir: string): Task[] {
   const eventsPath = path.join(sessionDir, 'events.jsonl');
@@ -280,6 +278,11 @@ function readSessionSubagents(sessionDir: string): Task[] {
     return [];
   }
 
+  return parseCopilotEvents(raw);
+}
+
+/** Exported for tests: parse Copilot CLI events.jsonl into sidebar subagent tasks. */
+export function parseCopilotEvents(raw: string): Task[] {
   const starts = new Map<string, Task>();
   const completed = new Set<string>();
 
@@ -292,6 +295,10 @@ function readSessionSubagents(sessionDir: string): Task[] {
         toolCallId?: string;
         toolName?: string;
         arguments?: { name?: string; description?: string; agent_type?: string; mode?: string };
+        success?: boolean;
+        error?: { message?: string };
+        agentName?: string;
+        model?: string;
       };
     };
     try {
@@ -316,15 +323,41 @@ function readSessionSubagents(sessionDir: string): Task[] {
         updatedAt: e.timestamp ?? '',
         dependsOn: [],
       });
-    } else if (e.type === 'subagent.completed' || e.type === 'tool.execution_complete') {
+    } else if (e.type === 'subagent.completed') {
       completed.add(id);
       const t = starts.get(id);
-      if (t) t.updatedAt = e.timestamp ?? t.updatedAt;
+      if (t) {
+        t.agentType ??= e.data?.agentName;
+        t.model ??= e.data?.model;
+        t.updatedAt = e.timestamp ?? t.updatedAt;
+      }
+    } else if (e.type === 'subagent.failed') {
+      const t = starts.get(id);
+      if (t) {
+        t.status = 'blocked';
+        t.updatedAt = e.timestamp ?? t.updatedAt;
+        const message = e.data?.error?.message;
+        if (message) t.description = t.description ? `${t.description} (${message})` : message;
+      }
+    } else if (e.type === 'tool.execution_complete') {
+      // ponytail: tool.execution_complete fires immediately for background tasks
+      // (dispatch returns agent_id); only mark done for sync tasks.
+      const t = starts.get(id);
+      if (t) {
+        t.updatedAt = e.timestamp ?? t.updatedAt;
+        if (e.data?.success === false) {
+          t.status = 'blocked';
+          const message = e.data.error?.message;
+          if (message) t.description = t.description ? `${t.description} (${message})` : message;
+        } else if (t.mode !== 'background') {
+          completed.add(id);
+        }
+      }
     }
   }
 
   for (const [id, task] of starts) {
-    if (completed.has(id)) task.status = 'done';
+    if (completed.has(id) && task.status !== 'blocked') task.status = 'done';
   }
 
   return Array.from(starts.values());
@@ -711,8 +744,7 @@ function getReasonixTasks(projectPath: string): ProjectTasksResult {
 }
 
 /**
- * Copilot is read from `~/.copilot/session-state/*`. Claude is not wired yet —
- * it returns an empty result so the UI can show a "coming soon" state.
+ * Reads task-like activity from the selected CLI session store.
  */
 export function getProjectTasks(projectPath: string, source: TaskSource): ProjectTasksResult {
   if (source === 'claude') {
@@ -725,7 +757,7 @@ export function getProjectTasks(projectPath: string, source: TaskSource): Projec
 }
 
 /**
- * Watches the Copilot session-state directory and invokes `onChange` (debounced)
+ * Watches CLI session-state directories and invokes `onChange` (debounced)
  * whenever any session store changes, so the UI can refresh live.
  * Returns a disposer. Uses native fs.watch — no polling, no extra deps.
  */
