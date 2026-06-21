@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FolderOpen, X } from 'lucide-react';
+import type { ClientsConfig } from '../../electron/preload';
 
 interface ConfigModalProps {
   open: boolean;
@@ -7,15 +8,25 @@ interface ConfigModalProps {
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
+  clients: ClientsConfig;
   onClose: () => void;
-  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string) => void;
+  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig) => void;
 }
 
-export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, onClose, onSave }: ConfigModalProps) {
+const CLIENT_LABELS: { key: keyof ClientsConfig; label: string }[] = [
+  { key: 'claude', label: 'Claude' },
+  { key: 'copilot', label: 'Copilot' },
+  { key: 'codewhale', label: 'Codewhale' },
+  { key: 'reasonix', label: 'Reasonix' },
+  { key: 'opencode', label: 'Opencode' },
+];
+
+export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
   const [sp, setSp] = useState(skillsPath);
   const [prp, setPrp] = useState(promptsPath);
+  const [cl, setCl] = useState<ClientsConfig>(clients);
   const [saving, setSaving] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -25,8 +36,9 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
       setPp(plansPath);
       setSp(skillsPath);
       setPrp(promptsPath);
+      setCl(clients);
     }
-  }, [open, workspacePath, plansPath, skillsPath, promptsPath]);
+  }, [open, workspacePath, plansPath, skillsPath, promptsPath, clients]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -61,7 +73,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(wp, pp, sp, prp);
+      await onSave(wp, pp, sp, prp, cl);
       onClose();
     } finally {
       setSaving(false);
@@ -202,6 +214,32 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
             </div>
             <p className="text-[10px] text-[#4a2a1a] font-mono">
               Folder where markdown prompts are created and listed
+            </p>
+          </div>
+
+          {/* Clients */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+              Clients
+            </label>
+            <div className="space-y-1.5">
+              {CLIENT_LABELS.map(({ key, label }) => (
+                <label
+                  key={key}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all"
+                >
+                  <input
+                    type="checkbox"
+                    checked={cl[key]}
+                    onChange={(e) => setCl((prev) => ({ ...prev, [key]: e.target.checked }))}
+                    className="accent-[#d4784a] w-3.5 h-3.5"
+                  />
+                  <span className="text-xs font-mono text-[#f0ece8] tracking-wider">{label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[10px] text-[#4a2a1a] font-mono">
+              Disabled clients are hidden from the project launch menu. The Tasks tab is hidden when both Claude and Copilot are off.
             </p>
           </div>
         </div>

@@ -62,6 +62,22 @@ export function unregisterClaudeSession(sessionId: string): void {
   activeClaudeSessionIds.delete(sessionId);
 }
 
+/** Set of session IDs (tab UUIDs) for Copilot terminals launched from this app.
+ *  Copilot sessions are launched with `--session-id=<tabId>`, so the session-state
+ *  folder name equals the tab UUID. Only these sessions are shown — external
+ *  Copilot instances (e.g. a CLI run by hand in the same project) are hidden. */
+const activeCopilotSessionIds = new Set<string>();
+
+/** Register a Copilot session as "ours" so its tasks appear in the panel. */
+export function registerCopilotSession(sessionId: string): void {
+  activeCopilotSessionIds.add(sessionId);
+}
+
+/** Unregister a Copilot session when its terminal tab is closed. */
+export function unregisterCopilotSession(sessionId: string): void {
+  activeCopilotSessionIds.delete(sessionId);
+}
+
 /** Converts a project path to the slug Claude Code uses for its project directory.
  *  C:\Workspace\MyIaCoder → C--Workspace-MyIaCoder
  *  Sanitises path separators and parent references to prevent traversal. */
@@ -141,6 +157,9 @@ function getCopilotTasks(projectPath: string): ProjectTasksResult {
   }
 
   for (const dir of dirs) {
+    // Only show Copilot sessions launched from this app (folder name == tab UUID).
+    if (!activeCopilotSessionIds.has(dir)) continue;
+
     const sessionDir = path.join(COPILOT_SESSIONS, dir);
     const yamlPath = path.join(sessionDir, 'workspace.yaml');
     const dbPath = path.join(sessionDir, 'session.db');

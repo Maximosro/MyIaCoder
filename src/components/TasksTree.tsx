@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   ChevronRight,
   RefreshCw,
@@ -15,6 +15,8 @@ import type { TaskStatus, TaskSession, TaskSource } from '../types/task';
 interface TasksTreeProps {
   projectPath: string;
   refreshKey: number;
+  /** Task sources to show, derived from enabled clients. Order sets the default. */
+  sources: TaskSource[];
 }
 
 const STATUS_META: Record<TaskStatus, { color: string; Icon: typeof Circle }> = {
@@ -98,34 +100,46 @@ function SessionNode({ session, label, defaultOpen }: { session: TaskSession; la
  * grouped by session, refreshing live as the terminal runs.
  * Copilot is wired; Claude is a prepared "coming soon" source.
  */
-export function TasksTree({ projectPath, refreshKey }: TasksTreeProps) {
-  const [source, setSource] = useState<TaskSource>('copilot');
+export function TasksTree({ projectPath, refreshKey, sources }: TasksTreeProps) {
+  const [source, setSource] = useState<TaskSource>(sources[0] ?? 'copilot');
   const { sessions, loading, error } = useTasks(projectPath, source, refreshKey);
+
+  // Keep the active source within the enabled set (e.g. when a client is disabled in config).
+  useEffect(() => {
+    if (sources.length > 0 && !sources.includes(source)) {
+      setSource(sources[0]);
+    }
+  }, [sources, source]);
 
   const total = useMemo(() => sessions.reduce((n, s) => n + s.tasks.length, 0), [sessions]);
 
-  const sourceToggle = (
+  // Only show the source toggle when more than one client is enabled.
+  const sourceToggle = sources.length > 1 ? (
     <div className="flex items-center gap-1 px-3 py-1.5">
-      <button
-        onClick={() => setSource('copilot')}
-        className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono tracking-wider rounded transition-colors ${
-          source === 'copilot' ? 'bg-[#0f1a18] text-[#6ba86b] border border-[#6ba86b]/30' : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
-        }`}
-      >
-        <Sparkles className="w-2.5 h-2.5" />
-        COPILOT
-      </button>
-      <button
-        onClick={() => setSource('claude')}
-        className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono tracking-wider rounded transition-colors ${
-          source === 'claude' ? 'bg-[#1a0f0a] text-[#d4784a] border border-[#d4784a]/30' : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
-        }`}
-      >
-        <Terminal className="w-2.5 h-2.5" />
-        CLAUDE
-      </button>
+      {sources.includes('copilot') && (
+        <button
+          onClick={() => setSource('copilot')}
+          className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono tracking-wider rounded transition-colors ${
+            source === 'copilot' ? 'bg-[#0f1a18] text-[#6ba86b] border border-[#6ba86b]/30' : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+          }`}
+        >
+          <Sparkles className="w-2.5 h-2.5" />
+          COPILOT
+        </button>
+      )}
+      {sources.includes('claude') && (
+        <button
+          onClick={() => setSource('claude')}
+          className={`flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono tracking-wider rounded transition-colors ${
+            source === 'claude' ? 'bg-[#1a0f0a] text-[#d4784a] border border-[#d4784a]/30' : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+          }`}
+        >
+          <Terminal className="w-2.5 h-2.5" />
+          CLAUDE
+        </button>
+      )}
     </div>
-  );
+  ) : null;
 
   let body: React.ReactNode;
   if (loading && sessions.length === 0) {

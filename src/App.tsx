@@ -7,6 +7,15 @@ import { ProjectInfo } from './components/ProjectInfo';
 import { useProjects } from './hooks/useProjects';
 import { useTabs } from './hooks/useTabs';
 import type { Project } from './types/project';
+import type { ClientsConfig } from '../electron/preload';
+
+const DEFAULT_CLIENTS: ClientsConfig = {
+  claude: true,
+  copilot: true,
+  codewhale: true,
+  reasonix: true,
+  opencode: true,
+};
 
 function App() {
   const { projects, loading, error, refresh } = useProjects();
@@ -30,6 +39,7 @@ function App() {
   const [plansPath, setPlansPath] = useState('');
   const [skillsPath, setSkillsPath] = useState('');
   const [promptsPath, setPromptsPath] = useState('');
+  const [clients, setClients] = useState<ClientsConfig>(DEFAULT_CLIENTS);
   const [configOpen, setConfigOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
@@ -39,6 +49,7 @@ function App() {
       setPlansPath(s.plansPath);
       setSkillsPath(s.skillsPath || '');
       setPromptsPath(s.promptsPath || '');
+      setClients({ ...DEFAULT_CLIENTS, ...s.clients });
     });
   }, []);
 
@@ -69,7 +80,7 @@ function App() {
     setConfigOpen(true);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig) => {
     const currentSettings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({
       ...currentSettings,
@@ -77,11 +88,13 @@ function App() {
       plansPath: newPlansPath,
       skillsPath: newSkillsPath,
       promptsPath: newPromptsPath,
+      clients: newClients,
     });
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
     setSkillsPath(newSkillsPath);
     setPromptsPath(newPromptsPath);
+    setClients(newClients);
     refresh();
     setTreeRefreshKey((k) => k + 1);
   };
@@ -197,6 +210,11 @@ function App() {
           onLaunchClaude={() => selectedProject && handleOpenTab(selectedProject, selectedProject.name, 'claude')}
           onLaunchCopilot={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'copilot')}
           onLaunchVscode={handleLaunchVscode}
+          onLaunchCodewhale={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'codewhale')}
+          onLaunchReasonix={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'reasonix')}
+          onLaunchOpencode={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'opencode')}
+          onLaunchTerminal={() => selectedProject && handleForceOpenTab(selectedProject, selectedProject.name, 'terminal')}
+          clients={clients}
         />
 
         {/* Main panel */}
@@ -233,6 +251,7 @@ function App() {
           plansPath={plansPath}
           skillsPath={skillsPath}
           promptsPath={promptsPath}
+          clients={clients}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
         />

@@ -1,5 +1,5 @@
 import * as nodePty from 'node-pty';
-import { registerClaudeSession, unregisterClaudeSession } from './services/tasks';
+import { registerClaudeSession, unregisterClaudeSession, registerCopilotSession, unregisterCopilotSession } from './services/tasks';
 
 /**
  * Sanitises a tab title for safe use inside a cmd.exe command line.
@@ -17,6 +17,10 @@ function sanitizeSessionName(title: string): string {
  * Other commands (e.g. 'claude') are launched as-is.
  */
 function buildLaunchCommand(command: string, tabId: string, title?: string): string {
+  // Plain terminal tab: open the shell at the project path without running any CLI.
+  if (command === 'terminal') {
+    return '';
+  }
   if (command === 'copilot' || command === 'claude') {
     const name = sanitizeSessionName(title ?? '');
     return `${command} --session-id=${tabId} --name="${name}"`;
@@ -65,12 +69,19 @@ export class PTYManager {
       session.buffer.push(`\r\n\x1b[33mProcess exited with code ${exitCode ?? -1}\x1b[0m\r\n`);
     });
 
-    // Type the command and press enter — exactly like the user would
-    pty.write(`${buildLaunchCommand(command, tabId, title)}\r\n`);
+    // Type the command and press enter — exactly like the user would.
+    // An empty command (plain terminal) leaves the shell at the project path untouched.
+    const launchCommand = buildLaunchCommand(command, tabId, title);
+    if (launchCommand) {
+      pty.write(`${launchCommand}\r\n`);
+    }
 
-    // Track this session so the task panel can discover its subagents.
+    // Track this session so the task panel can discover its subagents/tasks,
+    // and so external (non-app) CLI sessions stay hidden from the panel.
     if (command === 'claude') {
       registerClaudeSession(tabId);
+    } else if (command === 'copilot') {
+      registerCopilotSession(tabId);
     }
   }
 
@@ -107,6 +118,7 @@ export class PTYManager {
       session.pty.kill();
       this.sessions.delete(tabId);
       unregisterClaudeSession(tabId);
+      unregisterCopilotSession(tabId);
     }
   }
 
@@ -114,6 +126,7 @@ export class PTYManager {
     for (const [tabId, session] of this.sessions) {
       session.pty.kill();
       unregisterClaudeSession(tabId);
+      unregisterCopilotSession(tabId);
     }
     this.sessions.clear();
   }

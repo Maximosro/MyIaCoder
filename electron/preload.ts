@@ -7,12 +7,21 @@ export interface Project {
   branch: string;
 }
 
+export interface ClientsConfig {
+  claude: boolean;
+  copilot: boolean;
+  codewhale: boolean;
+  reasonix: boolean;
+  opencode: boolean;
+}
+
 export interface Settings {
   workspacePath: string;
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
   theme: 'system' | 'light' | 'dark';
+  clients: ClientsConfig;
 }
 
 export interface ElectronAPI {
@@ -38,6 +47,7 @@ export interface ElectronAPI {
   ptyResize: (tabId: string, cols: number, rows: number) => Promise<void>;
   ptyKill: (tabId: string) => Promise<void>;
   launchVscode: (projectPath: string) => Promise<void>;
+  launchTerminal: (kind: 'wt' | 'powershell') => Promise<void>;
   getSettings: () => Promise<Settings>;
   saveSettings: (settings: Settings) => Promise<void>;
   pickWorkspace: () => Promise<string | null>;
@@ -75,6 +85,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ptyResize: (tabId: string, cols: number, rows: number) => ipcRenderer.invoke('pty-resize', tabId, cols, rows),
   ptyKill: (tabId: string) => ipcRenderer.invoke('pty-kill', tabId),
   launchVscode: (projectPath: string) => ipcRenderer.invoke('launch-vscode', projectPath),
+  launchTerminal: (kind: 'wt' | 'powershell') => ipcRenderer.invoke('launch-terminal', kind),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: Settings) => ipcRenderer.invoke('save-settings', settings),
   pickWorkspace: () => ipcRenderer.invoke('pick-workspace'),
