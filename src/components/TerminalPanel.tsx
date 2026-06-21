@@ -95,7 +95,9 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
         ? 'border-[#6ba86b]'
         : tab.command === 'reasonix'
           ? 'border-[#a98bd4]'
-          : 'border-[#d4784a]';
+          : tab.command === 'terminal'
+            ? 'border-[#b0a89a]'
+            : 'border-[#d4784a]';
   const accentText = diff
     ? 'text-[#d4a44a]'
     : file
@@ -104,7 +106,9 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
         ? 'text-[#6ba86b]'
         : tab.command === 'reasonix'
           ? 'text-[#a98bd4]'
-          : 'text-[#d4784a]';
+          : tab.command === 'terminal'
+            ? 'text-[#b0a89a]'
+            : 'text-[#d4784a]';
 
   const activeClass = isActive
     ? `${accentBorder} ${accentText}`
