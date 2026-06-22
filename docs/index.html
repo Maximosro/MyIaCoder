@@ -5,514 +5,627 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Focusxide — One desktop app. All your AI coding terminals. Claude Code, GitHub Copilot, CodeWhale, Reasonix, OpenCode in one window." />
   <meta name="color-scheme" content="dark" />
-  <title>Focusxide — AI Code Manager</title>
+  <title>Focusxide — All your AI coding terminals in one desktop app</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   <style>
     /* ============================================================
-       DESIGN TOKENS — ui-ux-pro-max §4 Style + §6 Typography
+       DESIGN TOKENS
        ============================================================ */
     :root {
-      /* Surface hierarchy (dark mode) */
-      --bg:           #050505;
-      --surface:      #0d0d0d;
-      --surface-hi:   #141414;
-      --border:       #1a1a1a;
-      --border-hi:    #2a2a2a;
-
-      /* Text (contrast verified WCAG AA) */
-      --text:         #f0ece8;
-      --text-dim:     #8a8578;
-      --text-muted:   #6b6762;
-
-      /* Brand accent (copper/rust) */
-      --accent:       #d4784a;
-      --accent-hi:    #e8956a;
-      --accent-lo:    #6b3a22;
-
-      /* Interaction states */
-      --focus-ring:   #e8956a;
-      --focus-width:  3px;
-
-      /* Spacing scale (4px base) */
-      --space-xs:     4px;
-      --space-sm:     8px;
-      --space-md:     16px;
-      --space-lg:     24px;
-      --space-xl:     32px;
-      --space-2xl:    48px;
-      --space-3xl:    64px;
-      --space-4xl:    96px;
-
-      /* Typography scale */
-      --text-xs:      0.75rem;
-      --text-sm:      0.875rem;
-      --text-base:    1rem;
-      --text-lg:      1.125rem;
-      --text-xl:      1.25rem;
-      --text-2xl:     1.5rem;
-      --text-3xl:     2rem;
-      --text-4xl:     3rem;
-
-      /* Layout */
-      --radius-sm:    6px;
-      --radius:       8px;
-      --radius-lg:    12px;
-      --max-width:    960px;
-      --line-height:  1.6;
-
-      /* Motion */
-      --ease-out:     cubic-bezier(0, 0, 0.2, 1);
-      --duration:     200ms;
+      --bg:         #050505;
+      --bg-alt:     #080808;
+      --surface:    #0d0d0d;
+      --surface-hi: #141414;
+      --border:     #1a1a1a;
+      --border-hi:  #2a2a2a;
+      --text:       #f0ece8;
+      --text-dim:   #8a8578;
+      --text-muted: #6b6762;
+      --accent:     #d4784a;
+      --accent-hi:  #e8956a;
+      --accent-lo:  #6b3a22;
+      --accent-glow: rgba(212, 120, 74, 0.25);
+      --green:      #4ade80;
+      --blue:       #60a5fa;
+      --purple:     #a78bfa;
+      --focus-ring: #e8956a;
+      --radius-sm:  6px;
+      --radius:     8px;
+      --radius-lg:  12px;
+      --radius-xl:  16px;
+      --max-width:  1100px;
+      --ease-out:   cubic-bezier(0, 0, 0.2, 1);
+      --ease-spring:cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     /* ============================================================
-       RESET + BASE
+       RESET & BASE
        ============================================================ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html {
-      scroll-behavior: smooth;
-      -webkit-text-size-adjust: 100%;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+    body{
+      font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+      font-size:1rem;line-height:1.6;color:var(--text);
+      background:var(--bg);overflow-x:hidden;
+      -webkit-font-smoothing:antialiased;
     }
+    :focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
+    a{color:var(--accent-hi);text-decoration:none}
+    img{display:block;max-width:100%}
 
-    body {
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      font-size: var(--text-base);
-      line-height: var(--line-height);
-      color: var(--text);
-      background: var(--bg);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
+    /* Skip link */
+    .skip-link{position:absolute;top:-100%;left:16px;padding:8px 16px;
+      background:var(--accent);color:var(--bg);border-radius:var(--radius-sm);
+      z-index:1000;font-weight:600}
+    .skip-link:focus{top:16px}
 
-    p, .prose { max-width: 65ch; }
-
-    /* ============================================================
-       ACCESSIBILITY — ui-ux-pro-max §1 (CRITICAL)
-       ============================================================ */
-
-    /* Skip link: hidden until focused */
-    .skip-link {
-      position: absolute;
-      top: -100%;
-      left: var(--space-md);
-      padding: var(--space-sm) var(--space-md);
-      background: var(--accent);
-      color: var(--bg);
-      border-radius: var(--radius-sm);
-      z-index: 1000;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .skip-link:focus {
-      top: var(--space-md);
-    }
-
-    /* Visible focus ring on all interactive elements */
-    :focus-visible {
-      outline: var(--focus-width) solid var(--focus-ring);
-      outline-offset: 2px;
-    }
-
-    /* Reduced motion */
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-      }
-      html { scroll-behavior: auto; }
+    @media(prefers-reduced-motion:reduce){
+      *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+      html{scroll-behavior:auto}
     }
 
     /* ============================================================
-       NAV — sticky, backdrop blur
+       NAV
        ============================================================ */
-    nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: var(--space-md) var(--space-lg);
-      max-width: var(--max-width);
-      margin: 0 auto;
-      border-bottom: 1px solid var(--border);
-      background: rgba(5, 5, 5, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+    nav{
+      position:fixed;top:0;left:0;right:0;z-index:200;
+      padding:14px 24px;display:flex;align-items:center;justify-content:space-between;
+      max-width:var(--max-width);margin:0 auto;
+      background:rgba(5,5,5,.82);backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);
+      border-bottom:1px solid transparent;
+      transition:border-color .3s;
+    }
+    nav.scrolled{border-bottom-color:var(--border)}
+    .nav-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.15rem;color:var(--text)}
+    .nav-brand img{width:28px;height:28px}
+    .nav-links{display:flex;align-items:center;gap:20px}
+    .nav-links a{font-size:.85rem;font-weight:500;color:var(--text-dim);transition:color .2s}
+    .nav-links a:hover{color:var(--text)}
+    .nav-gh{
+      display:flex;align-items:center;gap:6px;padding:6px 14px;
+      border:1px solid var(--border-hi);border-radius:20px;
+      font-size:.8rem;color:var(--text-dim);transition:all .2s
+    }
+    .nav-gh:hover{border-color:var(--accent);color:var(--text)}
+
+    /* ============================================================
+       HERO — animated gradient + floating logo
+       ============================================================ */
+    #hero{
+      position:relative;min-height:100vh;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;text-align:center;
+      padding:120px 24px 80px;overflow:hidden;
+    }
+    #hero::before{
+      content:'';position:absolute;inset:0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 30%, var(--accent-glow), transparent 70%),
+        radial-gradient(ellipse 40% 30% at 20% 70%, rgba(160,120,250,.08), transparent 60%),
+        radial-gradient(ellipse 30% 40% at 80% 60%, rgba(96,165,250,.06), transparent 60%);
+      animation:heroPulse 6s ease-in-out infinite alternate;
+    }
+    @keyframes heroPulse{
+      0%{opacity:.7;transform:scale(1)}
+      100%{opacity:1;transform:scale(1.05)}
+    }
+    #hero>*{position:relative;z-index:1}
+
+    .hero-logo{
+      width:100px;height:100px;margin-bottom:32px;
+      filter:drop-shadow(0 0 40px var(--accent-glow));
+      animation:float 4s ease-in-out infinite;
+    }
+    @keyframes float{
+      0%,100%{transform:translateY(0)}
+      50%{transform:translateY(-12px)}
     }
 
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      color: var(--text);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: var(--text-lg);
-      transition: color var(--duration) var(--ease-out);
+    #hero h1{
+      font-size:clamp(2.5rem,7vw,5rem);font-weight:800;
+      letter-spacing:-.025em;line-height:1.05;margin-bottom:16px;
     }
-    .nav-brand:hover { color: var(--accent-hi); }
+    #hero h1 .accent{color:var(--accent-hi)}
 
-    .nav-gh {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: var(--text-sm);
-      font-weight: 500;
-      color: var(--text);
-      text-decoration: none;
-      padding: var(--space-xs) var(--space-sm);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-hi);
-      transition: border-color var(--duration), background var(--duration);
+    #hero .hero-tagline{
+      font-size:clamp(1.1rem,2.5vw,1.35rem);
+      color:var(--text-dim);max-width:600px;margin-bottom:12px
     }
-    .nav-gh:hover {
-      border-color: var(--accent);
-      background: var(--surface);
-      color: var(--text);
+
+    #hero .hero-sub{
+      font-size:.95rem;color:var(--text-muted);max-width:520px;margin-bottom:36px;line-height:1.7
+    }
+
+    .hero-buttons{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+
+    .btn-primary{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:16px 36px;font-size:1.05rem;font-weight:600;
+      color:#fff;background:var(--accent);border-radius:50px;
+      transition:all .25s var(--ease-out);cursor:pointer;
+      box-shadow:0 0 30px var(--accent-glow);
+    }
+    .btn-primary:hover{
+      background:var(--accent-hi);transform:translateY(-2px);
+      box-shadow:0 0 50px rgba(212,120,74,.4);
+    }
+    .btn-primary:active{background:var(--accent-lo);transform:translateY(0)}
+
+    .btn-secondary{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:16px 32px;font-size:1rem;font-weight:500;
+      color:var(--text);background:var(--surface);border:1px solid var(--border-hi);
+      border-radius:50px;transition:all .2s;cursor:pointer
+    }
+    .btn-secondary:hover{border-color:var(--accent);background:var(--surface-hi)}
+
+    .scroll-indicator{
+      position:absolute;bottom:32px;left:50%;transform:translateX(-50%);
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+      color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.15em;
+      animation:bounceDown 2s ease-in-out infinite;
+    }
+    @keyframes bounceDown{
+      0%,100%{transform:translateX(-50%) translateY(0);opacity:.4}
+      50%{transform:translateX(-50%) translateY(8px);opacity:1}
+    }
+    .scroll-indicator svg{width:20px;height:20px}
+
+    /* ============================================================
+       SECTION SHARED STYLES
+       ============================================================ */
+    section{padding:100px 24px;max-width:var(--max-width);margin:0 auto}
+    .section-label{
+      display:inline-block;font-size:.75rem;font-weight:600;text-transform:uppercase;
+      letter-spacing:.12em;color:var(--accent-hi);margin-bottom:12px
+    }
+    .section-title{
+      font-size:clamp(1.75rem,4vw,2.5rem);font-weight:700;letter-spacing:-.015em;
+      margin-bottom:16px;line-height:1.2
+    }
+    .section-subtitle{font-size:1.05rem;color:var(--text-dim);max-width:600px;margin-bottom:48px}
+
+    /* Scroll reveal animation */
+    .reveal{opacity:0;transform:translateY(30px);transition:opacity .6s var(--ease-out),transform .6s var(--ease-out)}
+    .reveal.visible{opacity:1;transform:translateY(0)}
+    .reveal-delay-1{transition-delay:.1s}
+    .reveal-delay-2{transition-delay:.2s}
+    .reveal-delay-3{transition-delay:.3s}
+    .reveal-delay-4{transition-delay:.4s}
+
+    /* ============================================================
+       STATS STRIP
+       ============================================================ */
+    #stats{
+      border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+      padding:48px 24px;background:var(--bg-alt)
+    }
+    .stats-grid{
+      max-width:var(--max-width);margin:0 auto;
+      display:grid;grid-template-columns:repeat(2,1fr);gap:32px;text-align:center
+    }
+    @media(min-width:768px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+    .stat-value{font-size:2.2rem;font-weight:800;color:var(--accent-hi);line-height:1.1}
+    .stat-label{font-size:.8rem;color:var(--text-muted);margin-top:6px}
+
+    /* ============================================================
+       FEATURES GRID — 6 cards
+       ============================================================ */
+    #features{text-align:center}
+    .features-grid{
+      display:grid;grid-template-columns:1fr;gap:20px;text-align:left
+    }
+    @media(min-width:600px){.features-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:900px){.features-grid{grid-template-columns:repeat(3,1fr)}}
+
+    .feature-card{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius-xl);padding:28px;
+      transition:transform .3s var(--ease-spring),border-color .3s,box-shadow .3s;
+      position:relative;overflow:hidden
+    }
+    .feature-card::before{
+      content:'';position:absolute;top:0;left:0;right:0;height:2px;
+      background:linear-gradient(90deg,var(--accent),var(--accent-hi),var(--accent));
+      opacity:0;transition:opacity .3s
+    }
+    .feature-card:hover{
+      transform:translateY(-4px);border-color:var(--border-hi);
+      box-shadow:0 12px 40px rgba(0,0,0,.4)
+    }
+    .feature-card:hover::before{opacity:1}
+
+    .feature-icon-wrapper{
+      width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+      border-radius:var(--radius);background:var(--accent-lo);margin-bottom:16px
+    }
+    .feature-icon-wrapper svg{width:22px;height:22px;color:var(--accent-hi)}
+    .feature-card h3{font-size:1.05rem;font-weight:600;margin-bottom:8px}
+    .feature-card p{font-size:.85rem;color:var(--text-dim);line-height:1.6}
+    .feature-tag{
+      display:inline-block;margin-top:12px;padding:3px 10px;
+      font-size:.7rem;font-weight:500;color:var(--accent-hi);
+      background:rgba(212,120,74,.1);border-radius:20px
     }
 
     /* ============================================================
-       LAYOUT: shared section styles
+       SCREENSHOT SHOWCASE
        ============================================================ */
-    main { padding-top: 0; }
-
-    section {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: var(--space-4xl) var(--space-lg);
+    #showcase{background:var(--bg-alt);text-align:center}
+    .showcase-frame{
+      position:relative;border-radius:var(--radius-xl);overflow:hidden;
+      border:1px solid var(--border-hi);box-shadow:0 20px 60px rgba(0,0,0,.5);
+      max-width:960px;margin:0 auto
+    }
+    .showcase-frame::before{
+      content:'';display:block;padding-top:56.25% /* 16:9 */
+    }
+    .showcase-frame img{
+      position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover
+    }
+    .showcase-caption{
+      margin-top:16px;font-size:.85rem;color:var(--text-muted)
     }
 
     /* ============================================================
-       HERO
+       HOW IT WORKS — 3 steps
        ============================================================ */
-    #hero {
-      text-align: center;
-      padding-top: var(--space-4xl);
-      padding-bottom: var(--space-4xl);
-      min-height: 80vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-lg);
+    #how{text-align:center}
+    .steps{display:grid;grid-template-columns:1fr;gap:32px;text-align:left}
+    @media(min-width:768px){.steps{grid-template-columns:repeat(3,1fr)}}
+    .step{
+      position:relative;padding:32px;background:var(--surface);
+      border:1px solid var(--border);border-radius:var(--radius-xl)
     }
-
-    #hero .hero-logo { width: 96px; height: 96px; }
-
-    #hero h1 {
-      font-size: var(--text-4xl);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1.1;
+    .step-num{
+      font-size:3rem;font-weight:900;color:var(--accent-lo);
+      line-height:1;margin-bottom:16px
     }
-
-    #hero .tagline {
-      font-size: var(--text-xl);
-      color: var(--text-dim);
-      max-width: 500px;
-    }
-
-    #hero .subtitle {
-      font-size: var(--text-base);
-      color: var(--text-muted);
-      max-width: 540px;
-      line-height: 1.7;
+    .step h3{font-size:1.1rem;font-weight:600;margin-bottom:8px}
+    .step p{font-size:.85rem;color:var(--text-dim)}
+    .step code{
+      display:block;margin-top:14px;padding:10px 14px;
+      background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);
+      font-size:.78rem;color:var(--accent-hi);font-family:'Fira Code','Cascadia Code',monospace;
+      overflow-x:auto
     }
 
     /* ============================================================
-       CTA BUTTON — primary action
+       TECH STACK
        ============================================================ */
-    .cta-primary {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 14px 32px;
-      font-size: var(--text-base);
-      font-weight: 600;
-      color: #fff;
-      background: var(--accent);
-      border-radius: var(--radius);
-      text-decoration: none;
-      cursor: pointer;
-      transition: background var(--duration) var(--ease-out),
-                  transform var(--duration) var(--ease-out),
-                  box-shadow var(--duration) var(--ease-out);
-      user-select: none;
+    #stack{text-align:center}
+    .stack-grid{
+      display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:700px;margin:0 auto
     }
-
-    .cta-primary:hover {
-      background: var(--accent-hi);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 20px rgba(212, 120, 74, 0.3);
+    @media(min-width:600px){.stack-grid{grid-template-columns:repeat(4,1fr)}}
+    .stack-item{
+      padding:20px 16px;background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius-lg);text-align:center;
+      transition:border-color .3s,transform .3s
     }
-
-    .cta-primary:active {
-      background: var(--accent-lo);
-      transform: translateY(0);
-    }
-
-    .cta-large {
-      padding: 18px 40px;
-      font-size: var(--text-lg);
-    }
+    .stack-item:hover{border-color:var(--accent);transform:translateY(-2px)}
+    .stack-item .stack-icon{font-size:1.6rem;margin-bottom:8px}
+    .stack-item .stack-name{font-size:.85rem;font-weight:600}
+    .stack-item .stack-ver{font-size:.7rem;color:var(--text-muted);margin-top:4px}
 
     /* ============================================================
-       FEATURES — CSS Grid
+       OPEN SOURCE
        ============================================================ */
-    #features h2 {
-      text-align: center;
-      font-size: var(--text-3xl);
-      font-weight: 700;
-      margin-bottom: var(--space-2xl);
+    #oss{text-align:center;background:var(--bg-alt)}
+    .oss-card{
+      max-width:600px;margin:0 auto;padding:48px 32px;
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius-xl);text-align:center
     }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: var(--space-lg);
-    }
-
-    @media (min-width: 480px) {
-      .features-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (min-width: 768px) {
-      .features-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-
-    .features-grid article {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: var(--space-xl);
-      transition: border-color var(--duration) var(--ease-out);
-    }
-
-    .features-grid article:hover {
-      border-color: var(--border-hi);
-    }
-
-    .features-grid article .feature-icon {
-      width: 32px;
-      height: 32px;
-      color: var(--accent);
-      margin-bottom: var(--space-md);
-    }
-
-    .features-grid article h3 {
-      font-size: var(--text-lg);
-      font-weight: 600;
-      margin-bottom: var(--space-sm);
-    }
-
-    .features-grid article p {
-      font-size: var(--text-sm);
-      color: var(--text-dim);
-    }
+    .oss-card svg{width:48px;height:48px;color:var(--accent-hi);margin-bottom:16px}
 
     /* ============================================================
-       SCREENSHOT
+       FAQ — accordion
        ============================================================ */
-    #screenshot {
-      text-align: center;
+    #faq{max-width:700px}
+    .faq-item{border-bottom:1px solid var(--border)}
+    .faq-q{
+      width:100%;padding:18px 0;display:flex;justify-content:space-between;align-items:center;
+      background:none;border:none;color:var(--text);font-size:.95rem;font-weight:600;
+      cursor:pointer;text-align:left;gap:12px;font-family:inherit
     }
-
-    #screenshot h2 {
-      font-size: var(--text-3xl);
-      font-weight: 700;
-      margin-bottom: var(--space-xl);
-    }
-
-    .screenshot-frame {
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      border: 1px solid var(--border-hi);
-      aspect-ratio: 16 / 9;
-      background: var(--surface);
-    }
-
-    .screenshot-frame img {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
+    .faq-q:hover{color:var(--accent-hi)}
+    .faq-q .arrow{transition:transform .3s;flex-shrink:0}
+    .faq-q[aria-expanded="true"] .arrow{transform:rotate(180deg)}
+    .faq-a{max-height:0;overflow:hidden;transition:max-height .35s var(--ease-out)}
+    .faq-a.open{max-height:300px}
+    .faq-a p{padding:0 0 18px;font-size:.85rem;color:var(--text-dim);line-height:1.7}
 
     /* ============================================================
-       DOWNLOAD CTA SECTION
+       CTA BANNER
        ============================================================ */
-    #download {
-      text-align: center;
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border);
-      margin: 0 var(--space-lg);
-      max-width: calc(var(--max-width) - 2 * var(--space-lg));
+    #cta{
+      text-align:center;padding:100px 24px;
+      background:
+        radial-gradient(ellipse 50% 60% at 50% 50%, rgba(212,120,74,.1), transparent 70%),
+        var(--bg)
     }
-
-    #download h2 {
-      font-size: var(--text-3xl);
-      font-weight: 700;
-      margin-bottom: var(--space-md);
-    }
-
-    #download > p {
-      color: var(--text-dim);
-      margin-bottom: var(--space-lg);
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .setup-link {
-      font-size: var(--text-sm);
-      margin-top: var(--space-md);
-    }
-
-    .setup-link a {
-      color: var(--accent-hi);
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-    .setup-link a:hover { color: var(--accent-hi); text-decoration: none; }
+    #cta h2{font-size:clamp(1.75rem,4vw,2.5rem);font-weight:700;margin-bottom:12px}
+    #cta p{color:var(--text-dim);margin-bottom:28px;font-size:1.05rem}
+    #cta .btn-primary{font-size:1.15rem;padding:18px 44px}
 
     /* ============================================================
        FOOTER
        ============================================================ */
-    footer {
-      text-align: center;
-      padding: var(--space-2xl) var(--space-lg);
-      border-top: 1px solid var(--border);
-      font-size: var(--text-sm);
-      color: var(--text-muted);
+    footer{
+      border-top:1px solid var(--border);padding:40px 24px;text-align:center
     }
-
-    footer a {
-      color: var(--text-dim);
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-    footer a:hover { color: var(--accent-hi); }
+    footer .footer-links{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+    footer .footer-links a{font-size:.8rem;color:var(--text-dim)}
+    footer .footer-links a:hover{color:var(--accent-hi)}
+    footer .copy{font-size:.75rem;color:var(--text-muted)}
 
     /* ============================================================
-       RESPONSIVE BREAKPOINTS — 480 / 768 / 1024
+       RESPONSIVE extras
        ============================================================ */
-    @media (min-width: 480px) {
-      section { padding: var(--space-4xl) var(--space-xl); }
-      #hero h1 { font-size: 3.5rem; }
-    }
-
-    @media (min-width: 768px) {
-      section { padding: var(--space-4xl) var(--space-3xl); }
-      #hero h1 { font-size: 4rem; }
-      #hero .tagline { font-size: var(--text-2xl); }
-    }
-
-    @media (min-width: 1024px) {
-      #hero { min-height: 85vh; }
-      #hero h1 { font-size: 4.5rem; }
+    @media(max-width:480px){
+      .nav-links a:not(.nav-gh){display:none}
+      section{padding:64px 16px}
+      .hero-buttons{flex-direction:column;align-items:center}
+      .btn-primary,.btn-secondary{width:100%;justify-content:center}
     }
   </style>
 </head>
 <body>
 
-<!-- Skip to content (a11y) -->
 <a href="#main-content" class="skip-link">Skip to content</a>
 
 <!-- NAV -->
-<nav aria-label="Main navigation">
-  <a href="/" class="nav-brand" aria-label="Focusxide home">
-    <img src="assets/logo.svg" alt="" width="24" height="24" />
-    Focusxide
+<nav id="navbar" aria-label="Main navigation">
+  <a href="#" class="nav-brand">
+    <img src="assets/logo.svg" alt="" width="28" height="28" />Focusxide
   </a>
-  <a href="https://github.com/Maximosro/MyIaCoder"
-     class="nav-gh"
-     aria-label="View source on GitHub"
-     target="_blank"
-     rel="noopener">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/>
-      <path d="M9 18c-4.51 2-5-2-7-2"/>
-    </svg>
-    GitHub
-  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#showcase">Showcase</a>
+    <a href="#how">How it works</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://github.com/Maximosro/MyIaCoder" class="nav-gh" aria-label="View source on GitHub" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 00-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 004 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+      GitHub
+    </a>
+  </div>
 </nav>
 
-<!-- MAIN CONTENT -->
 <main id="main-content">
 
-  <!-- HERO -->
-  <section id="hero" aria-labelledby="hero-heading">
-    <img src="assets/logo.svg" alt="" class="hero-logo" width="96" height="96" />
-    <h1 id="hero-heading">Focusxide</h1>
-    <p class="tagline">One desktop app. All your AI coding terminals.</p>
-    <p class="subtitle">Manage multiple projects with integrated AI terminals — Claude Code, GitHub Copilot, CodeWhale, Reasonix, and OpenCode — all in one window.</p>
-    <a href="../../releases" class="cta-primary cta-large">Download for Windows</a>
+  <!-- ═══════════ HERO ═══════════ -->
+  <section id="hero">
+    <img src="assets/logo.svg" alt="" class="hero-logo" width="100" height="100" />
+    <h1><span class="accent">Focusxide</span></h1>
+    <p class="hero-tagline">One desktop app. All your AI coding terminals.</p>
+    <p class="hero-sub">Stop juggling terminal windows. Run Claude Code, GitHub Copilot, CodeWhale, Reasonix, and OpenCode — side by side, with project management, a built-in editor, and git tracking.</p>
+    <div class="hero-buttons">
+      <a href="../../releases" class="btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Windows
+      </a>
+      <a href="#features" class="btn-secondary">See what it does ↓</a>
+    </div>
+    <div class="scroll-indicator" aria-hidden="true">
+      <span>Scroll</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></svg>
+    </div>
   </section>
 
-  <!-- FEATURES -->
-  <section id="features" aria-labelledby="features-heading">
-    <h2 id="features-heading">Why Focusxide</h2>
+  <!-- ═══════════ STATS ═══════════ -->
+  <div id="stats">
+    <div class="stats-grid reveal">
+      <div><div class="stat-value">5+</div><div class="stat-label">AI coding terminals in one app</div></div>
+      <div><div class="stat-value">Electron 35</div><div class="stat-label">Desktop runtime</div></div>
+      <div><div class="stat-value">React 19</div><div class="stat-label">UI framework</div></div>
+      <div><div class="stat-value">MIT</div><div class="stat-label">Open source license</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ FEATURES ═══════════ -->
+  <section id="features">
+    <span class="section-label reveal">Capabilities</span>
+    <h2 class="section-title reveal reveal-delay-1">Everything you need to code with AI</h2>
+    <p class="section-subtitle reveal reveal-delay-2" style="margin-left:auto;margin-right:auto">Focusxide replaces five terminal windows with one unified workspace. Here's what's inside.</p>
+
     <div class="features-grid">
+      <!-- 1. Multi-terminal -->
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrapper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="9" height="7" rx="1"/><rect x="13" y="3" width="9" height="7" rx="1"/><rect x="2" y="14" width="9" height="7" rx="1"/><rect x="13" y="14" width="9" height="7" rx="1"/></svg></div>
+        <h3>Multi-terminal hub</h3>
+        <p>Run Claude Code, GitHub Copilot, CodeWhale, Reasonix, and OpenCode simultaneously. Each in its own tab — switch with one click.</p>
+        <span class="feature-tag">5 AI assistants</span>
+      </div>
 
-      <!-- Feature 1: Multi-terminal -->
-      <article>
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="3" width="9" height="7" rx="1"/>
-          <rect x="13" y="3" width="9" height="7" rx="1"/>
-          <rect x="2" y="14" width="9" height="7" rx="1"/>
-          <rect x="13" y="14" width="9" height="7" rx="1"/>
-        </svg>
-        <h3>Multi-terminal</h3>
-        <p>Run Claude Code, GitHub Copilot, CodeWhale, Reasonix, and OpenCode side by side in one window. Switch between AI assistants instantly with tabs.</p>
-      </article>
+      <!-- 2. File Editor -->
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrapper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <h3>Built-in Monaco editor</h3>
+        <p>Edit code without leaving the app. Full Monaco editor with syntax highlighting, IntelliSense, and multi-cursor — right next to your AI terminals.</p>
+        <span class="feature-tag">Monaco editor</span>
+      </div>
 
-      <!-- Feature 2: Project management -->
-      <article>
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+      <!-- 3. Project Sidebar -->
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon-wrapper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></div>
         <h3>Project management</h3>
-        <p>Browse projects in the sidebar, edit files with the built-in Monaco editor, and track git changes — all without leaving the app.</p>
-      </article>
+        <p>Browse all your projects from the sidebar. Add, remove, and organize workspaces. Drag-and-drop tabs to reorder terminals.</p>
+        <span class="feature-tag">Drag & drop</span>
+      </div>
 
-      <!-- Feature 3: Built for speed -->
-      <article>
-        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-        </svg>
-        <h3>Built for speed</h3>
-        <p>Electron 35 + React 19 + xterm.js. Native terminal performance with zero lag, instant tab switching, and hardware-accelerated rendering.</p>
-      </article>
+      <!-- 4. Git Integration -->
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon-wrapper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg></div>
+        <h3>Git changes tracking</h3>
+        <p>See what's changed, staged, and unstaged — all inside the app. View diffs, check branch status, and track your work without touching the CLI.</p>
+        <span class="feature-tag">Git built-in</span>
+      </div>
 
+      <!-- 5. Tasks & Plans -->
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon-wrapper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+        <h3>Tasks & plans panel</h3>
+        <p>Track AI-generated task lists and implementation plans. Stay organized when your AI suggests multi-step changes.</p>
+        <span class="feature-tag">RPI workflow</span>
+      </div>
+
+      <!-- 6. Customizable -->
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon-wrapper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+        <h3>Fully customizable</h3>
+        <p>Custom titlebar, configurable settings, dark theme by default. Tailor the workspace to your workflow — not the other way around.</p>
+        <span class="feature-tag">Settings panel</span>
+      </div>
     </div>
   </section>
 
-  <!-- SCREENSHOT -->
-  <section id="screenshot" aria-labelledby="screenshot-heading">
-    <h2 id="screenshot-heading">See it in action</h2>
-    <div class="screenshot-frame">
-      <img src="assets/select-project.gif"
-           alt="Focusxide Code Manager — project sidebar with integrated AI terminal"
-           width="960" height="540"
-           loading="lazy" decoding="async" />
+  <!-- ═══════════ SCREENSHOT SHOWCASE ═══════════ -->
+  <section id="showcase">
+    <span class="section-label reveal">Showcase</span>
+    <h2 class="section-title reveal reveal-delay-1">See Focusxide in action</h2>
+    <p class="section-subtitle reveal reveal-delay-2" style="margin-left:auto;margin-right:auto">Multiple AI terminals, project sidebar, file editor — all in one dark, polished interface.</p>
+    <div class="showcase-frame reveal reveal-delay-3">
+      <img src="assets/select-project.gif" alt="Focusxide Code Manager — project sidebar with integrated AI terminal showing file editor and git changes" loading="lazy" />
+    </div>
+    <p class="showcase-caption reveal reveal-delay-4">Project sidebar, AI terminal tabs, Monaco editor, and git changes — all in one window</p>
+  </section>
+
+  <!-- ═══════════ HOW IT WORKS ═══════════ -->
+  <section id="how">
+    <span class="section-label reveal">Getting started</span>
+    <h2 class="section-title reveal reveal-delay-1">Three steps to your AI command center</h2>
+    <div class="steps">
+      <div class="step reveal reveal-delay-1">
+        <div class="step-num">01</div>
+        <h3>Install</h3>
+        <p>Download the installer, run it, and Focusxide sets up in seconds. Requires Windows 10+ and Node.js 18+.</p>
+        <code>winget install Focusxide</code>
+      </div>
+      <div class="step reveal reveal-delay-2">
+        <div class="step-num">02</div>
+        <h3>Add your projects</h3>
+        <p>Point Focusxide to your project folders. The sidebar populates instantly — drag, drop, and organize your workspace.</p>
+        <code>Ctrl+O → Select folder → Ready</code>
+      </div>
+      <div class="step reveal reveal-delay-3">
+        <div class="step-num">03</div>
+        <h3>Start coding with AI</h3>
+        <p>Open terminals for Claude Code, Copilot, or any AI CLI. Code, edit files, review diffs — all without leaving the app.</p>
+        <code>New Tab → Choose AI → Code</code>
+      </div>
     </div>
   </section>
 
-  <!-- DOWNLOAD -->
-  <section id="download" aria-labelledby="download-heading">
-    <h2 id="download-heading">Get Focusxide</h2>
-    <p>Windows 10+ &middot; Node.js 18+</p>
-    <a href="../../releases" class="cta-primary cta-large">Download for Windows</a>
-    <p class="setup-link">See <a href="https://github.com/Maximosro/MyIaCoder/blob/Main/SETUP.md">SETUP.md</a> for full installation guide.</p>
+  <!-- ═══════════ TECH STACK ═══════════ -->
+  <section id="stack">
+    <span class="section-label reveal">Under the hood</span>
+    <h2 class="section-title reveal reveal-delay-1">Built with modern technology</h2>
+    <div class="stack-grid reveal reveal-delay-2">
+      <div class="stack-item"><div class="stack-icon">⚡</div><div class="stack-name">Electron</div><div class="stack-ver">v35</div></div>
+      <div class="stack-item"><div class="stack-icon">⚛️</div><div class="stack-name">React</div><div class="stack-ver">v19</div></div>
+      <div class="stack-item"><div class="stack-icon">🔷</div><div class="stack-name">TypeScript</div><div class="stack-ver">v5.7</div></div>
+      <div class="stack-item"><div class="stack-icon">🎨</div><div class="stack-name">TailwindCSS</div><div class="stack-ver">v4</div></div>
+      <div class="stack-item"><div class="stack-icon">📟</div><div class="stack-name">xterm.js</div><div class="stack-ver">v5.x</div></div>
+      <div class="stack-item"><div class="stack-icon">📦</div><div class="stack-name">Vite</div><div class="stack-ver">v6</div></div>
+      <div class="stack-item"><div class="stack-icon">🗄️</div><div class="stack-name">SQLite</div><div class="stack-ver">better-sqlite3</div></div>
+      <div class="stack-item"><div class="stack-icon">🧪</div><div class="stack-name">Vitest</div><div class="stack-ver">v3</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ OPEN SOURCE ═══════════ -->
+  <section id="oss">
+    <div class="oss-card reveal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10A15.3 15.3 0 018 12 15.3 15.3 0 0112 2z"/><path d="M2 12h20"/></svg>
+      <h2 class="section-title">Open source. MIT licensed.</h2>
+      <p style="color:var(--text-dim);margin-bottom:24px">Focusxide is free, open source, and always will be. No subscriptions, no telemetry, no accounts. Just a powerful tool built by developers, for developers.</p>
+      <a href="https://github.com/Maximosro/MyIaCoder" class="btn-secondary" target="_blank" rel="noopener" style="display:inline-flex">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+        Star on GitHub
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══════════ FAQ ═══════════ -->
+  <section id="faq">
+    <span class="section-label reveal">FAQ</span>
+    <h2 class="section-title reveal reveal-delay-1">Questions you might have</h2>
+
+    <div class="faq-item reveal reveal-delay-1">
+      <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+        What AI coding tools does Focusxide support?
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><p>Focusxide works with any terminal-based AI coding tool. Out of the box, it supports <strong>Claude Code</strong>, <strong>GitHub Copilot</strong> (CLI), <strong>CodeWhale</strong>, <strong>Reasonix</strong>, and <strong>OpenCode</strong>. You can also add any custom terminal command — if it runs in a terminal, it runs in Focusxide.</p></div>
+    </div>
+
+    <div class="faq-item reveal reveal-delay-2">
+      <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+        Is Focusxide really free?
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><p>Yes. Focusxide is <strong>MIT licensed</strong> — completely free, no strings attached. No subscriptions, no telemetry, no accounts required. The source code is available on GitHub. You're free to use it, modify it, and contribute back.</p></div>
+    </div>
+
+    <div class="faq-item reveal reveal-delay-3">
+      <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+        Does it work on macOS or Linux?
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><p>Currently, Focusxide is <strong>Windows-only</strong>. It's packaged as an NSIS installer (.exe) via electron-builder. The underlying stack (Electron, React, node-pty) is cross-platform, so macOS and Linux support is technically possible — contributions welcome!</p></div>
+    </div>
+
+    <div class="faq-item reveal reveal-delay-4">
+      <button class="faq-q" aria-expanded="false" onclick="toggleFaq(this)">
+        How is this different from VS Code's terminal?
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-a"><p>VS Code's terminal is general-purpose. Focusxide is <strong>purpose-built for AI coding workflows</strong>: it manages multiple AI CLI sessions in parallel, tracks tasks and plans generated by AI, and shows git changes in a dedicated panel. It's not an editor — it's a command center for AI-assisted development.</p></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ CTA ═══════════ -->
+  <section id="cta">
+    <h2 class="reveal">Ready to level up your AI coding?</h2>
+    <p class="reveal reveal-delay-1">Free. Open source. One download, five AI terminals.</p>
+    <a href="../../releases" class="btn-primary reveal reveal-delay-2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download for Windows
+    </a>
   </section>
 
 </main>
 
 <!-- FOOTER -->
 <footer>
-  <p>Focusxide &middot; <a href="https://github.com/Maximosro/MyIaCoder/blob/Main/LICENSE">MIT License</a></p>
+  <div class="footer-links">
+    <a href="https://github.com/Maximosro/MyIaCoder">GitHub</a>
+    <a href="https://github.com/Maximosro/MyIaCoder/blob/Main/LICENSE">MIT License</a>
+    <a href="https://github.com/Maximosro/MyIaCoder/blob/Main/SETUP.md">Setup Guide</a>
+    <a href="https://github.com/Maximosro/MyIaCoder/issues">Report Issue</a>
+  </div>
+  <p class="copy">Focusxide · Built with Rust, Copper & Code</p>
 </footer>
+
+<script>
+  /* Scroll reveal — Intersection Observer */
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible') })
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' })
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+
+  /* Navbar shadow on scroll */
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10)
+  })
+
+  /* FAQ accordion */
+  function toggleFaq(btn){
+    const open = btn.getAttribute('aria-expanded') === 'true'
+    btn.setAttribute('aria-expanded', !open)
+    btn.nextElementSibling.classList.toggle('open', !open)
+  }
+</script>
 
 </body>
 </html>
