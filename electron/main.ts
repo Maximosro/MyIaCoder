@@ -11,7 +11,7 @@ import { registerTasksIpc } from './ipc/tasks.ipc';
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 let disposeTasksWatcher: (() => void) | null = null;
-const ptyManager = new PTYManager();
+let ptyManager: PTYManager;
 
 // Lightweight splash shown instantly while the main window loads in the
 // background. Inlined as a data URL so no extra file needs bundling/copying.
@@ -138,6 +138,12 @@ function registerIpcHandlers(): void {
 // ── App Lifecycle ─────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  // PTYManager pushes output to the renderer in real-time via webContents.send.
+  // The callback is sandbox-compatible because preload.ts bridges it with
+  // ipcRenderer.on + contextBridge (same pattern as window-maximized-changed).
+  ptyManager = new PTYManager((channel, tabId, data) => {
+    mainWindow?.webContents.send(channel, tabId, data);
+  });
   registerIpcHandlers();
   createSplash();
   createWindow();

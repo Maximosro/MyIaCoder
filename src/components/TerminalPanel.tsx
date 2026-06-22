@@ -32,6 +32,8 @@ interface TerminalPanelProps {
   onReorderTabs: (fromIndex: number, toIndex: number) => void;
   /** External launch trigger from Sidebar. When tick increments, shows the name prompt. */
   launchTrigger: { command?: string; force: boolean; tick: number };
+  /** Terminal scrollback lines for new terminal tabs (from settings). */
+  scrollback?: number;
 }
 
 // ── Sortable tab item (drag handle = entire tab, close button excluded) ──
@@ -158,6 +160,7 @@ export function TerminalPanel({
   onTabActivity,
   onReorderTabs,
   launchTrigger,
+  scrollback,
 }: TerminalPanelProps) {
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptValue, setPromptValue] = useState('');
@@ -333,6 +336,7 @@ export function TerminalPanel({
                 tab={tab}
                 isActive={tab.id === activeTabId}
                 onActivity={onTabActivity}
+                scrollback={scrollback}
               />
             )}
           </div>

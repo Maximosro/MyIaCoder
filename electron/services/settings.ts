@@ -18,6 +18,7 @@ export interface Settings {
   promptsPath: string;
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
+  terminalScrollback: number;
 }
 
 const HOME = os.homedir();
@@ -35,6 +36,7 @@ const DEFAULTS: Settings = {
     reasonix: true,
     opencode: true,
   },
+  terminalScrollback: 20000,
 };
 
 function getSettingsPath(): string {

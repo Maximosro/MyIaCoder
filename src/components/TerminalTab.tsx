@@ -15,9 +15,11 @@ interface TerminalTabProps {
   /** Called when the PTY emits output (non-empty data received).
    *  Used by parent to track terminal activity for the busy indicator. */
   onActivity?: (tabId: string) => void;
+  /** Terminal scrollback lines (from settings). Defaults to 20000. */
+  scrollback?: number;
 }
 
-export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
+export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -66,7 +68,7 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
           brightWhite: '#ffffff',
         },
         allowProposedApi: true,
-        scrollback: 100000,
+        scrollback: scrollback ?? 20000,
         tabStopWidth: 4,
       });
 
@@ -156,43 +158,30 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
     }
   }, [tab.id]);
 
-  // Poll PTY output (sandbox-compatible, no webContents.send needed)
+  // Push-based PTY output — receives data in real-time via main→renderer IPC.
+  // Replaces the old 50ms polling loop (ptyRead). Filters by tabId so each
+  // TerminalTab instance only processes its own PTY session.
   useEffect(() => {
     const term = terminalRef.current;
     if (!term) return;
 
-    let alive = true;
-    const POLL_MS = 50;
-
-    const poll = async () => {
-      if (!alive) return;
-      try {
-        const data = await window.electronAPI.ptyRead(tab.id);
-        if (data && alive) {
-          term.write(data);
-          if (Date.now() > suppressActivityUntilRef.current) {
-            onActivity?.(tab.id);
-          }
-        }
-      } catch {
-        // tab might have been killed
+    const unsubscribe = window.electronAPI.onPtyData((tabId, data) => {
+      if (tabId !== tab.id) return;
+      term.write(data);
+      if (Date.now() > suppressActivityUntilRef.current) {
+        onActivity?.(tab.id);
       }
-      if (alive) {
-        timer = setTimeout(poll, POLL_MS);
-      }
-    };
+    });
 
-    let timer = setTimeout(poll, POLL_MS);
-
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
-  }, [tab.id]);
+    return unsubscribe;
+  }, [tab.id, onActivity]);
 
   // Refit when tab becomes active — use double-refit for reliability
   useEffect(() => {
     if (isActive && fitAddonRef.current) {
+      // Focus the terminal so the user can type immediately
+      terminalRef.current?.focus();
+
       const timer = setTimeout(() => {
         fitAddonRef.current?.fit();
         const term = terminalRef.current;

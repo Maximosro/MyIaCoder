@@ -9,8 +9,9 @@ interface ConfigModalProps {
   skillsPath: string;
   promptsPath: string;
   clients: ClientsConfig;
+  terminalScrollback: number;
   onClose: () => void;
-  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig) => void;
+  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig, terminalScrollback: number) => void;
 }
 
 const CLIENT_LABELS: { key: keyof ClientsConfig; label: string }[] = [
@@ -21,12 +22,13 @@ const CLIENT_LABELS: { key: keyof ClientsConfig; label: string }[] = [
   { key: 'opencode', label: 'Opencode' },
 ];
 
-export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, onClose, onSave }: ConfigModalProps) {
+export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
   const [sp, setSp] = useState(skillsPath);
   const [prp, setPrp] = useState(promptsPath);
   const [cl, setCl] = useState<ClientsConfig>(clients);
+  const [scrollback, setScrollback] = useState(terminalScrollback);
   const [saving, setSaving] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -37,8 +39,9 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
       setSp(skillsPath);
       setPrp(promptsPath);
       setCl(clients);
+      setScrollback(terminalScrollback);
     }
-  }, [open, workspacePath, plansPath, skillsPath, promptsPath, clients]);
+  }, [open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -73,7 +76,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(wp, pp, sp, prp, cl);
+      await onSave(wp, pp, sp, prp, cl, scrollback);
       onClose();
     } finally {
       setSaving(false);
@@ -240,6 +243,34 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
             </div>
             <p className="text-[10px] text-[#4a2a1a] font-mono">
               Disabled clients are hidden from the project launch menu. The Tasks tab is hidden when both Claude and Copilot are off.
+            </p>
+          </div>
+
+          {/* Terminal Scrollback */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+              Terminal Scrollback
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={1000}
+                max={100000}
+                step={1000}
+                value={scrollback}
+                onChange={(e) => setScrollback(Number(e.target.value))}
+                className="flex-1 accent-[#d4784a] h-1.5"
+              />
+              <span className="text-xs font-mono text-[#d4784a] min-w-[60px] text-right tabular-nums">
+                {scrollback.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between text-[9px] font-mono text-[#4a2a1a]">
+              <span>1K</span>
+              <span>100K</span>
+            </div>
+            <p className="text-[10px] text-[#4a2a1a] font-mono">
+              Lines of scrollback history per terminal tab. Higher values use more RAM.
             </p>
           </div>
         </div>

@@ -22,6 +22,7 @@ export interface Settings {
   promptsPath: string;
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
+  terminalScrollback: number;
 }
 
 export interface ElectronAPI {
@@ -60,6 +61,8 @@ export interface ElectronAPI {
   onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
   onProjectBranchLoaded: (callback: (data: { path: string; branch: string }) => void) => () => void;
   onTasksChanged: (callback: () => void) => () => void;
+  onPtyData: (callback: (tabId: string, data: string) => void) => () => void;
+  onPtyExit: (callback: (tabId: string, exitCode: number) => void) => () => void;
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -109,5 +112,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = () => callback();
     ipcRenderer.on('tasks-changed', handler);
     return () => ipcRenderer.removeListener('tasks-changed', handler);
+  },
+  onPtyData: (callback: (tabId: string, data: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, tabId: string, data: string) => callback(tabId, data);
+    ipcRenderer.on('pty-data', handler);
+    return () => ipcRenderer.removeListener('pty-data', handler);
+  },
+  onPtyExit: (callback: (tabId: string, exitCode: number) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, tabId: string, exitCode: number) => callback(tabId, exitCode);
+    ipcRenderer.on('pty-exit', handler);
+    return () => ipcRenderer.removeListener('pty-exit', handler);
   },
 } satisfies ElectronAPI);
