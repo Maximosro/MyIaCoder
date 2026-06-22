@@ -38,16 +38,22 @@ function buildLaunchCommand(command: string, tabId: string, projectPath: string,
 interface PTYSession {
   pty: nodePty.IPty;
   projectPath: string;
-  buffer: string[];
+  buffer: string[];  // ponytail: kept for dual-write during push transition
 }
 
 /**
  * Manages PTY sessions for terminal tabs.
- * Data is buffered per-tab and consumed by the renderer via polling (pty-read IPC).
- * This avoids the sandbox-incompatible webContents.send pattern.
+ * Data is pushed to the renderer in real-time via a sendToRenderer callback
+ * (sandbox-compatible when bridged through contextBridge + ipcRenderer.on).
+ * The legacy buffer + polling path is kept as fallback during transition.
  */
 export class PTYManager {
   private sessions = new Map<string, PTYSession>();
+  private sendToRenderer: (channel: string, tabId: string, data: string | number) => void;
+
+  constructor(sendToRenderer: (channel: string, tabId: string, data: string | number) => void = () => {}) {
+    this.sendToRenderer = sendToRenderer;
+  }
 
   spawn(tabId: string, projectPath: string, command: string = 'claude', title?: string): void {
     this.kill(tabId);
@@ -69,11 +75,17 @@ export class PTYManager {
     this.sessions.set(tabId, session);
 
     pty.onData((data: string) => {
+      // Push to renderer in real-time (replaces polling latency)
+      this.sendToRenderer('pty-data', tabId, data);
+      // Dual-write to buffer for legacy polling compatibility
       session.buffer.push(data);
     });
 
     pty.onExit(({ exitCode }) => {
-      session.buffer.push(`\r\n\x1b[33mProcess exited with code ${exitCode ?? -1}\x1b[0m\r\n`);
+      const msg = `\r\n\x1b[33mProcess exited with code ${exitCode ?? -1}\x1b[0m\r\n`;
+      this.sendToRenderer('pty-data', tabId, msg);
+      this.sendToRenderer('pty-exit', tabId, exitCode ?? -1);
+      session.buffer.push(msg);
     });
 
     // Type the command and press enter — exactly like the user would.

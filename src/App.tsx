@@ -42,6 +42,7 @@ function App() {
   const [clients, setClients] = useState<ClientsConfig>(DEFAULT_CLIENTS);
   const [configOpen, setConfigOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
+  const [terminalScrollback, setTerminalScrollback] = useState(20000);
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
   // Sidebar and empty-state buttons both use this instead of opening tabs directly.
   const [launchTrigger, setLaunchTrigger] = useState<{ command?: string; force: boolean; tick: number }>({ force: false, tick: 0 });
@@ -53,6 +54,7 @@ function App() {
       setSkillsPath(s.skillsPath || '');
       setPromptsPath(s.promptsPath || '');
       setClients({ ...DEFAULT_CLIENTS, ...s.clients });
+      setTerminalScrollback(s.terminalScrollback ?? 20000);
     });
   }, []);
 
@@ -87,7 +89,7 @@ function App() {
     setConfigOpen(true);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number) => {
     const currentSettings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({
       ...currentSettings,
@@ -96,12 +98,14 @@ function App() {
       skillsPath: newSkillsPath,
       promptsPath: newPromptsPath,
       clients: newClients,
+      terminalScrollback: newTerminalScrollback,
     });
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
     setSkillsPath(newSkillsPath);
     setPromptsPath(newPromptsPath);
     setClients(newClients);
+    setTerminalScrollback(newTerminalScrollback);
     refresh();
     setTreeRefreshKey((k) => k + 1);
   };
@@ -235,6 +239,7 @@ function App() {
             activeTabId={activeTabId}
             activeProject={selectedProject}
             launchTrigger={launchTrigger}
+            scrollback={terminalScrollback}
             onOpenTab={handleOpenTab}
             onForceOpenTab={handleForceOpenTab}
             onCloseTab={closeTab}
@@ -255,6 +260,7 @@ function App() {
           skillsPath={skillsPath}
           promptsPath={promptsPath}
           clients={clients}
+          terminalScrollback={terminalScrollback}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
         />

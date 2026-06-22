@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import 'xterm/css/xterm.css';
+@import '@xterm/xterm/css/xterm.css';
 
 /* ═══════════════════════════════════════════════════════════
    Copper / Hero-Centric Design System — AI Code Manager
