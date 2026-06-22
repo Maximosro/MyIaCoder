@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+// Addons to re-enable after baseline verified: WebglAddon, SearchAddon,
+// WebLinksAddon, Unicode11Addon, SerializeAddon
 import type { Tab } from '../types/tab';
 
 interface TerminalTabProps {
   tab: Tab;
   isActive: boolean;
-  /** Called when the PTY emits output (non-empty data received from polling).
+  /** Called when the PTY emits output (non-empty data received).
    *  Used by parent to track terminal activity for the busy indicator. */
   onActivity?: (tabId: string) => void;
 }
@@ -15,6 +17,7 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  // webglAddonRef + searchAddonRef re-enabled with their addons after baseline
   // Suppress activity callbacks for a window after resize to avoid false positives
   // (ptyResize triggers terminal redraw which produces output unrelated to AI activity)
   const suppressActivityUntilRef = useRef(0);
@@ -53,17 +56,18 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
           brightWhite: '#ffffff',
         },
         allowProposedApi: true,
-        allowTransparency: false,
-        windowsMode: true,
         scrollback: 100000,
         tabStopWidth: 4,
       });
 
-      // Addons (WebglAddon removed — deprecated and crashes with StrictMode double-mount)
+      // ── Addons (loaded incrementally — verify terminal renders first) ──
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       fitAddonRef.current = fitAddon;
+      // NOTE: WebGL, search, web-links, unicode11, serialize temporarily disabled
+      // while diagnosing xterm.js v6 init issue. Will re-enable after baseline works.
 
+      // ── Terminal setup ──────────────────────────────────
       term.open(containerRef.current);
       fitAddon.fit();
 
@@ -72,17 +76,19 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
         window.electronAPI.ptyInput(tab.id, data);
       });
 
-      // Allow copy via Ctrl+C when there's a selection
+      // Custom key handler: Ctrl+C for copy with selection;
+      // Ctrl+Shift+F delegates to search addon's native overlay
       term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
         if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
-          return false;
+          return false; // let the browser copy instead of sending Ctrl+C to PTY
         }
         return true;
       });
 
       terminalRef.current = term;
 
-      // ResizeObserver
+      // ── ResizeObserver ──────────────────────────────────
+
       const observer = new ResizeObserver(() => {
         fitAddon.fit();
         if (term.cols > 0 && term.rows > 0) {
