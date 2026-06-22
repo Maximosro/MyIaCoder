@@ -1,8 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-// Addons to re-enable after baseline verified: WebglAddon, SearchAddon,
-// WebLinksAddon, Unicode11Addon, SerializeAddon
+import { WebglAddon } from '@xterm/addon-webgl';
+import { SearchAddon } from '@xterm/addon-search';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
+import { SerializeAddon } from '@xterm/addon-serialize';
+import { LigaturesAddon } from '@xterm/addon-ligatures';
 import type { Tab } from '../types/tab';
 
 interface TerminalTabProps {
@@ -17,10 +21,16 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  // webglAddonRef + searchAddonRef re-enabled with their addons after baseline
+  const webglAddonRef = useRef<WebglAddon | null>(null);
+  const searchAddonRef = useRef<SearchAddon | null>(null);
   // Suppress activity callbacks for a window after resize to avoid false positives
   // (ptyResize triggers terminal redraw which produces output unrelated to AI activity)
   const suppressActivityUntilRef = useRef(0);
+
+  // ── Search bar state ──────────────────────────────────
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -60,27 +70,65 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
         tabStopWidth: 4,
       });
 
-      // ── Addons (loaded incrementally — verify terminal renders first) ──
+      // ── Addons ──────────────────────────────────────────
       const fitAddon = new FitAddon();
+      const webglAddon = new WebglAddon();
+      const searchAddon = new SearchAddon();
+      const webLinksAddon = new WebLinksAddon();
+      const unicode11Addon = new Unicode11Addon();
+      const serializeAddon = new SerializeAddon();
+      const ligaturesAddon = new LigaturesAddon();
+
       term.loadAddon(fitAddon);
       fitAddonRef.current = fitAddon;
-      // NOTE: WebGL, search, web-links, unicode11, serialize temporarily disabled
-      // while diagnosing xterm.js v6 init issue. Will re-enable after baseline works.
+
+      // WebGL with DOM fallback — WebGL addon may fail on machines
+      // without a GPU or with missing drivers.
+      try {
+        term.loadAddon(webglAddon);
+        webglAddonRef.current = webglAddon;
+      } catch (e) {
+        console.warn('[TerminalTab] WebGL unavailable, using DOM renderer:', e);
+        webglAddon.dispose();
+      }
+
+      term.loadAddon(searchAddon);
+      searchAddonRef.current = searchAddon;
+      term.loadAddon(webLinksAddon);
+      term.loadAddon(unicode11Addon);
+      term.unicode.activeVersion = '11';
+      term.loadAddon(serializeAddon);
 
       // ── Terminal setup ──────────────────────────────────
       term.open(containerRef.current);
       fitAddon.fit();
+
+      // LigaturesAddon needs the DOM renderer available,
+      // so it must be loaded after term.open().
+      term.loadAddon(ligaturesAddon);
+
+      // ── Diagnostics ────────────────────────────────────
+      if (webglAddonRef.current) {
+        console.info('[TerminalTab] Renderer: WebGL (GPU)');
+      } else {
+        console.info('[TerminalTab] Renderer: DOM (CPU fallback)');
+      }
 
       // Forward user input to PTY
       term.onData((data: string) => {
         window.electronAPI.ptyInput(tab.id, data);
       });
 
-      // Custom key handler: Ctrl+C for copy with selection;
-      // Ctrl+Shift+F delegates to search addon's native overlay
+      // Custom key handler:
+      // - Ctrl+C with selection → copy (browser default)
+      // - Ctrl+Shift+F → show search addon overlay
       term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
         if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
           return false; // let the browser copy instead of sending Ctrl+C to PTY
+        }
+        if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+          setSearchVisible(true);
+          return false;
         }
         return true;
       });
@@ -100,6 +148,7 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
 
       return () => {
         observer.disconnect();
+        webglAddonRef.current?.dispose();
         term.dispose();
       };
     } catch (err) {
@@ -164,15 +213,51 @@ export function TerminalTab({ tab, isActive, onActivity }: TerminalTabProps) {
     }
   }, [isActive, tab.id]);
 
+  // ── Search handlers ───────────────────────────────────
+
+  const doSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    searchAddonRef.current?.findNext(query);
+  }, []);
+
+  const hideSearch = useCallback(() => {
+    setSearchVisible(false);
+    setSearchQuery('');
+  }, []);
+
+  // Focus the search input when bar appears
+  useEffect(() => {
+    if (searchVisible && searchInputRef.current) {
+      searchInputRef.current.focus();
+      searchInputRef.current.select();
+    }
+  }, [searchVisible]);
+
   return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0 border border-[#1f1a15]/40"
-      style={{
-        opacity: isActive ? 1 : 0,
-        pointerEvents: isActive ? 'auto' : 'none',
-        zIndex: isActive ? 1 : 0,
-      }}
-    />
+    <div className="absolute inset-0" style={{ opacity: isActive ? 1 : 0, pointerEvents: isActive ? 'auto' : 'none', zIndex: isActive ? 1 : 0 }}>
+      {/* Search bar overlay */}
+      {searchVisible && (
+        <div className="absolute top-0 right-0 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-[#0a0a0a] border-b border-l border-[#1f1a15] rounded-bl shadow-lg shadow-black/60">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => doSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { hideSearch(); e.preventDefault(); }
+              if (e.key === 'Enter' && !e.shiftKey) { searchAddonRef.current?.findNext(searchQuery); e.preventDefault(); }
+              if (e.key === 'Enter' && e.shiftKey) { searchAddonRef.current?.findPrevious(searchQuery); e.preventDefault(); }
+            }}
+            className="w-48 bg-[#050505] border border-[#1f1a15] rounded px-2 py-0.5 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] outline-none focus:border-[#d4784a]/50"
+            placeholder="Find..."
+            spellCheck={false}
+          />
+          <button onClick={() => searchAddonRef.current?.findPrevious(searchQuery)} className="px-1.5 text-xs font-mono text-[#8b5a3c] hover:text-[#d4784a] transition-colors" title="Previous (Shift+Enter)">▲</button>
+          <button onClick={() => searchAddonRef.current?.findNext(searchQuery)} className="px-1.5 text-xs font-mono text-[#8b5a3c] hover:text-[#d4784a] transition-colors" title="Next (Enter)">▼</button>
+          <button onClick={hideSearch} className="px-1 text-xs font-mono text-[#8b5a3c] hover:text-[#e05555] transition-colors" title="Close (Esc)">✕</button>
+        </div>
+      )}
+      <div ref={containerRef} className="absolute inset-0 border border-[#1f1a15]/40" />
+    </div>
   );
 }
