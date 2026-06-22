@@ -143,7 +143,11 @@ function App() {
       path: dir,
       branch: '',
     };
-    await openFileTab(project, filePath);
+    // ponytail: prompt files open in editable mode
+    const normPath = filePath.replace(/\\/g, '/');
+    const normPrompts = (promptsPath || '').replace(/\\/g, '/').replace(/\/$/, '');
+    const unlocked = !!normPrompts && normPath.startsWith(normPrompts + '/');
+    await openFileTab(project, filePath, unlocked);
   };
 
   const handleSaveFile = async (tabId: string, content: string) => {

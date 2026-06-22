@@ -164,6 +164,8 @@ export function TerminalPanel({
   const [promptAction, setPromptAction] = useState<'open' | 'force'>('open');
   const [pendingCommand, setPendingCommand] = useState<string | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track live editor content so handleUnsavedSave can access the latest edits
+  const editorContentRef = useRef<Map<string, string>>(new Map());
 
   // Unsaved changes dialog state
   const [unsavedDialog, setUnsavedDialog] = useState<{
@@ -234,7 +236,8 @@ export function TerminalPanel({
   const handleUnsavedSave = async () => {
     const tabId = unsavedDialog.tabId;
     setUnsavedDialog({ open: false, tabId: '', fileName: '' });
-    const content = getFileContent?.(tabId);
+    // Use live editor content (ref), not the stale initial content
+    const content = editorContentRef.current.get(tabId) ?? getFileContent?.(tabId) ?? '';
     if (content !== undefined) {
       await onSaveFile?.(tabId, content);
     }
@@ -320,6 +323,9 @@ export function TerminalPanel({
                 }}
                 onDirtyChange={(dirty) => {
                   onFileDirtyChange?.(tab.id, dirty);
+                }}
+                onContentChange={(content) => {
+                  editorContentRef.current.set(tab.id, content);
                 }}
               />
             ) : (

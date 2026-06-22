@@ -20,6 +20,9 @@ export interface Tab {
    *  Used for the activity indicator (breathing border) on Claude/Copilot tabs.
    *  Automatically cleared after 5 seconds of inactivity. */
   busy?: boolean;
+  /** When true, the editor starts in editable mode (unlocked) instead of read-only.
+   *  Used for prompt files that should be edited immediately on open. */
+  unlocked?: boolean;
   // Diff-specific fields
   diffContent?: string;
 }
