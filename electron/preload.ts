@@ -23,6 +23,7 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
   terminalScrollback: number;
+  backgroundMusic: boolean;
 }
 
 export interface ElectronAPI {

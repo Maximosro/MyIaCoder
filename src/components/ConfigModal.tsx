@@ -10,8 +10,9 @@ interface ConfigModalProps {
   promptsPath: string;
   clients: ClientsConfig;
   terminalScrollback: number;
+  backgroundMusic: boolean;
   onClose: () => void;
-  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig, terminalScrollback: number) => void;
+  onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig, terminalScrollback: number, backgroundMusic: boolean) => void;
 }
 
 const CLIENT_LABELS: { key: keyof ClientsConfig; label: string; supportLevel?: 'limited' }[] = [
@@ -22,13 +23,14 @@ const CLIENT_LABELS: { key: keyof ClientsConfig; label: string; supportLevel?: '
   { key: 'opencode', label: 'Opencode', supportLevel: 'limited' },
 ];
 
-export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, onClose, onSave }: ConfigModalProps) {
+export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, backgroundMusic, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
   const [sp, setSp] = useState(skillsPath);
   const [prp, setPrp] = useState(promptsPath);
   const [cl, setCl] = useState<ClientsConfig>(clients);
   const [scrollback, setScrollback] = useState(terminalScrollback);
+  const [bgMusic, setBgMusic] = useState(backgroundMusic);
   const [saving, setSaving] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +42,9 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
       setPrp(promptsPath);
       setCl(clients);
       setScrollback(terminalScrollback);
+      setBgMusic(backgroundMusic);
     }
-  }, [open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback]);
+  }, [open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, backgroundMusic]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -76,7 +79,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(wp, pp, sp, prp, cl, scrollback);
+      await onSave(wp, pp, sp, prp, cl, scrollback, bgMusic);
       onClose();
     } finally {
       setSaving(false);
@@ -278,6 +281,27 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
             </div>
             <p className="text-[10px] text-[#4a2a1a] font-mono">
               Lines of scrollback history per terminal tab. Higher values use more RAM.
+            </p>
+          </div>
+
+          {/* Background Music */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+              Audio
+            </label>
+            <label className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all">
+              <input
+                type="checkbox"
+                checked={bgMusic}
+                onChange={(e) => setBgMusic(e.target.checked)}
+                className="accent-[#d4784a] w-3.5 h-3.5"
+              />
+              <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
+                Background Music
+              </span>
+            </label>
+            <p className="text-[10px] text-[#4a2a1a] font-mono">
+              Play ambient focus music on startup
             </p>
           </div>
         </div>

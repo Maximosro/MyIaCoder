@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
@@ -45,9 +45,22 @@ function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
+  const [backgroundMusic, setBackgroundMusic] = useState(true);
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
   // Sidebar and empty-state buttons both use this instead of opening tabs directly.
   const [launchTrigger, setLaunchTrigger] = useState<{ command?: string; force: boolean; tick: number }>({ force: false, tick: 0 });
+
+  // Background music
+  const audioRef = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (backgroundMusic) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  }, [backgroundMusic]);
 
   useEffect(() => {
     window.electronAPI.getSettings().then((s) => {
@@ -57,6 +70,7 @@ function App() {
       setPromptsPath(s.promptsPath || '');
       setClients({ ...DEFAULT_CLIENTS, ...s.clients });
       setTerminalScrollback(s.terminalScrollback ?? 20000);
+      setBackgroundMusic(s.backgroundMusic ?? true);
     });
   }, []);
 
@@ -99,7 +113,7 @@ function App() {
     setAboutOpen(false);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number, newBackgroundMusic: boolean) => {
     const currentSettings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({
       ...currentSettings,
@@ -109,6 +123,7 @@ function App() {
       promptsPath: newPromptsPath,
       clients: newClients,
       terminalScrollback: newTerminalScrollback,
+      backgroundMusic: newBackgroundMusic,
     });
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
@@ -116,6 +131,7 @@ function App() {
     setPromptsPath(newPromptsPath);
     setClients(newClients);
     setTerminalScrollback(newTerminalScrollback);
+    setBackgroundMusic(newBackgroundMusic);
     refresh();
     setTreeRefreshKey((k) => k + 1);
   };
@@ -271,6 +287,7 @@ function App() {
           promptsPath={promptsPath}
           clients={clients}
           terminalScrollback={terminalScrollback}
+          backgroundMusic={backgroundMusic}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
         />
@@ -281,7 +298,8 @@ function App() {
           onClose={handleCloseAbout}
         />
       </div>
-    </div>
+
+      <audio ref={audioRef} src="/FocusMusic.mp3" loop />    </div>
   );
 }
 

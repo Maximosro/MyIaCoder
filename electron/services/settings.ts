@@ -19,6 +19,7 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
   terminalScrollback: number;
+  backgroundMusic: boolean;
 }
 
 const HOME = os.homedir();
@@ -37,6 +38,7 @@ const DEFAULTS: Settings = {
     opencode: true,
   },
   terminalScrollback: 20000,
+  backgroundMusic: true,
 };
 
 function getSettingsPath(): string {
