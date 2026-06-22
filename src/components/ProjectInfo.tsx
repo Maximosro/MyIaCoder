@@ -10,14 +10,14 @@ export function ProjectInfo({ project }: ProjectInfoProps) {
   if (!project) {
     return (
       <div className="flex items-center gap-3 animate-fade-in">
-        <FolderGit2 className="w-4 h-4 text-[#8b5a3c]" />
+        <FolderGit2 className="w-6 h-6 text-[#d4784a]" />
         <div>
-          <p className="text-sm font-mono font-semibold text-[#8b5a3c] tracking-wider">
+          <p className="text-[11px] font-mono tracking-widest text-[#b0a89a] uppercase">
+            Welcome to Focusxide
+          </p>
+          <p className="text-lg font-mono font-semibold text-[#8b5a3c] tracking-wider">
             SELECT_PROJECT
             <span className="text-[#d4784a] animate-cursor-blink">_</span>
-          </p>
-          <p className="text-[10px] font-mono text-[#4a2a1a] mt-0.5 tracking-widest">
-            ◄ SIDEBAR ►
           </p>
         </div>
       </div>

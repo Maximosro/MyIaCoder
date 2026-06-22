@@ -382,8 +382,32 @@ export function TerminalPanel({
 
         {/* Empty state — no tabs yet */}
         {!promptVisible && tabs.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <ProjectInfo project={activeProject} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            {!activeProject && (
+              <div className="relative w-[70%] min-w-[520px] animate-fade-in">
+                {/* GIF with radial fade to background */}
+                <div
+                  className="w-full"
+                  style={{
+                    maskImage: 'radial-gradient(ellipse at center, black 35%, transparent 72%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse at center, black 35%, transparent 72%)',
+                  }}
+                >
+                  <img
+                    src="./select-project.gif"
+                    alt="Focusxide"
+                    className="w-full"
+                  />
+                </div>
+                {/* SELECT_PROJECT floating over the GIF */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="bg-[#050505]/80 backdrop-blur-sm border border-[#1f1a15]/50 rounded-lg px-5 py-2.5">
+                    <ProjectInfo project={activeProject} />
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeProject && <ProjectInfo project={activeProject} />}
           </div>
         )}
       </div>
