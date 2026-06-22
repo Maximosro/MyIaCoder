@@ -14,12 +14,12 @@ interface ConfigModalProps {
   onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig, terminalScrollback: number) => void;
 }
 
-const CLIENT_LABELS: { key: keyof ClientsConfig; label: string }[] = [
+const CLIENT_LABELS: { key: keyof ClientsConfig; label: string; supportLevel?: 'limited' }[] = [
   { key: 'claude', label: 'Claude' },
   { key: 'copilot', label: 'Copilot' },
-  { key: 'codewhale', label: 'Codewhale' },
+  { key: 'codewhale', label: 'Codewhale', supportLevel: 'limited' },
   { key: 'reasonix', label: 'Reasonix' },
-  { key: 'opencode', label: 'Opencode' },
+  { key: 'opencode', label: 'Opencode', supportLevel: 'limited' },
 ];
 
 export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, onClose, onSave }: ConfigModalProps) {
@@ -226,7 +226,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
               Clients
             </label>
             <div className="space-y-1.5">
-              {CLIENT_LABELS.map(({ key, label }) => (
+              {CLIENT_LABELS.map(({ key, label, supportLevel }) => (
                 <label
                   key={key}
                   className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all"
@@ -237,7 +237,14 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
                     onChange={(e) => setCl((prev) => ({ ...prev, [key]: e.target.checked }))}
                     className="accent-[#d4784a] w-3.5 h-3.5"
                   />
-                  <span className="text-xs font-mono text-[#f0ece8] tracking-wider">{label}</span>
+                  <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
+                    {label}
+                    {supportLevel === 'limited' && (
+                      <span className="ml-1.5 text-[9px] font-mono text-[#8b5a3c] bg-[#0f0f0f] border border-[#1f1a15] rounded px-1.5 py-px align-middle">
+                        LIMITED
+                      </span>
+                    )}
+                  </span>
                 </label>
               ))}
             </div>
