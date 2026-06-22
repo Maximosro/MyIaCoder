@@ -6,3 +6,4 @@ out/
 *.tsbuildinfo
 *.toml
 *.md
+!landing/

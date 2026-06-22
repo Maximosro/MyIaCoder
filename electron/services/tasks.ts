@@ -1,7 +1,24 @@
 import { existsSync, readdirSync, readFileSync, statSync, watch, type FSWatcher } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+// ponytail: dynamic import — better-sqlite3 is native and may fail to install.
+// Only Copilot needs it; the rest of the app must not crash without it.
+type DatabaseCtor = new (...args: any[]) => { close(): void; pragma(s: string): void; prepare(s: string): { all(): unknown[]; get(): unknown } };
+let Database: DatabaseCtor | null = null;
+let dbImportFailed = false;
+
+function getDatabase(): DatabaseCtor | null {
+  if (dbImportFailed) return null;
+  if (Database) return Database;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Database = require('better-sqlite3') as DatabaseCtor;
+    return Database;
+  } catch {
+    dbImportFailed = true;
+    return null;
+  }
+}
 
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
 export type TaskSource = 'copilot' | 'claude' | 'reasonix';
@@ -327,7 +344,9 @@ function getCopilotTasks(projectPath: string): ProjectTasksResult {
 /** Reads todos + dependencies from one session.db (read-only). */
 function readSessionTodos(dbPath: string): Task[] {
   if (!existsSync(dbPath)) return [];
-  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  const DB = getDatabase();
+  if (!DB) return [];
+  const db = new DB(dbPath, { readonly: true, fileMustExist: true });
   try {
     db.pragma('busy_timeout = 1000');
     const rows = db
