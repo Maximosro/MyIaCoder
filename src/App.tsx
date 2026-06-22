@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
+import { AboutModal } from './components/AboutModal';
 import { TitleBar } from './components/TitleBar';
 import { useProjects } from './hooks/useProjects';
 import { useTabs } from './hooks/useTabs';
@@ -41,6 +42,7 @@ function App() {
   const [promptsPath, setPromptsPath] = useState('');
   const [clients, setClients] = useState<ClientsConfig>(DEFAULT_CLIENTS);
   const [configOpen, setConfigOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
@@ -87,6 +89,14 @@ function App() {
 
   const handleOpenConfig = () => {
     setConfigOpen(true);
+  };
+
+  const handleOpenAbout = () => {
+    setAboutOpen(true);
+  };
+
+  const handleCloseAbout = () => {
+    setAboutOpen(false);
   };
 
   const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number) => {
@@ -194,7 +204,7 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-[#050505] text-[#f0ece8] relative overflow-hidden">
       {/* Custom title bar (replaces native Windows frame) */}
-      <TitleBar onConfig={handleOpenConfig} />
+      <TitleBar onConfig={handleOpenConfig} onAbout={handleOpenAbout} />
 
       {/* Main content area */}
       <div className="flex flex-1 relative overflow-hidden">
@@ -263,6 +273,12 @@ function App() {
           terminalScrollback={terminalScrollback}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
+        />
+
+        {/* About Modal */}
+        <AboutModal
+          open={aboutOpen}
+          onClose={handleCloseAbout}
         />
       </div>
     </div>

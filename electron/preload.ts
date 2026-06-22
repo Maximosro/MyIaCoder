@@ -61,6 +61,7 @@ export interface ElectronAPI {
   onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
   onProjectBranchLoaded: (callback: (data: { path: string; branch: string }) => void) => () => void;
   onTasksChanged: (callback: () => void) => () => void;
+  getAppVersion: () => Promise<string>;
   onPtyData: (callback: (tabId: string, data: string) => void) => () => void;
   onPtyExit: (callback: (tabId: string, exitCode: number) => void) => () => void;
 }
@@ -123,4 +124,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('pty-exit', handler);
     return () => ipcRenderer.removeListener('pty-exit', handler);
   },
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 } satisfies ElectronAPI);

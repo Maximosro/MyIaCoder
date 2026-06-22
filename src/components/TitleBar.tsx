@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Minus, Square, X, Settings } from 'lucide-react';
+import { Minus, Square, X, Settings, Info } from 'lucide-react';
 
-export function TitleBar({ onConfig }: { onConfig: () => void }) {
+export function TitleBar({ onConfig, onAbout }: { onConfig: () => void; onAbout: () => void }) {
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -35,6 +35,19 @@ export function TitleBar({ onConfig }: { onConfig: () => void }) {
 
       {/* Center spacer + config */}
       <div className="flex-1" />
+      {/* About */}
+      <button
+        onClick={onAbout}
+        className="titlebar-btn w-9 h-full flex items-center justify-center text-[#f0ece8]/40 hover:text-[#d4784a] hover:bg-[#1a1a1a] transition-colors"
+        aria-label="About"
+        title="About Focusxide"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        <Info size={14} strokeWidth={1.5} />
+      </button>
+
+      <span className="w-px h-4 bg-[#1f1a15] mx-1" />
+
       <button
         onClick={onConfig}
         className="titlebar-btn w-9 h-full flex items-center justify-center text-[#f0ece8]/40 hover:text-[#d4784a] hover:bg-[#1a1a1a] transition-colors"

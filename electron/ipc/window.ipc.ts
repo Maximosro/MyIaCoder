@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { app, ipcMain, BrowserWindow } from 'electron';
 
 export function registerWindowIpc(getWindow: () => BrowserWindow | null): void {
   // ── Window controls (frameless custom title bar) ─────────
@@ -22,4 +22,7 @@ export function registerWindowIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('window-close', () => {
     getWindow()?.close();
   });
+
+  // ── App metadata ────────────────────────────────────────
+  ipcMain.handle('get-app-version', () => app.getVersion());
 }
