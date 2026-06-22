@@ -8,6 +8,7 @@ interface AboutModalProps {
 
 export function AboutModal({ open, onClose }: AboutModalProps) {
   const [version, setVersion] = useState('');
+  const [easterEgg, setEasterEgg] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,8 +89,31 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
 
           {/* Credits */}
           <p className="text-[10px] text-[#8b5a3c]">
-            by <span className="text-[#d4784a]">Rothar</span>
+            by{' '}
+            <span
+              className="text-[#d4784a] cursor-pointer hover:underline"
+              onClick={() => setEasterEgg(true)}
+              title="click me"
+            >
+              Rothar
+            </span>
           </p>
+          {/* Easter egg overlay */}
+          {easterEgg && (
+            <div
+              className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center cursor-pointer"
+              onClick={() => setEasterEgg(false)}
+            >
+              <img
+                src="./granny.gif"
+                alt="easter egg"
+                className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl"
+              />
+              <p className="absolute bottom-8 text-[#8b5a3c] text-xs font-mono">
+                click anywhere to close
+              </p>
+            </div>
+          )}
           <p className="text-[9px] text-[#4a2a1a]">
             built with <span className="text-[#d4784a]/80">DeepSeek V4 Pro</span>
           </p>

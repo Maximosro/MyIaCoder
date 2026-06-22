@@ -20,6 +20,7 @@ export interface Settings {
   clients: ClientsConfig;
   terminalScrollback: number;
   backgroundMusic: boolean;
+  onboardingComplete: boolean;
 }
 
 const HOME = os.homedir();
@@ -39,6 +40,7 @@ const DEFAULTS: Settings = {
   },
   terminalScrollback: 20000,
   backgroundMusic: true,
+  onboardingComplete: false,
 };
 
 function getSettingsPath(): string {

@@ -46,6 +46,7 @@ function App() {
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
   const [backgroundMusic, setBackgroundMusic] = useState(true);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
   // Sidebar and empty-state buttons both use this instead of opening tabs directly.
   const [launchTrigger, setLaunchTrigger] = useState<{ command?: string; force: boolean; tick: number }>({ force: false, tick: 0 });
@@ -71,6 +72,10 @@ function App() {
       setClients({ ...DEFAULT_CLIENTS, ...s.clients });
       setTerminalScrollback(s.terminalScrollback ?? 20000);
       setBackgroundMusic(s.backgroundMusic ?? true);
+      setOnboardingComplete(s.onboardingComplete ?? false);
+      if (!s.onboardingComplete) {
+        setConfigOpen(true);
+      }
     });
   }, []);
 
@@ -124,6 +129,7 @@ function App() {
       clients: newClients,
       terminalScrollback: newTerminalScrollback,
       backgroundMusic: newBackgroundMusic,
+      onboardingComplete: true,
     });
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
@@ -132,6 +138,7 @@ function App() {
     setClients(newClients);
     setTerminalScrollback(newTerminalScrollback);
     setBackgroundMusic(newBackgroundMusic);
+    setOnboardingComplete(true);
     refresh();
     setTreeRefreshKey((k) => k + 1);
   };
@@ -288,6 +295,7 @@ function App() {
           clients={clients}
           terminalScrollback={terminalScrollback}
           backgroundMusic={backgroundMusic}
+          isOnboarding={!onboardingComplete}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}
         />

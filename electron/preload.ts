@@ -24,6 +24,7 @@ export interface Settings {
   clients: ClientsConfig;
   terminalScrollback: number;
   backgroundMusic: boolean;
+  onboardingComplete: boolean;
 }
 
 export interface ElectronAPI {

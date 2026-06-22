@@ -11,6 +11,7 @@ interface ConfigModalProps {
   clients: ClientsConfig;
   terminalScrollback: number;
   backgroundMusic: boolean;
+  isOnboarding?: boolean;
   onClose: () => void;
   onSave: (workspacePath: string, plansPath: string, skillsPath: string, promptsPath: string, clients: ClientsConfig, terminalScrollback: number, backgroundMusic: boolean) => void;
 }
@@ -23,7 +24,7 @@ const CLIENT_LABELS: { key: keyof ClientsConfig; label: string; supportLevel?: '
   { key: 'opencode', label: 'Opencode', supportLevel: 'limited' },
 ];
 
-export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, backgroundMusic, onClose, onSave }: ConfigModalProps) {
+export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, clients, terminalScrollback, backgroundMusic, isOnboarding, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
   const [sp, setSp] = useState(skillsPath);
@@ -48,11 +49,11 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !isOnboarding) onClose();
     };
     if (open) window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
+  }, [open, onClose, isOnboarding]);
 
   if (!open) return null;
 
@@ -87,7 +88,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === backdropRef.current) onClose();
+    if (e.target === backdropRef.current && !isOnboarding) onClose();
   };
 
   return (
@@ -105,12 +106,14 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
               CONFIGURATION
             </h2>
           </div>
+          {!isOnboarding && (
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
+          )}
         </div>
 
         {/* Body */}
@@ -308,18 +311,20 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2.5 px-5 py-4 border-t border-[#1f1a15]">
+          {!isOnboarding && (
           <button
             onClick={onClose}
             className="px-4 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#e05555] border border-[#1f1a15] transition-all font-mono"
           >
             CANCEL
           </button>
+          )}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || (isOnboarding && !wp.trim())}
             className="px-4 py-2 text-xs rounded bg-[#d4784a]/10 hover:bg-[#d4784a]/20 text-[#d4784a] border border-[#d4784a]/30 hover:border-[#d4784a]/50 transition-all font-mono disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {saving ? 'SAVING...' : 'SAVE'}
+            {saving ? 'SAVING...' : isOnboarding ? 'GET STARTED' : 'SAVE'}
           </button>
         </div>
       </div>
