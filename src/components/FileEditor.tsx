@@ -91,6 +91,7 @@ interface FileEditorProps {
   initialContent: string;
   onSave: (content: string) => Promise<void>;
   onDirtyChange: (isDirty: boolean) => void;
+  onContentChange?: (content: string) => void;
 }
 
 type FileTab = Tab & { kind: 'file'; filePath: string; fileType: FileType };
@@ -100,17 +101,18 @@ interface FileEditorContentProps {
   initialContent: string;
   onSave: (content: string) => Promise<void>;
   onDirtyChange: (isDirty: boolean) => void;
+  onContentChange?: (content: string) => void;
 }
 
 // Guard kept outside the component with hooks so hooks always run unconditionally (Rules of Hooks).
-export function FileEditor({ tab, initialContent, onSave, onDirtyChange }: FileEditorProps) {
+export function FileEditor({ tab, initialContent, onSave, onDirtyChange, onContentChange }: FileEditorProps) {
   if (!isFileTab(tab)) return null;
   return (
-    <FileEditorContent tab={tab} initialContent={initialContent} onSave={onSave} onDirtyChange={onDirtyChange} />
+    <FileEditorContent tab={tab} initialContent={initialContent} onSave={onSave} onDirtyChange={onDirtyChange} onContentChange={onContentChange} />
   );
 }
 
-function FileEditorContent({ tab, initialContent, onSave, onDirtyChange }: FileEditorContentProps) {
+function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onContentChange }: FileEditorContentProps) {
   const [readOnly, setReadOnly] = useState(true);
   const [content, setContent] = useState(initialContent);
   const [isDirty, setIsDirty] = useState(false);
@@ -121,18 +123,20 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange }: FileE
   useEffect(() => {
     setContent(initialContent);
     setIsDirty(false);
-    setReadOnly(true);
+    // ponytail: prompt files open editable; else read-only by default
+    setReadOnly(!tab.unlocked);
     setPreviewMode(false);
   }, [initialContent, tab.id]);
 
   const handleChange = useCallback((value: string | undefined) => {
     const newValue = value ?? '';
     setContent(newValue);
+    onContentChange?.(newValue);
     if (!isDirty) {
       setIsDirty(true);
       onDirtyChange(true);
     }
-  }, [isDirty, onDirtyChange]);
+  }, [isDirty, onDirtyChange, onContentChange]);
 
   const handleSave = useCallback(async () => {
     if (!isDirty || saving) return;

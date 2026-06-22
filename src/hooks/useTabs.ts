@@ -18,7 +18,7 @@ interface UseTabsReturn {
   forceOpenTab: (project: Project, title: string, command?: string) => Promise<void>;
   openTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   forceOpenTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
-  openFileTab: (project: Project, filePath: string) => Promise<string>;
+  openFileTab: (project: Project, filePath: string, unlocked?: boolean) => Promise<string>;
   openDiffTab: (project: Project, filePath: string) => Promise<string>;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
   setActiveTab: (tabId: string) => void;
@@ -76,7 +76,7 @@ export function useTabs(): UseTabsReturn {
 
   // ── File tabs ──────────────────────────────────────────────
 
-  const openFileTab = useCallback(async (project: Project, filePath: string): Promise<string> => {
+  const openFileTab = useCallback(async (project: Project, filePath: string, unlocked = false): Promise<string> => {
     // Extract file name from path
     const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
     const fileType = getFileType(fileName);
@@ -112,6 +112,7 @@ export function useTabs(): UseTabsReturn {
       filePath,
       fileType,
       isDirty: false,
+      unlocked,
     };
 
     setTabs((prev) => [...prev, newTab]);

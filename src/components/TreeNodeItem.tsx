@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Folder, FolderOpen, FileText, ChevronRight, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Folder, FolderOpen, FileText, ChevronRight, Trash2, Copy, Check } from 'lucide-react';
 import type { TreeNode } from '../types/project';
 import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
 
@@ -13,6 +13,9 @@ export interface TreeNodeItemProps {
 export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNodeItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const isDirectory = node.type === 'directory';
   const hasChildren = isDirectory && node.children && node.children.length > 0;
   const isSupportedFile = !isDirectory && (() => {
@@ -48,12 +51,54 @@ export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNod
     setConfirmDelete(false);
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+    setCopied(false);
+  }, []);
+
+  const handleCopyPath = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(node.path);
+      setCopied(true);
+      setTimeout(closeContextMenu, 1200);
+    } catch {
+      // ponytail: fallback for older Electron or http context — silently ignore
+    }
+  };
+
+  // Close context menu on outside click or Escape
+  useEffect(() => {
+    if (!contextMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        closeContextMenu();
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeContextMenu();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [contextMenu, closeContextMenu]);
+
   return (
     <div className="select-none">
       {/* Node row */}
       <div className="group relative">
         <button
           onClick={handleClick}
+          onContextMenu={handleContextMenu}
           disabled={!isDirectory && !isSupportedFile}
           title={confirmDelete ? undefined : node.path}
           className={`w-full flex items-center gap-1.5 py-1 text-left font-mono transition-all duration-200 border-l-2
@@ -135,6 +180,27 @@ export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNod
           </div>
         )}
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 min-w-[180px] py-1 bg-[#141414] border border-[#2a2a2a] rounded shadow-lg shadow-black/50 animate-fade-in"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={handleCopyPath}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-mono text-[#b0a89a] hover:bg-[#1a1a1a] hover:text-[#f0ece8] transition-colors duration-100"
+          >
+            {copied ? (
+              <Check className="w-3 h-3 text-[#6b9e6b]" />
+            ) : (
+              <Copy className="w-3 h-3" />
+            )}
+            <span>{copied ? 'Copied!' : 'Copy absolute path'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Children — animated expand/collapse */}
       {hasChildren && (
