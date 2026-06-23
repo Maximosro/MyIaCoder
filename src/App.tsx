@@ -143,6 +143,7 @@ function App() {
 
   const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number, newBackgroundMusic: boolean, newUseWsl2Git: boolean, newWslDistro: string) => {
     const currentSettings = await window.electronAPI.getSettings();
+    const wslModeChanged = (currentSettings.useWsl2Git ?? false) !== newUseWsl2Git;
     await window.electronAPI.saveSettings({
       ...currentSettings,
       workspacePath: newWorkspacePath,
@@ -156,6 +157,13 @@ function App() {
       wslDistro: newWslDistro,
       onboardingComplete: true,
     });
+    // Toggling WSL git mode restarts the app so the new mode applies with a clean
+    // state (no stale WSL session, branch badges re-evaluated). Settings are
+    // already persisted above, so the restart loads the new value.
+    if (wslModeChanged) {
+      await window.electronAPI.relaunchApp();
+      return;
+    }
     setWorkspacePath(newWorkspacePath);
     setPlansPath(newPlansPath);
     setSkillsPath(newSkillsPath);

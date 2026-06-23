@@ -314,6 +314,13 @@ export interface GitAheadBehind {
   behind: number;
 }
 
+/** Local + remote branches of a repository, plus the current branch. */
+export interface GitBranchList {
+  current: string;
+  local: string[];
+  remote: string[];
+}
+
 const REMOTE_TIMEOUT = 30_000;
 
 /**
@@ -390,6 +397,39 @@ export async function gitCommit(projectPath: string, message: string): Promise<G
     return { ok: true, output: output.trim() || undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Commit failed';
+    return { ok: false, error: msg };
+  }
+}
+
+/** Lists local and remote branches plus the current branch. */
+export async function gitListBranches(projectPath: string): Promise<GitBranchList> {
+  const current = (await runGit(projectPath, ['branch', '--show-current'], 5000)).trim();
+  const toList = (out: string) =>
+    out.split('\n').map((b) => b.trim()).filter((b) => b && !b.includes('->'));
+  const local = toList(await runGit(projectPath, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], 5000));
+  let remote: string[] = [];
+  try {
+    remote = toList(await runGit(projectPath, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes'], 5000));
+  } catch {
+    remote = [];
+  }
+  return { current, local, remote };
+}
+
+/**
+ * Creates and checks out a new branch from `base`. `base` may be a local branch,
+ * a remote-tracking ref (e.g. `origin/develop`) or empty for the current HEAD.
+ * Git validates the ref name and rejects invalid ones (the name reaches git as a
+ * separate argv entry / quoted token, so there is no shell-injection surface).
+ */
+export async function gitCreateBranch(projectPath: string, name: string, base?: string): Promise<GitRemoteResult> {
+  if (!name.trim()) return { ok: false, error: 'Branch name is required' };
+  try {
+    const args = ['checkout', '-b', name.trim(), ...(base?.trim() ? [base.trim()] : [])];
+    const output = await runGit(projectPath, args, REMOTE_TIMEOUT);
+    return { ok: true, output: output.trim() || undefined };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Branch creation failed';
     return { ok: false, error: msg };
   }
 }

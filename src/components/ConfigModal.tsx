@@ -341,7 +341,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
               />
             )}
             <p className="text-[10px] text-[#4a2a1a] font-mono">
-              When enabled, git runs inside WSL2 (wsl -d &lt;distro&gt; git ...) against the project at /mnt/c/... instead of native Windows git.
+              When enabled, git runs inside WSL2 (wsl -d &lt;distro&gt; git ...) against the project at /mnt/c/... instead of native Windows git. Changing this restarts the app.
             </p>
           </div>
         </div>

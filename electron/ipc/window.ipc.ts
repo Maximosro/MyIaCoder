@@ -25,4 +25,11 @@ export function registerWindowIpc(getWindow: () => BrowserWindow | null): void {
 
   // ── App metadata ────────────────────────────────────────
   ipcMain.handle('get-app-version', () => app.getVersion());
+
+  // Restart the whole app (used when toggling WSL git mode so the change takes
+  // effect with a clean state: no stale WSL session, branch badges re-evaluated).
+  ipcMain.handle('app-relaunch', () => {
+    app.relaunch();
+    app.exit(0);
+  });
 }

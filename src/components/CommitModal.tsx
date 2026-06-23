@@ -10,15 +10,17 @@ interface CommitModalProps {
 }
 
 export function CommitModal({ open, projectPath, onClose, onCommitted }: CommitModalProps) {
-  const [message, setMessage] = useState('');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
   const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
-      setMessage('');
+      setTitle('');
+      setBody('');
       setError(null);
       setCommitting(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -42,11 +44,14 @@ export function CommitModal({ open, projectPath, onClose, onCommitted }: CommitM
   };
 
   const handleCommit = async () => {
-    if (!message.trim() || committing) return;
+    const subject = title.trim();
+    if (!subject || committing) return;
+    // Standard git message: subject, blank line, then body.
+    const message = body.trim() ? `${subject}\n\n${body.trim()}` : subject;
     setCommitting(true);
     setError(null);
     try {
-      const result = await window.electronAPI.gitCommit(projectPath, message.trim());
+      const result = await window.electronAPI.gitCommit(projectPath, message);
       if (result.ok) {
         onCommitted();
         onClose();
@@ -94,14 +99,26 @@ export function CommitModal({ open, projectPath, onClose, onCommitted }: CommitM
         {/* Body */}
         <div className="px-5 py-4 flex flex-col gap-3">
           <label className="text-[11px] font-mono text-[#8b5a3c] tracking-wider uppercase">
-            Message
+            Title
+          </label>
+          <input
+            ref={inputRef}
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Short summary of your changes"
+            spellCheck={false}
+            className="w-full bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-[12px] font-mono text-[#f0ece8] placeholder:text-[#4a2a1a] focus:border-[#d4784a]/50 focus:outline-none transition-colors duration-150"
+          />
+          <label className="text-[11px] font-mono text-[#8b5a3c] tracking-wider uppercase">
+            Description <span className="text-[#4a2a1a] normal-case">(optional)</span>
           </label>
           <textarea
-            ref={inputRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your changes..."
+            placeholder="Extended description of the commit..."
             rows={4}
             className="w-full bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-[12px] font-mono text-[#f0ece8] placeholder:text-[#4a2a1a] focus:border-[#d4784a]/50 focus:outline-none resize-none transition-colors duration-150"
           />
@@ -126,7 +143,7 @@ export function CommitModal({ open, projectPath, onClose, onCommitted }: CommitM
           </button>
           <button
             onClick={handleCommit}
-            disabled={!message.trim() || committing}
+            disabled={!title.trim() || committing}
             className="px-3 py-1.5 text-[11px] font-mono text-[#f0ece8] bg-[#d4784a]/20 border border-[#d4784a]/40 rounded hover:bg-[#d4784a]/30 transition-colors duration-150 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
           >
             {committing && <RefreshCw className="w-3 h-3 animate-spin" />}
