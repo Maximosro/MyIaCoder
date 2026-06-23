@@ -50,8 +50,16 @@ export function ProjectItem({ project, isSelected, hasOpenTab, hideBranch, onCli
         )}
       </div>
 
-      {/* Branch badge — unified. Hidden in WSL mode (unknown until opened). */}
-      {!hideBranch && (
+      {/* In WSL2 mode the branch is unknown until the project is opened, so show
+          a "WSL2" mode pill instead of the branch badge. */}
+      {hideBranch ? (
+        <span
+          className="text-[11px] px-1.5 py-0.5 rounded border flex-shrink-0 border-[#d4784a]/40 bg-[#d4784a]/10 text-[#d4784a] tracking-wider"
+          title="Git via WSL2"
+        >
+          WSL2
+        </span>
+      ) : (
         <span
           className={`text-[11px] px-1.5 py-0.5 rounded border flex-shrink-0 max-w-[120px] truncate transition-all duration-200 ${getBranchStyle(project.branch)}`}
           title={project.branch || undefined}

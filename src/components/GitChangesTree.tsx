@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ChevronRight,
   GitBranch,
+  GitBranchPlus,
   RefreshCw,
   Folder,
   FolderOpen,
@@ -15,6 +16,7 @@ import { useGitChanges } from '../hooks/useGitChanges';
 import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
 import { GIT_STATUS_META } from '../utils/gitStatus';
 import { CommitModal } from './CommitModal';
+import { NewBranchModal } from './NewBranchModal';
 import type { GitChange, GitTreeNode } from '../types/project';
 
 interface GitChangesTreeProps {
@@ -234,7 +236,7 @@ function ChangeDirNode({
 
 export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDiff }: GitChangesTreeProps) {
   const [expanded, setExpanded] = useState(true);
-  const { changes, loading, error, refresh } = useGitChanges(projectPath, refreshKey);
+  const { changes, branch, loading, error, refresh } = useGitChanges(projectPath, refreshKey);
 
   // Ahead/behind indicator
   const [ahead, setAhead] = useState(0);
@@ -299,11 +301,19 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
 
   // Commit modal state
   const [commitOpen, setCommitOpen] = useState(false);
+  // New-branch modal state
+  const [newBranchOpen, setNewBranchOpen] = useState(false);
 
   const handleCommitted = async () => {
     await refresh();
     await refreshAheadBehind();
     setRemoteMsg({ text: 'committed', ok: true });
+  };
+
+  const handleBranchCreated = async () => {
+    await refresh();
+    await refreshAheadBehind();
+    setRemoteMsg({ text: 'branch created', ok: true });
   };
 
   const tree = useMemo(() => buildChangeTree(changes), [changes]);
@@ -351,7 +361,9 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
             className={`w-3 h-3 text-[#8b5a3c] transition-transform duration-200 flex-shrink-0 ${expanded ? 'rotate-90' : 'rotate-0'}`}
           />
           <GitBranch className="w-3.5 h-3.5 text-[#d4784a] flex-shrink-0" />
-          <span className="text-[11px] text-[#f0ece8] tracking-wider">git</span>
+          <span className="text-[11px] text-[#f0ece8] tracking-wider truncate" title={branch || undefined}>
+            {branch && branch !== 'unknown' ? branch : 'git'}
+          </span>
           {changes.length > 0 && (
             <span className="text-[10px] text-[#d4784a]">{changes.length}</span>
           )}
@@ -365,6 +377,13 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
               {behind > 0 && <span className="text-[#d4784a]">↓{behind}</span>}
             </span>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setNewBranchOpen(true); }}
+            className="p-0.5 rounded hover:bg-[#1f1a15] transition-colors duration-150"
+            title="New branch"
+          >
+            <GitBranchPlus className="w-3 h-3 text-[#8b5a3c] hover:text-[#9b7bc4] transition-colors duration-150" />
+          </button>
           {changes.length > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); setCommitOpen(true); }}
@@ -434,6 +453,14 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
         projectPath={projectPath}
         onClose={() => setCommitOpen(false)}
         onCommitted={handleCommitted}
+      />
+
+      {/* New-branch modal */}
+      <NewBranchModal
+        open={newBranchOpen}
+        projectPath={projectPath}
+        onClose={() => setNewBranchOpen(false)}
+        onCreated={handleBranchCreated}
       />
     </div>
   );

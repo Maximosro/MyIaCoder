@@ -47,6 +47,8 @@ export interface ElectronAPI {
   gitPush: (projectPath: string) => Promise<import('./services/git').GitRemoteResult>;
   gitAheadBehind: (projectPath: string) => Promise<import('./services/git').GitAheadBehind>;
   gitCommit: (projectPath: string, message: string) => Promise<import('./services/git').GitRemoteResult>;
+  gitListBranches: (projectPath: string) => Promise<import('./services/git').GitBranchList>;
+  gitCreateBranch: (projectPath: string, name: string, base?: string) => Promise<import('./services/git').GitRemoteResult>;
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => Promise<import('./services/tasks').ProjectTasksResult>;
   readFileContent: (filePath: string) => Promise<string>;
   writeFileContent: (filePath: string, content: string) => Promise<void>;
@@ -73,6 +75,7 @@ export interface ElectronAPI {
   onProjectBranchLoaded: (callback: (data: { path: string; branch: string }) => void) => () => void;
   onTasksChanged: (callback: () => void) => () => void;
   getAppVersion: () => Promise<string>;
+  relaunchApp: () => Promise<void>;
   onPtyData: (callback: (tabId: string, data: string) => void) => () => void;
   onPtyExit: (callback: (tabId: string, exitCode: number) => void) => () => void;
 }
@@ -95,6 +98,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitPush: (projectPath: string) => ipcRenderer.invoke('git-push', projectPath),
   gitAheadBehind: (projectPath: string) => ipcRenderer.invoke('git-ahead-behind', projectPath),
   gitCommit: (projectPath: string, message: string) => ipcRenderer.invoke('git-commit', projectPath, message),
+  gitListBranches: (projectPath: string) => ipcRenderer.invoke('git-list-branches', projectPath),
+  gitCreateBranch: (projectPath: string, name: string, base?: string) => ipcRenderer.invoke('git-create-branch', projectPath, name, base),
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => ipcRenderer.invoke('get-project-tasks', projectPath, source),
   readFileContent: (filePath: string) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
@@ -143,4 +148,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('pty-exit', handler);
   },
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  relaunchApp: () => ipcRenderer.invoke('app-relaunch'),
 } satisfies ElectronAPI);
