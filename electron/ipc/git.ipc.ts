@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { getGitBranch, getGitChanges, getGitDiff, getGitFileVersions, discardFileChanges, gitFetch, gitPull, gitPush, gitAheadBehind, gitCommit, gitListBranches, gitCreateBranch } from '../services/git';
+import { getGitBranch, getGitChanges, getGitDiff, getGitFileVersions, discardFileChanges, gitFetch, gitPull, gitPush, gitAheadBehind, gitCommit, gitListBranches, gitCreateBranch, gitSwitchBranch } from '../services/git';
 import { prewarmSession, closeAllSessions } from '../services/wsl-session';
 
 export function registerGitIpc(): void {
@@ -61,5 +61,9 @@ export function registerGitIpc(): void {
 
   ipcMain.handle('git-create-branch', async (_event, projectPath: string, name: string, base?: string) => {
     return gitCreateBranch(projectPath, name, base);
+  });
+
+  ipcMain.handle('git-switch-branch', async (_event, projectPath: string, branch: string) => {
+    return gitSwitchBranch(projectPath, branch);
   });
 }

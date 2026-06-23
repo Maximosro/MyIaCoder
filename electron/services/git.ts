@@ -434,6 +434,24 @@ export async function gitCreateBranch(projectPath: string, name: string, base?: 
   }
 }
 
+/**
+ * Checks out an existing branch. Pass the short name (e.g. `develop` or
+ * `feature/x`); for a branch that only exists on the remote, git's DWIM creates
+ * a local tracking branch. Fails (and surfaces git's message) if the working
+ * tree has conflicting changes.
+ */
+export async function gitSwitchBranch(projectPath: string, branch: string): Promise<GitRemoteResult> {
+  const target = branch.trim();
+  if (!target) return { ok: false, error: 'Branch is required' };
+  try {
+    const output = await runGit(projectPath, ['checkout', target], REMOTE_TIMEOUT);
+    return { ok: true, output: output.trim() || undefined };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Branch switch failed';
+    return { ok: false, error: msg };
+  }
+}
+
 /** Result of a discard operation. */
 export interface DiscardResult {
   ok: boolean;

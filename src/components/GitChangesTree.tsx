@@ -3,6 +3,7 @@ import {
   ChevronRight,
   GitBranch,
   GitBranchPlus,
+  ArrowLeftRight,
   RefreshCw,
   Folder,
   FolderOpen,
@@ -17,6 +18,7 @@ import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
 import { GIT_STATUS_META } from '../utils/gitStatus';
 import { CommitModal } from './CommitModal';
 import { NewBranchModal } from './NewBranchModal';
+import { SwitchBranchModal } from './SwitchBranchModal';
 import type { GitChange, GitTreeNode } from '../types/project';
 
 interface GitChangesTreeProps {
@@ -303,6 +305,8 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
   const [commitOpen, setCommitOpen] = useState(false);
   // New-branch modal state
   const [newBranchOpen, setNewBranchOpen] = useState(false);
+  // Switch-branch modal state
+  const [switchBranchOpen, setSwitchBranchOpen] = useState(false);
 
   const handleCommitted = async () => {
     await refresh();
@@ -314,6 +318,12 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
     await refresh();
     await refreshAheadBehind();
     setRemoteMsg({ text: 'branch created', ok: true });
+  };
+
+  const handleBranchSwitched = async () => {
+    await refresh();
+    await refreshAheadBehind();
+    setRemoteMsg({ text: 'branch switched', ok: true });
   };
 
   const tree = useMemo(() => buildChangeTree(changes), [changes]);
@@ -377,6 +387,13 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
               {behind > 0 && <span className="text-[#d4784a]">↓{behind}</span>}
             </span>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setSwitchBranchOpen(true); }}
+            className="p-0.5 rounded hover:bg-[#1f1a15] transition-colors duration-150"
+            title="Switch branch"
+          >
+            <ArrowLeftRight className="w-3 h-3 text-[#8b5a3c] hover:text-[#7b9ec4] transition-colors duration-150" />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); setNewBranchOpen(true); }}
             className="p-0.5 rounded hover:bg-[#1f1a15] transition-colors duration-150"
@@ -461,6 +478,14 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
         projectPath={projectPath}
         onClose={() => setNewBranchOpen(false)}
         onCreated={handleBranchCreated}
+      />
+
+      {/* Switch-branch modal */}
+      <SwitchBranchModal
+        open={switchBranchOpen}
+        projectPath={projectPath}
+        onClose={() => setSwitchBranchOpen(false)}
+        onSwitched={handleBranchSwitched}
       />
     </div>
   );
