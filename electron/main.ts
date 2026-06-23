@@ -7,6 +7,7 @@ import { registerSettingsIpc } from './ipc/settings.ipc';
 import { registerPtyIpc } from './ipc/pty.ipc';
 import { registerWindowIpc } from './ipc/window.ipc';
 import { registerTasksIpc } from './ipc/tasks.ipc';
+import { closeAllSessions } from './services/wsl-session';
 
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
@@ -162,4 +163,5 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   ptyManager.killAll();
   disposeTasksWatcher?.();
+  closeAllSessions();
 });

@@ -48,9 +48,14 @@ export function registerFilesystemIpc(getWindow: () => BrowserWindow | null): vo
     const settings = loadSettings();
     const projects = listWorkspaceProjects(settings.workspacePath);
     const generation = ++branchLoadGeneration;
-    // Fire-and-forget: return the list immediately so the UI is usable,
-    // then stream branches in one at a time.
-    void loadBranchesSequentially(projects, generation);
+    // In WSL git mode the branch isn't known until the project is opened (the
+    // persistent session starts on open), and scanning N repos would spawn N
+    // `wsl` processes. Skip the background load; the UI hides the branch badge.
+    if (!settings.useWsl2Git) {
+      // Fire-and-forget: return the list immediately so the UI is usable,
+      // then stream branches in one at a time.
+      void loadBranchesSequentially(projects, generation);
+    }
     return projects;
   });
 

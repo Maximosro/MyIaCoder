@@ -99,6 +99,11 @@ function App() {
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
+    // WSL git mode: spin up the persistent session for this project so the
+    // first status/commit/push reuses it instead of spawning wsl each time.
+    if (useWsl2Git) {
+      window.electronAPI.wslPrewarm(project.path);
+    }
     const existingTab = tabs.find((t) => t.projectPath === project.path);
     if (existingTab) {
       setActiveTab(existingTab.id);
@@ -283,6 +288,7 @@ function App() {
           onLaunchOpencode={() => selectedProject && requestLaunch('opencode', true)}
           onLaunchTerminal={() => selectedProject && requestLaunch('terminal', true)}
           clients={clients}
+          hideBranch={useWsl2Git}
         />
 
         {/* Main panel — TerminalPanel handles its own empty state:

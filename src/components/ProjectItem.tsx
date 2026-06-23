@@ -6,10 +6,11 @@ interface ProjectItemProps {
   project: Project;
   isSelected: boolean;
   hasOpenTab: boolean;
+  hideBranch?: boolean;
   onClick: () => void;
 }
 
-export function ProjectItem({ project, isSelected, hasOpenTab, onClick }: ProjectItemProps) {
+export function ProjectItem({ project, isSelected, hasOpenTab, hideBranch, onClick }: ProjectItemProps) {
   return (
     <button
       onClick={onClick}
@@ -49,13 +50,15 @@ export function ProjectItem({ project, isSelected, hasOpenTab, onClick }: Projec
         )}
       </div>
 
-      {/* Branch badge — unified */}
-      <span
-        className={`text-[11px] px-1.5 py-0.5 rounded border flex-shrink-0 max-w-[120px] truncate transition-all duration-200 ${getBranchStyle(project.branch)}`}
-        title={project.branch || undefined}
-      >
-        {getBranchLabel(project.branch)}
-      </span>
+      {/* Branch badge — unified. Hidden in WSL mode (unknown until opened). */}
+      {!hideBranch && (
+        <span
+          className={`text-[11px] px-1.5 py-0.5 rounded border flex-shrink-0 max-w-[120px] truncate transition-all duration-200 ${getBranchStyle(project.branch)}`}
+          title={project.branch || undefined}
+        >
+          {getBranchLabel(project.branch)}
+        </span>
+      )}
     </button>
   );
 }

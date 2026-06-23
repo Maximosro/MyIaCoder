@@ -39,6 +39,7 @@ interface SidebarProps {
   onLaunchOpencode: () => void;
   onLaunchTerminal: () => void;
   clients: ClientsConfig;
+  hideBranch?: boolean;
 }
 
 export function Sidebar({
@@ -67,6 +68,7 @@ export function Sidebar({
   onLaunchOpencode,
   onLaunchTerminal,
   clients,
+  hideBranch,
 }: SidebarProps) {
   const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath, treeRefreshKey);
   const { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: refreshSkills } = useSkillsTree(treeRefreshKey);
@@ -344,6 +346,7 @@ export function Sidebar({
               project={project}
               isSelected={project.path === selectedPath}
               hasOpenTab={openTabPaths.has(project.path)}
+              hideBranch={hideBranch}
               onClick={() => onSelectProject(project)}
             />
             {/* Project explorer: Files (.claude/.github) · Changes · Tasks tabs */}

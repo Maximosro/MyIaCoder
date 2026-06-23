@@ -36,6 +36,8 @@ export interface ElectronAPI {
   readPromptsTree: () => Promise<TreeNode[]>;
   readProjectTree: (projectPath: string) => Promise<TreeNode[]>;
   refreshBranch: (projectPath: string) => Promise<string>;
+  wslPrewarm: (projectPath: string) => Promise<void>;
+  wslCloseAll: () => Promise<void>;
   getGitChanges: (projectPath: string) => Promise<import('./services/git').GitChangesResult>;
   getGitDiff: (projectPath: string, filePath: string) => Promise<string>;
   getGitFileVersions: (projectPath: string, filePath: string) => Promise<import('./services/git').GitFileVersions>;
@@ -82,6 +84,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readPromptsTree: () => ipcRenderer.invoke('read-prompts-tree'),
   readProjectTree: (projectPath: string) => ipcRenderer.invoke('read-project-tree', projectPath),
   refreshBranch: (projectPath: string) => ipcRenderer.invoke('refresh-branch', projectPath),
+  wslPrewarm: (projectPath: string) => ipcRenderer.invoke('wsl-prewarm', projectPath),
+  wslCloseAll: () => ipcRenderer.invoke('wsl-close-all'),
   getGitChanges: (projectPath: string) => ipcRenderer.invoke('git-changes', projectPath),
   getGitDiff: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-diff', projectPath, filePath),
   getGitFileVersions: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-file-versions', projectPath, filePath),

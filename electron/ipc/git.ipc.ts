@@ -1,9 +1,22 @@
 import { ipcMain } from 'electron';
 import { getGitBranch, getGitChanges, getGitDiff, getGitFileVersions, discardFileChanges, gitFetch, gitPull, gitPush, gitAheadBehind, gitCommit } from '../services/git';
+import { prewarmSession, closeAllSessions } from '../services/wsl-session';
 
 export function registerGitIpc(): void {
   ipcMain.handle('refresh-branch', async (_event, projectPath: string) => {
     return getGitBranch(projectPath);
+  });
+
+  // Starts the persistent WSL session for a project (WSL git mode) so later
+  // commit/push/status reuse it instead of spawning `wsl` per command.
+  ipcMain.handle('wsl-prewarm', async (_event, projectPath: string) => {
+    // Warm the session with a `git status` so cwd + distro are ready before the
+    // user's first real command. Fire-and-forget.
+    prewarmSession(projectPath).run(['status', '--porcelain']).catch(() => {});
+  });
+
+  ipcMain.handle('wsl-close-all', async () => {
+    closeAllSessions();
   });
 
   ipcMain.handle('git-changes', async (_event, projectPath: string) => {
