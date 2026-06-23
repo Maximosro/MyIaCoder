@@ -1,5 +1,7 @@
 import * as nodePty from 'node-pty';
 import { registerClaudeSession, unregisterClaudeSession, registerCopilotSession, unregisterCopilotSession, registerReasonixSession, unregisterReasonixSession } from './services/tasks';
+import { loadSettings } from './services/settings';
+import { toWslPath, shQuote } from './services/wsl-session';
 
 /**
  * Sanitises a tab title for safe use inside a cmd.exe command line.
@@ -58,18 +60,37 @@ export class PTYManager {
   spawn(tabId: string, projectPath: string, command: string = 'claude', title?: string): void {
     this.kill(tabId);
 
-    const pty = nodePty.spawn('cmd.exe', [], {
-      cwd: projectPath,
-      env: {
-        ...process.env,
-        TERM: 'xterm-256color',
-        COLUMNS: '80',
-        LINES: '24',
-      },
-      cols: 80,
-      rows: 24,
-      name: 'xterm-256color',
-    });
+    // Copilot needs to run *inside* WSL2 (not just git) so the AI tracker hooks
+    // fire there. Other clients stay on cmd.exe (legacy).
+    const settings = loadSettings();
+    const useWsl = command === 'copilot' && settings.useWsl2Git;
+    const distro = settings.wslDistro || 'Ubuntu';
+
+    const pty = useWsl
+      ? nodePty.spawn('wsl.exe', ['-d', distro], {
+          cwd: projectPath,
+          env: {
+            ...process.env,
+            TERM: 'xterm-256color',
+            COLUMNS: '80',
+            LINES: '24',
+          },
+          cols: 80,
+          rows: 24,
+          name: 'xterm-256color',
+        })
+      : nodePty.spawn('cmd.exe', [], {
+          cwd: projectPath,
+          env: {
+            ...process.env,
+            TERM: 'xterm-256color',
+            COLUMNS: '80',
+            LINES: '24',
+          },
+          cols: 80,
+          rows: 24,
+          name: 'xterm-256color',
+        });
 
     const session: PTYSession = { pty, projectPath, buffer: [] };
     this.sessions.set(tabId, session);
@@ -92,7 +113,9 @@ export class PTYManager {
     // An empty command (plain terminal) leaves the shell at the project path untouched.
     const launchCommand = buildLaunchCommand(command, tabId, projectPath, title);
     if (launchCommand) {
-      pty.write(`${launchCommand}\r\n`);
+      // In WSL the cmd.exe cwd doesn't carry over, so cd into the mounted path first.
+      const cmd = useWsl ? `cd ${shQuote(toWslPath(projectPath))} && ${launchCommand}` : launchCommand;
+      pty.write(`${cmd}\r\n`);
     }
 
     // Track this session so the task panel can discover its subagents/tasks,
