@@ -353,7 +353,8 @@ function App() {
         />
       </div>
 
-      <audio ref={audioRef} src="/FocusMusic.mp3" loop />    </div>
+      <audio ref={audioRef} src="./FocusMusic.mp3" loop />
+    </div>
   );
 }
 
