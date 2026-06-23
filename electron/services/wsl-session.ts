@@ -65,8 +65,14 @@ class WslSession {
     this.proc.on('error', (e) => this.fail(e instanceof Error ? e : new Error('WSL spawn failed')));
 
     // Enter the repo and merge stderr→stdout so a single ordered stream carries
-    // both git output and the sentinel.
-    this.proc.stdin!.write(`cd ${shQuote(toWslPath(projectPath))} || exit 1\nexec 2>&1\n`);
+    // both git output and the sentinel. GIT_TERMINAL_PROMPT=0 makes auth-less
+    // commands (e.g. push to a remote with no stored credential) fail fast with
+    // a clear error instead of blocking on an unanswerable prompt and hanging
+    // the UI until the timeout. A configured credential helper (e.g. Windows
+    // GCM) still works — it answers before git would ever prompt.
+    this.proc.stdin!.write(
+      `cd ${shQuote(toWslPath(projectPath))} || exit 1\nexec 2>&1\nexport GIT_TERMINAL_PROMPT=0\n`,
+    );
   }
 
   isDead(): boolean {

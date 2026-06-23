@@ -60,9 +60,11 @@ async function runGit(projectPath: string, args: string[], timeoutMs = 10_000): 
       return viaSession.stdout;
     }
     // No open session for this path (e.g. background branch scan) — one-shot spawn.
+    // `env GIT_TERMINAL_PROMPT=0` makes auth-less commands fail fast instead of
+    // hanging on a prompt the non-interactive child can never answer.
     const { stdout } = await execFileAsync(
       'wsl',
-      ['-d', distro, '--', 'git', '-C', toWslPath(projectPath), ...args],
+      ['-d', distro, '--', 'env', 'GIT_TERMINAL_PROMPT=0', 'git', '-C', toWslPath(projectPath), ...args],
       { encoding: 'utf-8', timeout: timeoutMs, windowsHide: true },
     );
     return stdout;
@@ -71,7 +73,7 @@ async function runGit(projectPath: string, args: string[], timeoutMs = 10_000): 
   const { stdout } = await execFileAsync(
     'git',
     ['-C', projectPath, ...args],
-    { encoding: 'utf-8', timeout: timeoutMs, windowsHide: true },
+    { encoding: 'utf-8', timeout: timeoutMs, windowsHide: true, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
   );
   return stdout;
 }
@@ -314,13 +316,30 @@ export interface GitAheadBehind {
 
 const REMOTE_TIMEOUT = 30_000;
 
+/**
+ * Maps a raw git remote error to a user-friendly message. Auth failures are the
+ * common case in WSL mode: if the remote's host has no credential helper, git
+ * (with GIT_TERMINAL_PROMPT=0) fails with "could not read Username" / "terminal
+ * prompts disabled" instead of hanging. Point the user at the fix.
+ */
+function friendlyRemoteError(raw: string, fallback: string): string {
+  const msg = raw || fallback;
+  if (/could not read (Username|Password)|terminal prompts disabled|Authentication failed/i.test(msg)) {
+    const { enabled } = wslConfig();
+    return enabled
+      ? 'Authentication failed: WSL git has no stored credentials for this remote. Configure a credential helper in WSL (e.g. the Windows Git Credential Manager).'
+      : 'Authentication failed: no stored credentials for this remote.';
+  }
+  return msg;
+}
+
 /** Runs `git fetch` for the given repository. */
 export async function gitFetch(projectPath: string): Promise<GitRemoteResult> {
   try {
     const output = await runGit(projectPath, ['fetch'], REMOTE_TIMEOUT);
     return { ok: true, output: output.trim() || undefined };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Fetch failed' };
+    return { ok: false, error: friendlyRemoteError(err instanceof Error ? err.message : '', 'Fetch failed') };
   }
 }
 
@@ -334,8 +353,7 @@ export async function gitPull(projectPath: string): Promise<GitRemoteResult> {
     const output = await runGit(projectPath, args, REMOTE_TIMEOUT);
     return { ok: true, output: output.trim() || undefined };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Pull failed';
-    return { ok: false, error: msg };
+    return { ok: false, error: friendlyRemoteError(err instanceof Error ? err.message : '', 'Pull failed') };
   }
 }
 
@@ -345,8 +363,7 @@ export async function gitPush(projectPath: string): Promise<GitRemoteResult> {
     const output = await runGit(projectPath, ['push', '--set-upstream', 'origin', 'HEAD'], REMOTE_TIMEOUT);
     return { ok: true, output: output.trim() || undefined };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Push failed';
-    return { ok: false, error: msg };
+    return { ok: false, error: friendlyRemoteError(err instanceof Error ? err.message : '', 'Push failed') };
   }
 }
 
