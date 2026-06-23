@@ -48,6 +48,8 @@ function App() {
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
   const [backgroundMusic, setBackgroundMusic] = useState(true);
+  const [useWsl2Git, setUseWsl2Git] = useState(false);
+  const [wslDistro, setWslDistro] = useState('Ubuntu');
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
   // Sidebar and empty-state buttons both use this instead of opening tabs directly.
@@ -74,6 +76,8 @@ function App() {
       setClients({ ...DEFAULT_CLIENTS, ...s.clients });
       setTerminalScrollback(s.terminalScrollback ?? 20000);
       setBackgroundMusic(s.backgroundMusic ?? true);
+      setUseWsl2Git(s.useWsl2Git ?? false);
+      setWslDistro(s.wslDistro || 'Ubuntu');
       setOnboardingComplete(s.onboardingComplete ?? false);
       if (!s.onboardingComplete) {
         setConfigOpen(true);
@@ -132,7 +136,7 @@ function App() {
     setAboutOpen(false);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number, newBackgroundMusic: boolean) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number, newBackgroundMusic: boolean, newUseWsl2Git: boolean, newWslDistro: string) => {
     const currentSettings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({
       ...currentSettings,
@@ -143,6 +147,8 @@ function App() {
       clients: newClients,
       terminalScrollback: newTerminalScrollback,
       backgroundMusic: newBackgroundMusic,
+      useWsl2Git: newUseWsl2Git,
+      wslDistro: newWslDistro,
       onboardingComplete: true,
     });
     setWorkspacePath(newWorkspacePath);
@@ -152,6 +158,8 @@ function App() {
     setClients(newClients);
     setTerminalScrollback(newTerminalScrollback);
     setBackgroundMusic(newBackgroundMusic);
+    setUseWsl2Git(newUseWsl2Git);
+    setWslDistro(newWslDistro);
     setOnboardingComplete(true);
     refresh();
     setTreeRefreshKey((k) => k + 1);
@@ -309,6 +317,8 @@ function App() {
           clients={clients}
           terminalScrollback={terminalScrollback}
           backgroundMusic={backgroundMusic}
+          useWsl2Git={useWsl2Git}
+          wslDistro={wslDistro}
           isOnboarding={!onboardingComplete}
           onClose={() => setConfigOpen(false)}
           onSave={handleSaveConfig}

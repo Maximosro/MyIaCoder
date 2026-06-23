@@ -25,6 +25,8 @@ export interface Settings {
   terminalScrollback: number;
   backgroundMusic: boolean;
   onboardingComplete: boolean;
+  useWsl2Git: boolean;
+  wslDistro: string;
 }
 
 export interface ElectronAPI {

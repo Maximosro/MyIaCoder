@@ -21,6 +21,8 @@ export interface Settings {
   terminalScrollback: number;
   backgroundMusic: boolean;
   onboardingComplete: boolean;
+  useWsl2Git: boolean;
+  wslDistro: string;
 }
 
 const HOME = os.homedir();
@@ -41,6 +43,8 @@ const DEFAULTS: Settings = {
   terminalScrollback: 20000,
   backgroundMusic: true,
   onboardingComplete: false,
+  useWsl2Git: false,
+  wslDistro: 'Ubuntu',
 };
 
 function getSettingsPath(): string {

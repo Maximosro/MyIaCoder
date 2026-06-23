@@ -1,7 +1,8 @@
-import { execSync, execFile, execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { loadSettings } from './settings';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,16 +21,80 @@ export interface GitChangesResult {
 }
 
 /**
+ * Reads the WSL git configuration. Falls back to native git when settings are
+ * unavailable (e.g. called outside the Electron main process / in tests).
+ */
+function wslConfig(): { enabled: boolean; distro: string } {
+  try {
+    const s = loadSettings();
+    return { enabled: !!s.useWsl2Git, distro: s.wslDistro || 'Ubuntu' };
+  } catch {
+    return { enabled: false, distro: 'Ubuntu' };
+  }
+}
+
+/**
+ * Converts a Windows path (`C:\a\b`) to its WSL mount path (`/mnt/c/a/b`).
+ * Only the project path (the `-C` value) is converted; repo-relative file
+ * arguments already use forward slashes and need no translation.
+ */
+// ponytail: regex C:\ -> /mnt/c/. For UNC or exotic paths, swap to `wslpath`.
+export function toWslPath(winPath: string): string {
+  return winPath
+    .replace(/^([A-Za-z]):/, (_m, drive: string) => `/mnt/${drive.toLowerCase()}`)
+    .replace(/\\/g, '/');
+}
+
+/**
+ * Builds the executable + argv for a git command, either native
+ * (`git -C "<winPath>" <args>`) or routed through WSL
+ * (`wsl -d <distro> -- git -C /mnt/c/<...> <args>`).
+ */
+function gitInvocation(projectPath: string, args: string[]): { file: string; argv: string[] } {
+  const { enabled, distro } = wslConfig();
+  if (enabled) {
+    return { file: 'wsl', argv: ['-d', distro, '--', 'git', '-C', toWslPath(projectPath), ...args] };
+  }
+  return { file: 'git', argv: ['-C', projectPath, ...args] };
+}
+
+/** Runs a git command synchronously, returning stdout (or '' when ignoreOutput). */
+function gitSync(
+  projectPath: string,
+  args: string[],
+  opts: { timeout?: number; ignoreOutput?: boolean } = {},
+): string {
+  const { file, argv } = gitInvocation(projectPath, args);
+  if (opts.ignoreOutput) {
+    execFileSync(file, argv, { timeout: opts.timeout ?? 10_000, windowsHide: true, stdio: 'ignore' });
+    return '';
+  }
+  return execFileSync(file, argv, { encoding: 'utf-8', timeout: opts.timeout ?? 10_000, windowsHide: true });
+}
+
+/** Runs a git command asynchronously, returning stdout/stderr. */
+async function gitAsync(
+  projectPath: string,
+  args: string[],
+  opts: { timeout?: number } = {},
+): Promise<{ stdout: string; stderr: string }> {
+  const { file, argv } = gitInvocation(projectPath, args);
+  const { stdout, stderr } = await execFileAsync(file, argv, {
+    encoding: 'utf-8',
+    timeout: opts.timeout ?? 10_000,
+    windowsHide: true,
+  });
+  return { stdout: stdout as string, stderr: stderr as string };
+}
+
+/**
  * Returns the current branch name for a git repository.
  * Returns "unknown" if git is not available, the directory is not a repo,
  * or the command times out.
  */
 export function getGitBranch(projectPath: string): string {
   try {
-    const result = execSync(
-      `git -C "${projectPath}" branch --show-current`,
-      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
-    );
+    const result = gitSync(projectPath, ['branch', '--show-current'], { timeout: 5000 });
     return result.trim() || 'unknown';
   } catch {
     return 'unknown';
@@ -38,16 +103,12 @@ export function getGitBranch(projectPath: string): string {
 
 /**
  * Async, non-blocking variant of getGitBranch.
- * Uses execFile so the main process event loop stays responsive while
- * branches load in the background. Returns "unknown" on any failure.
+ * Keeps the main process event loop responsive while branches load in the
+ * background. Returns "unknown" on any failure.
  */
 export async function getGitBranchAsync(projectPath: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync(
-      'git',
-      ['-C', projectPath, 'branch', '--show-current'],
-      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
-    );
+    const { stdout } = await gitAsync(projectPath, ['branch', '--show-current'], { timeout: 5000 });
     return stdout.trim() || 'unknown';
   } catch {
     return 'unknown';
@@ -108,19 +169,11 @@ export function getGitChanges(projectPath: string): GitChangesResult {
 
     // 1. Staged + committed changes vs HEAD
     try {
-      const staged = execSync(
-        `git -C "${projectPath}" diff --name-status HEAD`,
-        { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-      );
-      ingest(staged);
+      ingest(gitSync(projectPath, ['diff', '--name-status', 'HEAD']));
     } catch {
       // Possibly initial commit (no HEAD yet) — try --cached instead
       try {
-        const cached = execSync(
-          `git -C "${projectPath}" diff --name-status --cached`,
-          { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-        );
-        ingest(cached);
+        ingest(gitSync(projectPath, ['diff', '--name-status', '--cached']));
       } catch {
         // Repo exists but git commands fail — continue with remaining checks
       }
@@ -128,22 +181,14 @@ export function getGitChanges(projectPath: string): GitChangesResult {
 
     // 2. Unstaged changes (working tree vs index)
     try {
-      const unstaged = execSync(
-        `git -C "${projectPath}" diff --name-status`,
-        { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-      );
-      ingest(unstaged);
+      ingest(gitSync(projectPath, ['diff', '--name-status']));
     } catch {
       // Non-fatal — continue
     }
 
     // 3. Untracked files
     try {
-      const untracked = execSync(
-        `git -C "${projectPath}" ls-files --others --exclude-standard`,
-        { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-      );
-      ingest(untracked, true);
+      ingest(gitSync(projectPath, ['ls-files', '--others', '--exclude-standard']), true);
     } catch {
       // Non-fatal — continue
     }
@@ -190,16 +235,13 @@ export function getGitFileVersions(projectPath: string, relativePath: string): G
 
   // Original: try git show HEAD:path
   try {
-    original = execSync(
-      `git -C "${projectPath}" show HEAD:"${relativePath}"`,
-      { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-    );
+    original = gitSync(projectPath, ['show', `HEAD:${relativePath}`]);
   } catch {
     // File is new (not in HEAD) — original stays null
     original = null;
   }
 
-  // Modified: read from working tree
+  // Modified: read from working tree (always native — file lives on the Windows FS)
   try {
     const absPath = path.join(projectPath, relativePath);
     modified = readFileSync(absPath, 'utf-8');
@@ -228,10 +270,7 @@ export function getGitFileVersions(projectPath: string, relativePath: string): G
 export function getGitDiff(projectPath: string, filePath: string): string {
   // 1. Staged + committed vs HEAD
   try {
-    const result = execSync(
-      `git -C "${projectPath}" diff HEAD -- "${filePath}"`,
-      { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-    );
+    const result = gitSync(projectPath, ['diff', 'HEAD', '--', filePath]);
     if (result.trim()) return result;
   } catch {
     // HEAD may not exist — continue
@@ -239,10 +278,7 @@ export function getGitDiff(projectPath: string, filePath: string): string {
 
   // 2. Unstaged (working tree vs index)
   try {
-    const result = execSync(
-      `git -C "${projectPath}" diff -- "${filePath}"`,
-      { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-    );
+    const result = gitSync(projectPath, ['diff', '--', filePath]);
     if (result.trim()) return result;
   } catch {
     // Non-fatal
@@ -250,16 +286,13 @@ export function getGitDiff(projectPath: string, filePath: string): string {
 
   // 3. Staged only (no HEAD, e.g. initial commit)
   try {
-    const result = execSync(
-      `git -C "${projectPath}" diff --cached -- "${filePath}"`,
-      { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
-    );
+    const result = gitSync(projectPath, ['diff', '--cached', '--', filePath]);
     if (result.trim()) return result;
   } catch {
     // Non-fatal
   }
 
-  // 4. Untracked / new file — synthesise diff by reading file directly
+  // 4. Untracked / new file — synthesise diff by reading file directly (native)
   try {
     const absPath = path.join(projectPath, filePath);
     const content = readFileSync(absPath, 'utf-8');
@@ -306,10 +339,7 @@ const REMOTE_TIMEOUT = 30_000;
 /** Runs `git fetch` for the given repository. */
 export async function gitFetch(projectPath: string): Promise<GitRemoteResult> {
   try {
-    const { stdout, stderr } = await execFileAsync(
-      'git', ['-C', projectPath, 'fetch'],
-      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
-    );
+    const { stdout, stderr } = await gitAsync(projectPath, ['fetch'], { timeout: REMOTE_TIMEOUT });
     return { ok: true, output: (stdout + stderr).trim() || undefined };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Fetch failed' };
@@ -320,18 +350,10 @@ export async function gitFetch(projectPath: string): Promise<GitRemoteResult> {
 export async function gitPull(projectPath: string): Promise<GitRemoteResult> {
   try {
     // Get current branch name for explicit pull
-    const { stdout: branchName } = await execFileAsync(
-      'git', ['-C', projectPath, 'branch', '--show-current'],
-      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
-    );
+    const { stdout: branchName } = await gitAsync(projectPath, ['branch', '--show-current'], { timeout: 5000 });
     const branch = branchName.trim();
-    const args = branch
-      ? ['-C', projectPath, 'pull', 'origin', branch]
-      : ['-C', projectPath, 'pull'];
-    const { stdout, stderr } = await execFileAsync(
-      'git', args,
-      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
-    );
+    const args = branch ? ['pull', 'origin', branch] : ['pull'];
+    const { stdout, stderr } = await gitAsync(projectPath, args, { timeout: REMOTE_TIMEOUT });
     return { ok: true, output: (stdout + stderr).trim() || undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Pull failed';
@@ -342,10 +364,7 @@ export async function gitPull(projectPath: string): Promise<GitRemoteResult> {
 /** Runs `git push` for the given repository. Uses `origin HEAD` explicitly and sets upstream if needed. */
 export async function gitPush(projectPath: string): Promise<GitRemoteResult> {
   try {
-    const { stdout, stderr } = await execFileAsync(
-      'git', ['-C', projectPath, 'push', '--set-upstream', 'origin', 'HEAD'],
-      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
-    );
+    const { stdout, stderr } = await gitAsync(projectPath, ['push', '--set-upstream', 'origin', 'HEAD'], { timeout: REMOTE_TIMEOUT });
     return { ok: true, output: (stdout + stderr).trim() || undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Push failed';
@@ -359,10 +378,7 @@ export async function gitPush(projectPath: string): Promise<GitRemoteResult> {
  */
 export async function gitAheadBehind(projectPath: string): Promise<GitAheadBehind> {
   try {
-    const { stdout } = await execFileAsync(
-      'git', ['-C', projectPath, 'rev-list', '--left-right', '--count', 'HEAD...@{upstream}'],
-      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
-    );
+    const { stdout } = await gitAsync(projectPath, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'], { timeout: 5000 });
     const [ahead, behind] = stdout.trim().split(/\s+/).map(Number);
     return { ahead: ahead || 0, behind: behind || 0 };
   } catch {
@@ -374,14 +390,8 @@ export async function gitAheadBehind(projectPath: string): Promise<GitAheadBehin
 /** Stages all changes and commits with the given message. */
 export async function gitCommit(projectPath: string, message: string): Promise<GitRemoteResult> {
   try {
-    await execFileAsync(
-      'git', ['-C', projectPath, 'add', '-A'],
-      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
-    );
-    const { stdout, stderr } = await execFileAsync(
-      'git', ['-C', projectPath, 'commit', '-m', message],
-      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
-    );
+    await gitAsync(projectPath, ['add', '-A'], { timeout: REMOTE_TIMEOUT });
+    const { stdout, stderr } = await gitAsync(projectPath, ['commit', '-m', message], { timeout: REMOTE_TIMEOUT });
     return { ok: true, output: (stdout + stderr).trim() || undefined };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Commit failed';
@@ -417,11 +427,7 @@ export function discardFileChanges(projectPath: string, filePath: string): Disca
 
   const inHead = (() => {
     try {
-      execFileSync('git', ['-C', projectPath, 'cat-file', '-e', `HEAD:${gitPath}`], {
-        timeout: 10_000,
-        windowsHide: true,
-        stdio: 'ignore',
-      });
+      gitSync(projectPath, ['cat-file', '-e', `HEAD:${gitPath}`], { ignoreOutput: true });
       return true;
     } catch {
       return false;
@@ -430,22 +436,15 @@ export function discardFileChanges(projectPath: string, filePath: string): Disca
 
   try {
     if (inHead) {
-      execFileSync('git', ['-C', projectPath, 'checkout', 'HEAD', '--', gitPath], {
-        timeout: 10_000,
-        windowsHide: true,
-      });
+      gitSync(projectPath, ['checkout', 'HEAD', '--', gitPath]);
     } else {
       // New file: drop it from the index if staged (ignore failure if it isn't)…
       try {
-        execFileSync('git', ['-C', projectPath, 'rm', '-f', '--cached', '--', gitPath], {
-          timeout: 10_000,
-          windowsHide: true,
-          stdio: 'ignore',
-        });
+        gitSync(projectPath, ['rm', '-f', '--cached', '--', gitPath], { ignoreOutput: true });
       } catch {
         // Not staged — fine.
       }
-      // …then remove it from disk.
+      // …then remove it from disk (native — file lives on the Windows FS).
       if (existsSync(absPath)) unlinkSync(absPath);
     }
     return { ok: true };
