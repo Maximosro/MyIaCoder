@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ChevronRight,
   GitBranch,
@@ -6,10 +6,15 @@ import {
   Folder,
   FolderOpen,
   Undo2,
+  ArrowUp,
+  ArrowDown,
+  CloudDownload,
+  GitCommit,
 } from 'lucide-react';
 import { useGitChanges } from '../hooks/useGitChanges';
 import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
 import { GIT_STATUS_META } from '../utils/gitStatus';
+import { CommitModal } from './CommitModal';
 import type { GitChange, GitTreeNode } from '../types/project';
 
 interface GitChangesTreeProps {
@@ -231,6 +236,58 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
   const [expanded, setExpanded] = useState(true);
   const { changes, loading, error, refresh } = useGitChanges(projectPath, refreshKey);
 
+  // Ahead/behind indicator
+  const [ahead, setAhead] = useState(0);
+  const [behind, setBehind] = useState(0);
+
+  const refreshAheadBehind = useCallback(async () => {
+    try {
+      const ab = await window.electronAPI.gitAheadBehind(projectPath);
+      setAhead(ab.ahead);
+      setBehind(ab.behind);
+    } catch {
+      setAhead(0);
+      setBehind(0);
+    }
+  }, [projectPath]);
+
+  useEffect(() => {
+    refreshAheadBehind();
+  }, [refreshAheadBehind, refreshKey]);
+
+  // Remote operation state
+  const [remoteOp, setRemoteOp] = useState<string | null>(null); // 'fetch'|'pull'|'push' while running
+  const [remoteMsg, setRemoteMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  // Auto-clear feedback after 5s
+  useEffect(() => {
+    if (!remoteMsg) return;
+    const t = setTimeout(() => setRemoteMsg(null), 5000);
+    return () => clearTimeout(t);
+  }, [remoteMsg]);
+
+  const runRemote = async (op: 'fetch' | 'pull' | 'push') => {
+    if (remoteOp) return; // already running
+    setRemoteOp(op);
+    setRemoteMsg(null);
+    try {
+      const fn = op === 'fetch' ? window.electronAPI.gitFetch
+        : op === 'pull' ? window.electronAPI.gitPull
+        : window.electronAPI.gitPush;
+      const result = await fn(projectPath);
+      const successText = result.output || `${op} ok`;
+      setRemoteMsg({ text: result.ok ? successText : (result.error ?? `${op} failed`), ok: result.ok });
+      if (result.ok) {
+        await refresh();
+        await refreshAheadBehind();
+      }
+    } catch (err) {
+      setRemoteMsg({ text: err instanceof Error ? err.message : `${op} failed`, ok: false });
+    } finally {
+      setRemoteOp(null);
+    }
+  };
+
   const handleDiscard = async (filePath: string) => {
     try {
       await window.electronAPI.discardGitChanges(projectPath, filePath);
@@ -238,6 +295,15 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
       // Surfaced by the refresh below — the file simply stays listed on failure.
     }
     await refresh();
+  };
+
+  // Commit modal state
+  const [commitOpen, setCommitOpen] = useState(false);
+
+  const handleCommitted = async () => {
+    await refresh();
+    await refreshAheadBehind();
+    setRemoteMsg({ text: 'committed', ok: true });
   };
 
   const tree = useMemo(() => buildChangeTree(changes), [changes]);
@@ -259,58 +325,116 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
     );
   }
 
-  if (changes.length === 0) {
-    return (
-      <div className="py-1 px-3">
-        <span className="text-[10px] font-mono text-[#6ba86b] tracking-wider">✓ Clean tree</span>
-      </div>
-    );
-  }
+  const RemoteButton = ({ op, icon: Icon, title }: { op: 'fetch' | 'pull' | 'push'; icon: typeof ArrowUp; title: string }) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); runRemote(op); }}
+      disabled={!!remoteOp}
+      className="p-0.5 rounded hover:bg-[#1f1a15] transition-colors duration-150 disabled:opacity-30"
+      title={title}
+    >
+      {remoteOp === op
+        ? <RefreshCw className="w-3 h-3 text-[#d4784a] animate-spin" />
+        : <Icon className="w-3 h-3 text-[#8b5a3c] hover:text-[#d4784a] transition-colors duration-150" />
+      }
+    </button>
+  );
 
   return (
     <div>
       {/* Header toggle */}
-      <button
-        onClick={() => setExpanded((prev) => !prev)}
-        className="w-full flex items-center gap-1.5 py-1.5 px-3 text-left font-mono transition-colors duration-150 border-l-2 border-transparent hover:bg-[#0f0f0f] hover:border-[#8b5a3c]/30"
-      >
-        <ChevronRight
-          className={`w-3 h-3 text-[#8b5a3c] transition-transform duration-200 flex-shrink-0 ${expanded ? 'rotate-90' : 'rotate-0'}`}
-        />
-        <GitBranch className="w-3.5 h-3.5 text-[#d4784a] flex-shrink-0" />
-        <span className="text-[11px] text-[#f0ece8] tracking-wider">git - changes</span>
-        <span className="text-[10px] text-[#d4784a] ml-auto">{changes.length}</span>
-      </button>
+      <div className="flex items-center py-1.5 px-3 font-mono">
+        <button
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex items-center gap-1.5 text-left transition-colors duration-150 flex-1 min-w-0"
+        >
+          <ChevronRight
+            className={`w-3 h-3 text-[#8b5a3c] transition-transform duration-200 flex-shrink-0 ${expanded ? 'rotate-90' : 'rotate-0'}`}
+          />
+          <GitBranch className="w-3.5 h-3.5 text-[#d4784a] flex-shrink-0" />
+          <span className="text-[11px] text-[#f0ece8] tracking-wider">git</span>
+          {changes.length > 0 && (
+            <span className="text-[10px] text-[#d4784a]">{changes.length}</span>
+          )}
+        </button>
+
+        {/* Ahead/behind indicator + remote action buttons */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+          {(ahead > 0 || behind > 0) && (
+            <span className="text-[10px] font-mono text-[#8b5a3c] flex items-center gap-1">
+              {ahead > 0 && <span className="text-[#6ba86b]">↑{ahead}</span>}
+              {behind > 0 && <span className="text-[#d4784a]">↓{behind}</span>}
+            </span>
+          )}
+          {changes.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCommitOpen(true); }}
+              className="p-0.5 rounded hover:bg-[#1f1a15] transition-colors duration-150"
+              title="Commit"
+            >
+              <GitCommit className="w-3 h-3 text-[#8b5a3c] hover:text-[#6ba86b] transition-colors duration-150" />
+            </button>
+          )}
+          <RemoteButton op="fetch" icon={CloudDownload} title="Fetch" />
+          <RemoteButton op="pull" icon={ArrowDown} title="Pull" />
+          <RemoteButton op="push" icon={ArrowUp} title="Push" />
+        </div>
+      </div>
+
+      {/* Inline remote operation feedback */}
+      {remoteMsg && (
+        <div className="px-3 py-0.5 animate-fade-in">
+          <span className={`text-[10px] font-mono tracking-wider ${remoteMsg.ok ? 'text-[#6ba86b]' : 'text-[#e05555]'}`}>
+            {remoteMsg.text}
+          </span>
+        </div>
+      )}
+
+      {/* Clean tree message */}
+      {changes.length === 0 && (
+        <div className="py-1 px-3">
+          <span className="text-[10px] font-mono text-[#6ba86b] tracking-wider">✓ Clean tree</span>
+        </div>
+      )}
 
       {/* Tree body with slide animation */}
-      <div
-        className={`transition-all duration-300 ease-out ${
-          expanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-        }`}
-      >
-        {tree.map((node) =>
-          node.type === 'directory' ? (
-            <ChangeDirNode
-              key={node.path}
-              node={node}
-              depth={0}
-              onFileClick={onFileClick}
-              onOpenDiff={onOpenDiff}
-              onDiscard={handleDiscard}
-            />
-          ) : (
-            <ChangeFileRow
-              key={node.path}
-              name={node.name}
-              fullPath={node.path}
-              status={node.gitStatus || 'M'}
-              onFileClick={onFileClick}
-              onOpenDiff={onOpenDiff}
-              onDiscard={handleDiscard}
-            />
-          ),
-        )}
-      </div>
+      {changes.length > 0 && (
+        <div
+          className={`transition-all duration-300 ease-out ${
+            expanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+          }`}
+        >
+          {tree.map((node) =>
+            node.type === 'directory' ? (
+              <ChangeDirNode
+                key={node.path}
+                node={node}
+                depth={0}
+                onFileClick={onFileClick}
+                onOpenDiff={onOpenDiff}
+                onDiscard={handleDiscard}
+              />
+            ) : (
+              <ChangeFileRow
+                key={node.path}
+                name={node.name}
+                fullPath={node.path}
+                status={node.gitStatus || 'M'}
+                onFileClick={onFileClick}
+                onOpenDiff={onOpenDiff}
+                onDiscard={handleDiscard}
+              />
+            ),
+          )}
+        </div>
+      )}
+
+      {/* Commit modal */}
+      <CommitModal
+        open={commitOpen}
+        projectPath={projectPath}
+        onClose={() => setCommitOpen(false)}
+        onCommitted={handleCommitted}
+      />
     </div>
   );
 }

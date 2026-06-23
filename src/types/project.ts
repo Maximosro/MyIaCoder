@@ -31,6 +31,19 @@ export interface GitChangesResult {
   error?: string;
 }
 
+/** Result of a git remote operation (push / pull / fetch). */
+export interface GitRemoteResult {
+  ok: boolean;
+  output?: string;
+  error?: string;
+}
+
+/** How many commits the local branch is ahead/behind its upstream. */
+export interface GitAheadBehind {
+  ahead: number;
+  behind: number;
+}
+
 export interface Settings {
   workspacePath: string;
   plansPath: string;

@@ -38,6 +38,11 @@ export interface ElectronAPI {
   getGitDiff: (projectPath: string, filePath: string) => Promise<string>;
   getGitFileVersions: (projectPath: string, filePath: string) => Promise<import('./services/git').GitFileVersions>;
   discardGitChanges: (projectPath: string, filePath: string) => Promise<import('./services/git').DiscardResult>;
+  gitFetch: (projectPath: string) => Promise<import('./services/git').GitRemoteResult>;
+  gitPull: (projectPath: string) => Promise<import('./services/git').GitRemoteResult>;
+  gitPush: (projectPath: string) => Promise<import('./services/git').GitRemoteResult>;
+  gitAheadBehind: (projectPath: string) => Promise<import('./services/git').GitAheadBehind>;
+  gitCommit: (projectPath: string, message: string) => Promise<import('./services/git').GitRemoteResult>;
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => Promise<import('./services/tasks').ProjectTasksResult>;
   readFileContent: (filePath: string) => Promise<string>;
   writeFileContent: (filePath: string, content: string) => Promise<void>;
@@ -79,6 +84,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGitDiff: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-diff', projectPath, filePath),
   getGitFileVersions: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-file-versions', projectPath, filePath),
   discardGitChanges: (projectPath: string, filePath: string) => ipcRenderer.invoke('git-discard', projectPath, filePath),
+  gitFetch: (projectPath: string) => ipcRenderer.invoke('git-fetch', projectPath),
+  gitPull: (projectPath: string) => ipcRenderer.invoke('git-pull', projectPath),
+  gitPush: (projectPath: string) => ipcRenderer.invoke('git-push', projectPath),
+  gitAheadBehind: (projectPath: string) => ipcRenderer.invoke('git-ahead-behind', projectPath),
+  gitCommit: (projectPath: string, message: string) => ipcRenderer.invoke('git-commit', projectPath, message),
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => ipcRenderer.invoke('get-project-tasks', projectPath, source),
   readFileContent: (filePath: string) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),

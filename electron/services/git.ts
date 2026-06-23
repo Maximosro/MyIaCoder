@@ -288,6 +288,107 @@ export function getGitDiff(projectPath: string, filePath: string): string {
   }
 }
 
+/** Result of a git remote operation (push / pull / fetch). */
+export interface GitRemoteResult {
+  ok: boolean;
+  output?: string;
+  error?: string;
+}
+
+/** How many commits the local branch is ahead/behind its upstream. */
+export interface GitAheadBehind {
+  ahead: number;
+  behind: number;
+}
+
+const REMOTE_TIMEOUT = 30_000;
+
+/** Runs `git fetch` for the given repository. */
+export async function gitFetch(projectPath: string): Promise<GitRemoteResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      'git', ['-C', projectPath, 'fetch'],
+      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
+    );
+    return { ok: true, output: (stdout + stderr).trim() || undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Fetch failed' };
+  }
+}
+
+/** Runs `git pull origin <current-branch>` for the given repository. */
+export async function gitPull(projectPath: string): Promise<GitRemoteResult> {
+  try {
+    // Get current branch name for explicit pull
+    const { stdout: branchName } = await execFileAsync(
+      'git', ['-C', projectPath, 'branch', '--show-current'],
+      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
+    );
+    const branch = branchName.trim();
+    const args = branch
+      ? ['-C', projectPath, 'pull', 'origin', branch]
+      : ['-C', projectPath, 'pull'];
+    const { stdout, stderr } = await execFileAsync(
+      'git', args,
+      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
+    );
+    return { ok: true, output: (stdout + stderr).trim() || undefined };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Pull failed';
+    return { ok: false, error: msg };
+  }
+}
+
+/** Runs `git push` for the given repository. Uses `origin HEAD` explicitly and sets upstream if needed. */
+export async function gitPush(projectPath: string): Promise<GitRemoteResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      'git', ['-C', projectPath, 'push', '--set-upstream', 'origin', 'HEAD'],
+      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
+    );
+    return { ok: true, output: (stdout + stderr).trim() || undefined };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Push failed';
+    return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Returns how many commits the current branch is ahead/behind its upstream.
+ * Returns {0,0} when there is no upstream configured.
+ */
+export async function gitAheadBehind(projectPath: string): Promise<GitAheadBehind> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git', ['-C', projectPath, 'rev-list', '--left-right', '--count', 'HEAD...@{upstream}'],
+      { encoding: 'utf-8', timeout: 5000, windowsHide: true },
+    );
+    const [ahead, behind] = stdout.trim().split(/\s+/).map(Number);
+    return { ahead: ahead || 0, behind: behind || 0 };
+  } catch {
+    // No upstream or git error — treat as 0/0
+    return { ahead: 0, behind: 0 };
+  }
+}
+
+/** Stages all changes and commits with the given message. */
+export async function gitCommit(projectPath: string, message: string): Promise<GitRemoteResult> {
+  try {
+    await execFileAsync(
+      'git', ['-C', projectPath, 'add', '-A'],
+      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
+    );
+    const { stdout, stderr } = await execFileAsync(
+      'git', ['-C', projectPath, 'commit', '-m', message],
+      { encoding: 'utf-8', timeout: REMOTE_TIMEOUT, windowsHide: true },
+    );
+    return { ok: true, output: (stdout + stderr).trim() || undefined };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Commit failed';
+    return { ok: false, error: msg };
+  }
+}
+
 /** Result of a discard operation. */
 export interface DiscardResult {
   ok: boolean;
