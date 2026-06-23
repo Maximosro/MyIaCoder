@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { AboutModal } from './components/AboutModal';
+import { ProjectSearch } from './components/ProjectSearch';
 import { TitleBar } from './components/TitleBar';
 import { useProjects } from './hooks/useProjects';
 import { useTabs } from './hooks/useTabs';
@@ -43,6 +44,7 @@ function App() {
   const [clients, setClients] = useState<ClientsConfig>(DEFAULT_CLIENTS);
   const [configOpen, setConfigOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
   const [backgroundMusic, setBackgroundMusic] = useState(true);
@@ -77,6 +79,18 @@ function App() {
         setConfigOpen(true);
       }
     });
+  }, []);
+
+  // Ctrl+Shift+F → project search popup
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   const handleSelectProject = (project: Project) => {
@@ -304,6 +318,14 @@ function App() {
         <AboutModal
           open={aboutOpen}
           onClose={handleCloseAbout}
+        />
+
+        {/* Project Search (Ctrl+Shift+F) */}
+        <ProjectSearch
+          open={searchOpen}
+          projects={projects}
+          onSelect={handleSelectProject}
+          onClose={() => setSearchOpen(false)}
         />
       </div>
 
