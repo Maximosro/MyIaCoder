@@ -35,6 +35,8 @@ export function CommitModal({ open, projectPath, onClose, onCommitted }: CommitM
 
   if (!open) return null;
 
+  const container = document.getElementById('root') || document.body;
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === backdropRef.current) onClose();
   };
@@ -133,6 +135,6 @@ export function CommitModal({ open, projectPath, onClose, onCommitted }: CommitM
         </div>
       </div>
     </div>,
-    document.body,
+    container,
   );
 }
