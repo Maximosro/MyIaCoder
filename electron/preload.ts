@@ -49,6 +49,7 @@ export interface ElectronAPI {
   gitCommit: (projectPath: string, message: string) => Promise<import('./services/git').GitRemoteResult>;
   gitListBranches: (projectPath: string) => Promise<import('./services/git').GitBranchList>;
   gitCreateBranch: (projectPath: string, name: string, base?: string) => Promise<import('./services/git').GitRemoteResult>;
+  gitSwitchBranch: (projectPath: string, branch: string) => Promise<import('./services/git').GitRemoteResult>;
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => Promise<import('./services/tasks').ProjectTasksResult>;
   readFileContent: (filePath: string) => Promise<string>;
   writeFileContent: (filePath: string, content: string) => Promise<void>;
@@ -100,6 +101,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitCommit: (projectPath: string, message: string) => ipcRenderer.invoke('git-commit', projectPath, message),
   gitListBranches: (projectPath: string) => ipcRenderer.invoke('git-list-branches', projectPath),
   gitCreateBranch: (projectPath: string, name: string, base?: string) => ipcRenderer.invoke('git-create-branch', projectPath, name, base),
+  gitSwitchBranch: (projectPath: string, branch: string) => ipcRenderer.invoke('git-switch-branch', projectPath, branch),
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => ipcRenderer.invoke('get-project-tasks', projectPath, source),
   readFileContent: (filePath: string) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
