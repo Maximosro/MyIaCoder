@@ -1,4 +1,4 @@
-import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode, Container, Boxes, List, Play, Square } from 'lucide-react';
+import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode, Container, Boxes, List, Play, Square, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import type { Project } from '../types/project';
 import type { ClientsConfig } from '../../electron/preload';
@@ -26,6 +26,9 @@ interface SidebarProps {
   promptsPath: string;
   treeRefreshKey: number;
   onSelectProject: (project: Project) => void;
+  onSearch: () => void;
+  sessionRecent: string[];
+  recentPersisted: string[];
   onRefresh: () => void;
   onBack?: () => void;
   onConfig: () => void;
@@ -58,6 +61,9 @@ export function Sidebar({
   promptsPath,
   treeRefreshKey,
   onSelectProject,
+  onSearch,
+  sessionRecent,
+  recentPersisted,
   onRefresh,
   onBack,
   onConfig,
@@ -138,6 +144,36 @@ export function Sidebar({
     ...(clients.reasonix ? (['reasonix'] as const) : []),
   ];
   const tasksEnabled = taskSources.length > 0;
+
+  // Collapsible project categories (menu view only).
+  const [recentCollapsed, setRecentCollapsed] = useState(false);
+  const [othersCollapsed, setOthersCollapsed] = useState(false);
+
+  // "Recent Opened" = projects opened this session, most-recent-first.
+  const recentSet = new Set(sessionRecent);
+  const recentProjects = sessionRecent
+    .map((p) => projects.find((pr) => pr.path === p))
+    .filter((pr): pr is Project => !!pr);
+  // The rest: persisted last-5 first (most-recent-first), then original order.
+  const persistedIndex = (path: string) => {
+    const idx = recentPersisted.indexOf(path);
+    return idx === -1 ? Infinity : idx;
+  };
+  const otherProjects = projects
+    .filter((p) => !recentSet.has(p.path))
+    .sort((a, b) => persistedIndex(a.path) - persistedIndex(b.path));
+
+  const renderRow = (project: Project, i: number) => (
+    <div key={project.path} className="animate-fade-in-left" style={{ animationDelay: `${i * 40}ms` }}>
+      <ProjectItem
+        project={project}
+        isSelected={false}
+        hasOpenTab={openTabPaths.has(project.path)}
+        hideBranch={hideBranch}
+        onClick={() => onSelectProject(project)}
+      />
+    </div>
+  );
 
   // If the Tasks tab gets disabled while it's active, fall back to Files.
   useEffect(() => {
@@ -415,6 +451,16 @@ export function Sidebar({
               )}
             </div>
 
+            {!selectedPath && (
+              <button
+                onClick={onSearch}
+                className="p-1.5 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a]"
+                title="Buscar proyectos (Ctrl+Shift+F)"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               onClick={onRefresh}
               disabled={loading}
@@ -464,11 +510,8 @@ export function Sidebar({
           </div>
         )}
 
-        {/* When a project is focused, only show that project */}
-        {(selectedPath
-          ? projects.filter((p) => p.path === selectedPath)
-          : projects
-        ).map((project, i) => (
+        {/* When a project is focused, only show that project (with explorer) */}
+        {selectedPath && projects.filter((p) => p.path === selectedPath).map((project, i) => (
           <div key={project.path} className="animate-fade-in-left" style={{ animationDelay: `${i * 40}ms` }}>
             <ProjectItem
               project={project}
@@ -558,6 +601,36 @@ export function Sidebar({
             )}
           </div>
         ))}
+
+        {/* Menu view: collapsible "Recent Opened" (this session) + the rest */}
+        {!selectedPath && !loading && !error && projects.length > 0 && (
+          <>
+            {recentProjects.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setRecentCollapsed((c) => !c)}
+                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono tracking-widest text-[#8b5a3c] hover:text-[#d4784a] transition-colors"
+                >
+                  {recentCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  RECENT_OPENED
+                  <span className="text-[#4a2a1a]">({recentProjects.length})</span>
+                </button>
+                {!recentCollapsed && recentProjects.map((project, i) => renderRow(project, i))}
+              </div>
+            )}
+            <div>
+              <button
+                onClick={() => setOthersCollapsed((c) => !c)}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono tracking-widest text-[#8b5a3c] hover:text-[#d4784a] transition-colors"
+              >
+                {othersCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {recentProjects.length > 0 ? 'PROJECTS' : 'ALL_PROJECTS'}
+                <span className="text-[#4a2a1a]">({otherProjects.length})</span>
+              </button>
+              {!othersCollapsed && otherProjects.map((project, i) => renderRow(project, i))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Plans / Skills / Prompt panel tabs */}

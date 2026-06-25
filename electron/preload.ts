@@ -28,6 +28,7 @@ export interface Settings {
   useWsl2Git: boolean;
   wslDistro: string;
   runConfigs: Record<string, RunConfig>;
+  recentProjects: string[];
 }
 
 export interface RunConfig {

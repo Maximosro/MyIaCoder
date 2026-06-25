@@ -49,6 +49,10 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [runConfigs, setRunConfigs] = useState<Record<string, { command: string; useWsl: boolean }>>({});
+  // Session-only list of opened project paths (most-recent-first) → "Recent Opened".
+  const [sessionRecent, setSessionRecent] = useState<string[]>([]);
+  // Persisted last-5 opened paths (most-recent-first), used to order the rest.
+  const [recentPersisted, setRecentPersisted] = useState<string[]>([]);
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
   const [backgroundMusic, setBackgroundMusic] = useState(true);
@@ -84,6 +88,7 @@ function App() {
       setWslDistro(s.wslDistro || 'Ubuntu');
       setOnboardingComplete(s.onboardingComplete ?? false);
       setRunConfigs(s.runConfigs ?? {});
+      setRecentPersisted(s.recentProjects ?? []);
       if (!s.onboardingComplete) {
         setConfigOpen(true);
       }
@@ -104,6 +109,14 @@ function App() {
 
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
+    // Track opened project: session list (most-recent-first) drives "Recent Opened";
+    // persisted last-5 orders the rest of the list across sessions.
+    setSessionRecent((prev) => [project.path, ...prev.filter((p) => p !== project.path)]);
+    const nextRecent = [project.path, ...recentPersisted.filter((p) => p !== project.path)].slice(0, 5);
+    setRecentPersisted(nextRecent);
+    window.electronAPI.getSettings().then((currentSettings) => {
+      window.electronAPI.saveSettings({ ...currentSettings, recentProjects: nextRecent });
+    });
     // WSL git mode: spin up the persistent session for this project so the
     // first status/commit/push reuses it instead of spawning wsl each time.
     if (useWsl2Git) {
@@ -311,6 +324,9 @@ function App() {
           promptsPath={promptsPath}
           treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
+          onSearch={() => setSearchOpen(true)}
+          sessionRecent={sessionRecent}
+          recentPersisted={recentPersisted}
           onRefresh={() => { refresh(); setTreeRefreshKey((k) => k + 1); }}
           onBack={handleBackToProjects}
           onConfig={handleOpenConfig}

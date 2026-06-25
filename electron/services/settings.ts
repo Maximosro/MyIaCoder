@@ -25,6 +25,8 @@ export interface Settings {
   wslDistro: string;
   /** Per-project run command + shell, keyed by absolute project path. */
   runConfigs: Record<string, RunConfig>;
+  /** Up to 5 most-recently-opened project paths, most-recent-first. */
+  recentProjects: string[];
 }
 
 export interface RunConfig {
@@ -53,6 +55,7 @@ const DEFAULTS: Settings = {
   useWsl2Git: false,
   wslDistro: 'Ubuntu',
   runConfigs: {},
+  recentProjects: [],
 };
 
 function getSettingsPath(): string {
