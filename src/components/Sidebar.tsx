@@ -1,4 +1,4 @@
-import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode } from 'lucide-react';
+import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode, Container, Boxes, List, Play, Square } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import type { Project } from '../types/project';
 import type { ClientsConfig } from '../../electron/preload';
@@ -8,6 +8,8 @@ import { TreeNodeItem } from './TreeNodeItem';
 import { PlansPanelTabs } from './PlansPanelTabs';
 import { GitChangesTree } from './GitChangesTree';
 import { TasksTree } from './TasksTree';
+import { ContainersModal } from './ContainersModal';
+import { DockerComposeModal } from './DockerComposeModal';
 import { usePlansTree } from '../hooks/usePlansTree';
 import { useSkillsTree } from '../hooks/useSkillsTree';
 import { usePromptsTree } from '../hooks/usePromptsTree';
@@ -38,6 +40,9 @@ interface SidebarProps {
   onLaunchReasonix: () => void;
   onLaunchOpencode: () => void;
   onLaunchTerminal: () => void;
+  isRunning?: boolean;
+  onPlay?: () => void;
+  onStop?: () => void;
   clients: ClientsConfig;
   hideBranch?: boolean;
 }
@@ -67,6 +72,9 @@ export function Sidebar({
   onLaunchReasonix,
   onLaunchOpencode,
   onLaunchTerminal,
+  isRunning,
+  onPlay,
+  onStop,
   clients,
   hideBranch,
 }: SidebarProps) {
@@ -81,6 +89,46 @@ export function Sidebar({
   const termMenuRef = useRef<HTMLDivElement>(null);
   const [editorMenuOpen, setEditorMenuOpen] = useState(false);
   const editorMenuRef = useRef<HTMLDivElement>(null);
+  // Docker: manual engine start + compose-up modal.
+  const [engineStatus, setEngineStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [dockerComposeOpen, setDockerComposeOpen] = useState(false);
+  const [dockerMenuOpen, setDockerMenuOpen] = useState(false);
+  const dockerMenuRef = useRef<HTMLDivElement>(null);
+  const [containersOpen, setContainersOpen] = useState(false);
+
+  // Probe docker status once on mount (read-only `docker ps`) so the compose
+  // and engine buttons reflect reality without a manual start.
+  useEffect(() => {
+    let cancelled = false;
+    window.electronAPI.dockerListContainers()
+      .then((res) => { if (!cancelled) setEngineStatus(res.ok ? 'ok' : 'error'); })
+      .catch(() => { if (!cancelled) setEngineStatus('error'); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleStartEngine = async () => {
+    if (engineStatus === 'loading') return;
+    // Green (running) → a normal click stops Docker (wsl --shutdown).
+    if (engineStatus === 'ok') {
+      setEngineStatus('loading');
+      try {
+        await window.electronAPI.dockerStopEngine();
+        setEngineStatus('error');
+      } catch {
+        setEngineStatus('error');
+      }
+      return;
+    }
+    setEngineStatus('loading');
+    try {
+      const res = await window.electronAPI.dockerStartEngine();
+      setEngineStatus(res.ok ? 'ok' : 'error');
+    } catch {
+      setEngineStatus('error');
+    }
+    // State persists (✓/⚠) so the result stays visible; the button is still
+    // clickable to re-run the idempotent check/start.
+  };
 
   // The Tasks tab only makes sense when at least one CLI client (Claude/Copilot)
   // that registers live sessions is enabled.
@@ -134,6 +182,18 @@ export function Sidebar({
     return () => document.removeEventListener('mousedown', onDown);
   }, [editorMenuOpen]);
 
+  // Close the docker context menu on any click outside it.
+  useEffect(() => {
+    if (!dockerMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (dockerMenuRef.current && !dockerMenuRef.current.contains(e.target as Node)) {
+        setDockerMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [dockerMenuOpen]);
+
   return (
     <aside className="w-[380px] flex-shrink-0 border-r border-[#1f1a15] flex flex-col h-full bg-[#0a0a0a] relative z-10">
       {/* Header */}
@@ -151,6 +211,32 @@ export function Sidebar({
                 title="Volver a proyectos"
               >
                 <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Run app — Play/Stop, only when a project is selected */}
+            {selectedPath && (
+              <button
+                onClick={isRunning ? onStop : onPlay}
+                className={`p-1.5 rounded transition-all duration-200 hover:bg-[#0f0f0f] animate-fade-in ${
+                  isRunning ? 'text-[#e05555] hover:text-[#ff6b6b]' : 'text-[#6ba86b] hover:text-[#8bc88b]'
+                }`}
+                title={isRunning ? 'Detener app' : 'Levantar app'}
+              >
+                {isRunning ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+            )}
+
+            {/* Docker compose — only when a project is selected */}
+            {selectedPath && (
+              <button
+                onClick={() => setDockerComposeOpen(true)}
+                className={`p-1.5 rounded transition-all duration-200 hover:bg-[#0f0f0f] animate-fade-in ${
+                  engineStatus === 'error' ? 'text-[#e05555] hover:text-[#ff6b6b]' : 'text-[#8b5a3c] hover:text-[#7b9ec4]'
+                }`}
+                title={engineStatus === 'error' ? 'Docker no disponible — clic para intentar compose up' : 'Docker compose up'}
+              >
+                <Boxes className="w-4 h-4" />
               </button>
             )}
 
@@ -252,6 +338,48 @@ export function Sidebar({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Docker: start engine (manual). Only in the projects list (no project selected). */}
+            {!selectedPath && (
+            <div className="relative" ref={dockerMenuRef}>
+              <button
+                onClick={handleStartEngine}
+                onContextMenu={(e) => {
+                  // Right-click opens the menu only when the engine is up (green).
+                  if (engineStatus !== 'ok') return;
+                  e.preventDefault();
+                  setDockerMenuOpen((o) => !o);
+                }}
+                disabled={engineStatus === 'loading'}
+                className={`p-1.5 rounded transition-all duration-200 hover:bg-[#0f0f0f] disabled:opacity-50 ${
+                  engineStatus === 'ok' ? 'text-[#6ba86b]'
+                  : engineStatus === 'error' ? 'text-[#e05555]'
+                  : 'text-[#8b5a3c] hover:text-[#7b9ec4]'
+                }`}
+                title={
+                  engineStatus === 'ok' ? 'Docker engine en marcha (clic para parar, clic dcho. para opciones)'
+                  : engineStatus === 'error' ? 'Docker no disponible (clic para reintentar)'
+                  : 'Iniciar Docker engine (WSL)'
+                }
+              >
+                {engineStatus === 'loading'
+                  ? <Container className="w-4 h-4 animate-pulse" />
+                  : <Container className="w-4 h-4" />}
+              </button>
+
+              {dockerMenuOpen && (
+                <div className="absolute right-0 mt-1 w-44 z-30 bg-[#0a0a0a] border border-[#1f1a15] rounded shadow-[0_8px_30px_rgba(0,0,0,0.6)] py-1 animate-fade-in">
+                  <button
+                    onClick={() => { setDockerMenuOpen(false); setContainersOpen(true); }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-mono tracking-wider text-[#6ba86b] hover:bg-[#0a1a0e] transition-colors"
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    LISTAR
+                  </button>
+                </div>
+              )}
+            </div>
             )}
 
             <div className="relative" ref={termMenuRef}>
@@ -450,6 +578,9 @@ export function Sidebar({
         onFileClick={onFileClick}
         onDeleteFile={onDeleteFile}
       />
+
+      <DockerComposeModal open={dockerComposeOpen} onClose={() => setDockerComposeOpen(false)} projectPath={selectedPath} />
+      <ContainersModal open={containersOpen} onClose={() => setContainersOpen(false)} />
     </aside>
   );
 }

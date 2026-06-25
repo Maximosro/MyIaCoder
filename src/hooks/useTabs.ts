@@ -18,6 +18,8 @@ interface UseTabsReturn {
   forceOpenTab: (project: Project, title: string, command?: string) => Promise<void>;
   openTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   forceOpenTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
+  /** Open a terminal tab that runs the project's persisted run command. Returns the tab id. */
+  openRunTab: (project: Project, command: string, useWsl: boolean) => Promise<string>;
   openFileTab: (project: Project, filePath: string, unlocked?: boolean) => Promise<string>;
   openDiffTab: (project: Project, filePath: string) => Promise<string>;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
@@ -72,6 +74,31 @@ export function useTabs(): UseTabsReturn {
     setActiveTabId(tabId);
 
     await window.electronAPI.ptySpawn(tabId, project.path, command, title);
+  }, []);
+
+  // ── Run tab (Play/Stop) ────────────────────────────────────
+
+  const openRunTab = useCallback(async (project: Project, command: string, useWsl: boolean): Promise<string> => {
+    const tabId = generateTabId();
+    const title = `▶ ${command}`;
+    const newTab: Tab = {
+      id: tabId,
+      kind: 'terminal',
+      projectName: project.name,
+      projectPath: project.path,
+      title,
+      command,
+      isRun: true,
+    };
+
+    // "Silent background": only steal focus when there's nothing else open.
+    setTabs((prev) => {
+      if (prev.length === 0) setActiveTabId(tabId);
+      return [...prev, newTab];
+    });
+
+    await window.electronAPI.ptySpawn(tabId, project.path, command, title, useWsl);
+    return tabId;
   }, []);
 
   // ── File tabs ──────────────────────────────────────────────
@@ -268,6 +295,7 @@ export function useTabs(): UseTabsReturn {
     forceOpenTab: forceOpenTerminalTab,
     openTerminalTab,
     forceOpenTerminalTab,
+    openRunTab,
     openFileTab,
     openDiffTab,
     closeTab,

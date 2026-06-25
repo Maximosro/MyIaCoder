@@ -1,0 +1,7 @@
+services:
+  hello-nginx:
+    image: nginx:alpine
+    container_name: myiacoder-test-nginx
+    ports:
+      - "8088:80"
+    restart: unless-stopped

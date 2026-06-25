@@ -1,6 +1,14 @@
-import { app, ipcMain, BrowserWindow } from 'electron';
+import { app, ipcMain, BrowserWindow, clipboard } from 'electron';
 
 export function registerWindowIpc(getWindow: () => BrowserWindow | null): void {
+  // ── Clipboard (xterm renders selection on canvas, not a DOM selection, so the
+  // browser's native copy/paste can't see it — go through Electron's clipboard) ─
+  ipcMain.handle('clipboard-write', (_event, text: string) => {
+    clipboard.writeText(text);
+  });
+
+  ipcMain.handle('clipboard-read', () => clipboard.readText());
+
   // ── Window controls (frameless custom title bar) ─────────
   ipcMain.handle('window-minimize', () => {
     getWindow()?.minimize();

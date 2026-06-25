@@ -118,6 +118,18 @@ export function registerFilesystemIpc(getWindow: () => BrowserWindow | null): vo
     return result.canceled ? null : result.filePaths[0];
   });
 
+  ipcMain.handle('pick-compose-file', async (_event, defaultPath?: string) => {
+    const win = getWindow();
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      title: 'Select docker-compose file',
+      defaultPath: defaultPath || undefined,
+      filters: [{ name: 'Compose', extensions: ['yml', 'yaml'] }],
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+
   ipcMain.handle('launch-vscode', async (_event, projectPath: string) => {
     const cmd = process.platform === 'win32'
       ? `code "${projectPath}"`

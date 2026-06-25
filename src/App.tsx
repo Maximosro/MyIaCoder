@@ -4,6 +4,7 @@ import { TerminalPanel } from './components/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { AboutModal } from './components/AboutModal';
 import { ProjectSearch } from './components/ProjectSearch';
+import { RunCommandModal } from './components/RunCommandModal';
 import { TitleBar } from './components/TitleBar';
 import { useProjects } from './hooks/useProjects';
 import { useTabs } from './hooks/useTabs';
@@ -25,6 +26,7 @@ function App() {
     activeTabId,
     openTab,
     forceOpenTab,
+    openRunTab,
     openFileTab,
     openDiffTab,
     closeTab,
@@ -45,6 +47,8 @@ function App() {
   const [configOpen, setConfigOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [runModalOpen, setRunModalOpen] = useState(false);
+  const [runConfigs, setRunConfigs] = useState<Record<string, { command: string; useWsl: boolean }>>({});
   const [treeRefreshKey, setTreeRefreshKey] = useState(0);
   const [terminalScrollback, setTerminalScrollback] = useState(20000);
   const [backgroundMusic, setBackgroundMusic] = useState(true);
@@ -79,6 +83,7 @@ function App() {
       setUseWsl2Git(s.useWsl2Git ?? false);
       setWslDistro(s.wslDistro || 'Ubuntu');
       setOnboardingComplete(s.onboardingComplete ?? false);
+      setRunConfigs(s.runConfigs ?? {});
       if (!s.onboardingComplete) {
         setConfigOpen(true);
       }
@@ -122,6 +127,31 @@ function App() {
 
   const requestLaunch = (command?: string, force = false) => {
     setLaunchTrigger((prev) => ({ command, force, tick: prev.tick + 1 }));
+  };
+
+  // ── Run app (Play/Stop) ──────────────────────────────────────
+  const runTab = selectedProject
+    ? tabs.find((t) => t.isRun && t.projectPath === selectedProject.path)
+    : undefined;
+  const isRunning = !!runTab;
+
+  const handlePlay = () => {
+    if (!selectedProject) return;
+    setRunModalOpen(true);
+  };
+
+  const handleStop = () => {
+    if (runTab) closeTab(runTab.id);
+  };
+
+  const handleConfirmRunCommand = async (command: string, useWsl: boolean) => {
+    if (!selectedProject) return;
+    const next = { ...runConfigs, [selectedProject.path]: { command, useWsl } };
+    setRunConfigs(next);
+    const currentSettings = await window.electronAPI.getSettings();
+    await window.electronAPI.saveSettings({ ...currentSettings, runConfigs: next });
+    setRunModalOpen(false);
+    openRunTab(selectedProject, command, useWsl);
   };
 
   const handleOpenDiff = async (filePath: string) => {
@@ -295,6 +325,9 @@ function App() {
           onLaunchReasonix={() => selectedProject && requestLaunch('reasonix', true)}
           onLaunchOpencode={() => selectedProject && requestLaunch('opencode', true)}
           onLaunchTerminal={() => selectedProject && requestLaunch('terminal', true)}
+          isRunning={isRunning}
+          onPlay={handlePlay}
+          onStop={handleStop}
           clients={clients}
           hideBranch={useWsl2Git}
         />
@@ -350,6 +383,16 @@ function App() {
           projects={projects}
           onSelect={handleSelectProject}
           onClose={() => setSearchOpen(false)}
+        />
+
+        {/* Run command prompt (always; pre-filled with the saved command) */}
+        <RunCommandModal
+          open={runModalOpen}
+          projectName={selectedProject?.name ?? ''}
+          defaultCommand={selectedProject ? runConfigs[selectedProject.path]?.command : undefined}
+          defaultUseWsl={selectedProject ? (runConfigs[selectedProject.path]?.useWsl ?? useWsl2Git) : useWsl2Git}
+          onClose={() => setRunModalOpen(false)}
+          onConfirm={handleConfirmRunCommand}
         />
       </div>
 

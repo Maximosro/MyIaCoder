@@ -23,6 +23,13 @@ export interface Settings {
   onboardingComplete: boolean;
   useWsl2Git: boolean;
   wslDistro: string;
+  /** Per-project run command + shell, keyed by absolute project path. */
+  runConfigs: Record<string, RunConfig>;
+}
+
+export interface RunConfig {
+  command: string;
+  useWsl: boolean;
 }
 
 const HOME = os.homedir();
@@ -45,6 +52,7 @@ const DEFAULTS: Settings = {
   onboardingComplete: false,
   useWsl2Git: false,
   wslDistro: 'Ubuntu',
+  runConfigs: {},
 };
 
 function getSettingsPath(): string {

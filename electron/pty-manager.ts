@@ -18,7 +18,7 @@ function sanitizeSessionName(title: string): string {
  * task panel can map each live session back to its terminal tab exactly.
  * Other commands (e.g. 'claude') are launched as-is.
  */
-function buildLaunchCommand(command: string, tabId: string, projectPath: string, title?: string): string {
+export function buildLaunchCommand(command: string, tabId: string, projectPath: string, title?: string, useWsl = false): string {
   // Plain terminal tab: open the shell at the project path without running any CLI.
   if (command === 'terminal') {
     return '';
@@ -32,7 +32,9 @@ function buildLaunchCommand(command: string, tabId: string, projectPath: string,
   // Reasonix terminal tab is open, because session files are created lazily
   // (when the user first types a message).
   if (command === 'reasonix') {
-    return `reasonix chat --dir="${projectPath}"`;
+    // Under WSL the project path must be the mounted /mnt/... path, not Windows.
+    const dir = useWsl ? toWslPath(projectPath) : projectPath;
+    return `reasonix chat --dir="${dir}"`;
   }
   return command;
 }
@@ -57,13 +59,15 @@ export class PTYManager {
     this.sendToRenderer = sendToRenderer;
   }
 
-  spawn(tabId: string, projectPath: string, command: string = 'claude', title?: string): void {
+  spawn(tabId: string, projectPath: string, command: string = 'claude', title?: string, useWslOverride?: boolean): void {
     this.kill(tabId);
 
-    // Copilot needs to run *inside* WSL2 (not just git) so the AI tracker hooks
-    // fire there. Other clients stay on cmd.exe (legacy).
+    // Full-supported terminals (copilot, claude, reasonix, plain terminal) run
+    // *inside* WSL2 when the check is on, so the AI tracker hooks fire there.
+    // External terminals never reach here (they launch via wt.exe/docker).
+    // A run command can override the shell explicitly (useWslOverride).
     const settings = loadSettings();
-    const useWsl = command === 'copilot' && settings.useWsl2Git;
+    const useWsl = useWslOverride ?? settings.useWsl2Git;
     const distro = settings.wslDistro || 'Ubuntu';
 
     const pty = useWsl
@@ -110,12 +114,15 @@ export class PTYManager {
     });
 
     // Type the command and press enter — exactly like the user would.
-    // An empty command (plain terminal) leaves the shell at the project path untouched.
-    const launchCommand = buildLaunchCommand(command, tabId, projectPath, title);
-    if (launchCommand) {
-      // In WSL the cmd.exe cwd doesn't carry over, so cd into the mounted path first.
-      const cmd = useWsl ? `cd ${shQuote(toWslPath(projectPath))} && ${launchCommand}` : launchCommand;
+    const launchCommand = buildLaunchCommand(command, tabId, projectPath, title, useWsl);
+    if (useWsl) {
+      // The cmd.exe cwd doesn't carry over to WSL, so cd into the mounted path.
+      // Plain terminal (no launchCommand) just lands the shell in the project.
+      const cdInto = `cd ${shQuote(toWslPath(projectPath))}`;
+      const cmd = launchCommand ? `${cdInto} && ${launchCommand}` : cdInto;
       pty.write(`${cmd}\r\n`);
+    } else if (launchCommand) {
+      pty.write(`${launchCommand}\r\n`);
     }
 
     // Track this session so the task panel can discover its subagents/tasks,

@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { PTYManager } from './pty-manager';
 import { registerFilesystemIpc } from './ipc/filesystem.ipc';
 import { registerGitIpc } from './ipc/git.ipc';
@@ -7,7 +8,9 @@ import { registerSettingsIpc } from './ipc/settings.ipc';
 import { registerPtyIpc } from './ipc/pty.ipc';
 import { registerWindowIpc } from './ipc/window.ipc';
 import { registerTasksIpc } from './ipc/tasks.ipc';
+import { registerDockerIpc } from './ipc/docker.ipc';
 import { closeAllSessions } from './services/wsl-session';
+import { loadSettings } from './services/settings';
 
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
@@ -134,6 +137,7 @@ function registerIpcHandlers(): void {
   registerPtyIpc(ptyManager);
   registerWindowIpc(getWindow);
   disposeTasksWatcher = registerTasksIpc(getWindow);
+  registerDockerIpc();
 }
 
 // ── App Lifecycle ─────────────────────────────────────────────
@@ -164,4 +168,11 @@ app.on('before-quit', () => {
   ptyManager.killAll();
   disposeTasksWatcher?.();
   closeAllSessions();
+  // Stop Docker on exit so it doesn't linger — only if WSL is enabled in config.
+  // Surgical: stops just the daemon, not the whole WSL. Needs the NOPASSWD sudoers rule.
+  const settings = loadSettings();
+  if (settings.useWsl2Git) {
+    const distro = settings.wslDistro || 'Ubuntu';
+    spawnSync('wsl.exe', ['-d', distro, '--', 'bash', '-lc', 'sudo -n systemctl stop docker.service docker.socket'], { windowsHide: true, timeout: 15_000 });
+  }
 });

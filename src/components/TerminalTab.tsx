@@ -122,11 +122,30 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
       });
 
       // Custom key handler:
-      // - Ctrl+C with selection → copy (browser default)
+      // - Ctrl+C with selection → copy via Electron clipboard (xterm draws its
+      //   selection on canvas, so the browser's native copy can't see it)
+      // - Ctrl+C without selection → falls through to PTY (SIGINT)
+      // - Ctrl+Shift+C → always copy selection
+      // - Ctrl+Shift+V → paste from clipboard
       // - Ctrl+Shift+F → show search addon overlay
       term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-        if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
-          return false; // let the browser copy instead of sending Ctrl+C to PTY
+        if (e.type !== 'keydown') return true;
+
+        if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+          const sel = term.getSelection();
+          if (sel) window.electronAPI.clipboardWriteText(sel);
+          return false;
+        }
+        if (e.ctrlKey && !e.shiftKey && (e.key === 'c' || e.key === 'C') && term.hasSelection()) {
+          window.electronAPI.clipboardWriteText(term.getSelection());
+          term.clearSelection();
+          return false; // copied — don't send Ctrl+C (SIGINT) to the PTY
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+          window.electronAPI.clipboardReadText().then((text) => {
+            if (text) window.electronAPI.ptyInput(tab.id, text);
+          });
+          return false;
         }
         if (e.ctrlKey && e.shiftKey && e.key === 'F') {
           setSearchVisible(true);
@@ -214,6 +233,21 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
     setSearchQuery('');
   }, []);
 
+  // Right-click: copy when there's a selection, otherwise paste (common terminal UX).
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const term = terminalRef.current;
+    if (!term) return;
+    if (term.hasSelection()) {
+      window.electronAPI.clipboardWriteText(term.getSelection());
+      term.clearSelection();
+    } else {
+      window.electronAPI.clipboardReadText().then((text) => {
+        if (text) window.electronAPI.ptyInput(tab.id, text);
+      });
+    }
+  }, [tab.id]);
+
   // Focus the search input when bar appears
   useEffect(() => {
     if (searchVisible && searchInputRef.current) {
@@ -246,7 +280,7 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
           <button onClick={hideSearch} className="px-1 text-xs font-mono text-[#8b5a3c] hover:text-[#e05555] transition-colors" title="Close (Esc)">✕</button>
         </div>
       )}
-      <div ref={containerRef} className="absolute inset-0 border border-[#1f1a15]/40" />
+      <div ref={containerRef} onContextMenu={handleContextMenu} className="absolute inset-0 border border-[#1f1a15]/40" />
     </div>
   );
 }

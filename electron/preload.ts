@@ -27,6 +27,12 @@ export interface Settings {
   onboardingComplete: boolean;
   useWsl2Git: boolean;
   wslDistro: string;
+  runConfigs: Record<string, RunConfig>;
+}
+
+export interface RunConfig {
+  command: string;
+  useWsl: boolean;
 }
 
 export interface ElectronAPI {
@@ -55,7 +61,7 @@ export interface ElectronAPI {
   writeFileContent: (filePath: string, content: string) => Promise<void>;
   createFile: (filePath: string, content: string) => Promise<void>;
   deleteFile: (filePath: string) => Promise<void>;
-  ptySpawn: (tabId: string, projectPath: string, command?: string, title?: string) => Promise<void>;
+  ptySpawn: (tabId: string, projectPath: string, command?: string, title?: string, useWsl?: boolean) => Promise<void>;
   ptyRead: (tabId: string) => Promise<string | null>;
   ptyIsAlive: (tabId: string) => Promise<boolean>;
   ptyInput: (tabId: string, data: string) => Promise<void>;
@@ -63,6 +69,13 @@ export interface ElectronAPI {
   ptyKill: (tabId: string) => Promise<void>;
   launchVscode: (projectPath: string) => Promise<void>;
   launchTerminal: (kind: 'wt' | 'powershell') => Promise<void>;
+  pickComposeFile: (defaultPath?: string) => Promise<string | null>;
+  dockerStartEngine: () => Promise<import('./services/docker').DockerResult>;
+  dockerStopEngine: () => Promise<import('./services/docker').DockerResult>;
+  dockerComposeUp: (composePath: string) => Promise<import('./services/docker').DockerResult>;
+  dockerComposeTerminal: (composePath: string) => Promise<void>;
+  dockerListContainers: () => Promise<import('./services/docker').DockerPsResult>;
+  dockerStopContainer: (id: string) => Promise<import('./services/docker').DockerResult>;
   getSettings: () => Promise<Settings>;
   saveSettings: (settings: Settings) => Promise<void>;
   pickWorkspace: () => Promise<string | null>;
@@ -72,6 +85,8 @@ export interface ElectronAPI {
   windowMaximize: () => Promise<void>;
   windowIsMaximized: () => Promise<boolean>;
   windowClose: () => Promise<void>;
+  clipboardWriteText: (text: string) => Promise<void>;
+  clipboardReadText: () => Promise<string>;
   onMaximizedChanged: (callback: (isMaximized: boolean) => void) => () => void;
   onProjectBranchLoaded: (callback: (data: { path: string; branch: string }) => void) => () => void;
   onTasksChanged: (callback: () => void) => () => void;
@@ -107,7 +122,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
   createFile: (filePath: string, content: string) => ipcRenderer.invoke('create-file', filePath, content),
   deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
-  ptySpawn: (tabId: string, projectPath: string, command?: string, title?: string) => ipcRenderer.invoke('pty-spawn', tabId, projectPath, command, title),
+  ptySpawn: (tabId: string, projectPath: string, command?: string, title?: string, useWsl?: boolean) => ipcRenderer.invoke('pty-spawn', tabId, projectPath, command, title, useWsl),
   ptyRead: (tabId: string) => ipcRenderer.invoke('pty-read', tabId),
   ptyIsAlive: (tabId: string) => ipcRenderer.invoke('pty-is-alive', tabId),
   ptyInput: (tabId: string, data: string) => ipcRenderer.invoke('pty-input', tabId, data),
@@ -115,6 +130,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ptyKill: (tabId: string) => ipcRenderer.invoke('pty-kill', tabId),
   launchVscode: (projectPath: string) => ipcRenderer.invoke('launch-vscode', projectPath),
   launchTerminal: (kind: 'wt' | 'powershell') => ipcRenderer.invoke('launch-terminal', kind),
+  pickComposeFile: (defaultPath?: string) => ipcRenderer.invoke('pick-compose-file', defaultPath),
+  dockerStartEngine: () => ipcRenderer.invoke('docker-start-engine'),
+  dockerStopEngine: () => ipcRenderer.invoke('docker-stop-engine'),
+  dockerComposeUp: (composePath: string) => ipcRenderer.invoke('docker-compose-up', composePath),
+  dockerComposeTerminal: (composePath: string) => ipcRenderer.invoke('docker-compose-terminal', composePath),
+  dockerListContainers: () => ipcRenderer.invoke('docker-ps'),
+  dockerStopContainer: (id: string) => ipcRenderer.invoke('docker-stop', id),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: Settings) => ipcRenderer.invoke('save-settings', settings),
   pickWorkspace: () => ipcRenderer.invoke('pick-workspace'),
@@ -124,6 +146,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowMaximize: () => ipcRenderer.invoke('window-maximize'),
   windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
   windowClose: () => ipcRenderer.invoke('window-close'),
+  clipboardWriteText: (text: string) => ipcRenderer.invoke('clipboard-write', text),
+  clipboardReadText: () => ipcRenderer.invoke('clipboard-read'),
   onMaximizedChanged: (callback: (isMaximized: boolean) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, isMaximized: boolean) => callback(isMaximized);
     ipcRenderer.on('window-maximized-changed', handler);

@@ -23,6 +23,8 @@ export interface Tab {
   /** When true, the editor starts in editable mode (unlocked) instead of read-only.
    *  Used for prompt files that should be edited immediately on open. */
   unlocked?: boolean;
+  /** When true, this terminal tab runs the project's persisted run command (Play/Stop). */
+  isRun?: boolean;
   // Diff-specific fields
   diffContent?: string;
 }
