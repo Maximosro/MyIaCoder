@@ -154,6 +154,16 @@ export function Sidebar({
   // Collapsible project categories (menu view only).
   const [recentCollapsed, setRecentCollapsed] = useState(false);
   const [othersCollapsed, setOthersCollapsed] = useState(false);
+  const [projectExpandedPaths, setProjectExpandedPaths] = useState<Set<string>>(() => new Set());
+
+  const toggleProjectPath = (path: string) => {
+    setProjectExpandedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
 
   // "Recent Opened" = projects opened this session, most-recent-first.
   const recentSet = new Set(sessionRecent);
@@ -584,7 +594,15 @@ export function Sidebar({
                       </div>
                     )}
                     {projectTree.map((node) => (
-                      <TreeNodeItem key={node.path} node={node} depth={0} onFileClick={onFileClick} onDeleteFile={onDeleteFile} />
+                      <TreeNodeItem
+                        key={node.path}
+                        node={node}
+                        depth={0}
+                        onFileClick={onFileClick}
+                        onDeleteFile={onDeleteFile}
+                        expandedPaths={projectExpandedPaths}
+                        onTogglePath={toggleProjectPath}
+                      />
                     ))}
                   </div>
                 )}

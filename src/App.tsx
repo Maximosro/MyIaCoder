@@ -297,11 +297,13 @@ function App() {
   };
 
   const handleDeleteFile = async (filePath: string) => {
+    const normalizedDeleted = filePath.replace(/\\/g, '/');
+    const deletesProjectRoot = projects.some((p) => p.path.replace(/\\/g, '/') === normalizedDeleted);
+
     try {
       await window.electronAPI.deleteFile(filePath);
 
       // Close any open tabs whose file is the deleted entry or inside a deleted directory
-      const normalizedDeleted = filePath.replace(/\\/g, '/');
       const tabsToClose = tabs.filter((t) => {
         if (!t.filePath) return false;
         const normalizedTab = t.filePath.replace(/\\/g, '/');
@@ -312,14 +314,13 @@ function App() {
         await closeTab(tab.id);
       }
 
-      // Refresh the project list to trigger tree re-reading
-      refresh();
+      if (deletesProjectRoot) refresh();
       setTreeRefreshKey((k) => k + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete file';
       console.error('Delete failed:', message);
       // Tree may be stale — refresh to resync with filesystem
-      refresh();
+      if (deletesProjectRoot) refresh();
       setTreeRefreshKey((k) => k + 1);
     }
   };

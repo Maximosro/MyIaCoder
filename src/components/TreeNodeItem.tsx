@@ -8,15 +8,18 @@ export interface TreeNodeItemProps {
   depth: number;
   onFileClick?: (filePath: string) => void;
   onDeleteFile?: (filePath: string) => void;
+  expandedPaths?: ReadonlySet<string>;
+  onTogglePath?: (path: string) => void;
 }
 
-export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNodeItemProps) {
-  const [expanded, setExpanded] = useState(false);
+export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile, expandedPaths, onTogglePath }: TreeNodeItemProps) {
+  const [localExpanded, setLocalExpanded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const isDirectory = node.type === 'directory';
+  const expanded = expandedPaths ? expandedPaths.has(node.path) : localExpanded;
   const hasChildren = isDirectory && node.children && node.children.length > 0;
   const isSupportedFile = !isDirectory && (() => {
     const dotIndex = node.name.lastIndexOf('.');
@@ -27,7 +30,8 @@ export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNod
   const handleClick = () => {
     if (confirmDelete) return; // Don't navigate during confirmation
     if (isDirectory) {
-      setExpanded((prev) => !prev);
+      if (expandedPaths && onTogglePath) onTogglePath(node.path);
+      else setLocalExpanded((prev) => !prev);
     } else if (isSupportedFile && onFileClick) {
       onFileClick(node.path);
     }
@@ -100,6 +104,7 @@ export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNod
           onClick={handleClick}
           onContextMenu={handleContextMenu}
           disabled={!isDirectory && !isSupportedFile}
+          aria-expanded={isDirectory ? expanded : undefined}
           title={confirmDelete ? undefined : node.path}
           className={`w-full flex items-center gap-1.5 py-1 text-left font-mono transition-all duration-200 border-l-2
             ${isDirectory || isSupportedFile ? 'cursor-pointer' : 'cursor-default'}
@@ -210,7 +215,15 @@ export function TreeNodeItem({ node, depth, onFileClick, onDeleteFile }: TreeNod
           }`}
         >
           {node.children!.map((child) => (
-            <TreeNodeItem key={child.path} node={child} depth={depth + 1} onFileClick={onFileClick} onDeleteFile={onDeleteFile} />
+            <TreeNodeItem
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              onFileClick={onFileClick}
+              onDeleteFile={onDeleteFile}
+              expandedPaths={expandedPaths}
+              onTogglePath={onTogglePath}
+            />
           ))}
         </div>
       )}

@@ -6,6 +6,7 @@ import { GuidedPromptModal } from './GuidedPromptModal';
 
 type PanelTab = 'plans' | 'skills' | 'prompts';
 type PromptSubTab = 'prompt' | 'template';
+type TreeExpansionKey = PanelTab | 'templates';
 
 interface PlansPanelTabsProps {
   plansTree: TreeNode[];
@@ -57,6 +58,12 @@ export function PlansPanelTabs({
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [guidedOpen, setGuidedOpen] = useState(false);
+  const [expandedByTree, setExpandedByTree] = useState<Record<TreeExpansionKey, Set<string>>>(() => ({
+    plans: new Set(),
+    skills: new Set(),
+    prompts: new Set(),
+    templates: new Set(),
+  }));
 
   const tabBaseClass =
     'flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[160px] min-w-[80px] shrink border-b-2 font-mono';
@@ -91,8 +98,18 @@ export function PlansPanelTabs({
   };
 
   const active = getActiveData();
+  const activeTreeKey: TreeExpansionKey = activeTab === 'prompts' && promptSubTab === 'template' ? 'templates' : activeTab;
   const activeLabel = activeTab === 'prompts' && promptSubTab === 'template' ? '/Template' : TABS[activeTab].label;
   const ActiveIcon = activeTab === 'prompts' && promptSubTab === 'template' ? FileBox : TABS[activeTab].Icon;
+
+  const toggleActivePath = (path: string) => {
+    setExpandedByTree((prev) => {
+      const nextSet = new Set(prev[activeTreeKey]);
+      if (nextSet.has(path)) nextSet.delete(path);
+      else nextSet.add(path);
+      return { ...prev, [activeTreeKey]: nextSet };
+    });
+  };
 
   const switchTab = (tab: PanelTab) => {
     setActiveTab(tab);
@@ -250,6 +267,8 @@ export function PlansPanelTabs({
                 depth={0}
                 onFileClick={onFileClick}
                 onDeleteFile={onDeleteFile}
+                expandedPaths={expandedByTree[activeTreeKey]}
+                onTogglePath={toggleActivePath}
               />
             ))}
         </div>
