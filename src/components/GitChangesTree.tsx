@@ -19,11 +19,13 @@ import { GIT_STATUS_META } from '../utils/gitStatus';
 import { CommitModal } from './CommitModal';
 import { NewBranchModal } from './NewBranchModal';
 import { SwitchBranchModal } from './SwitchBranchModal';
+import type { GitShortcutAction } from './Sidebar';
 import type { GitChange, GitTreeNode } from '../types/project';
 
 interface GitChangesTreeProps {
   projectPath: string;
   refreshKey: number;
+  shortcut?: { action: GitShortcutAction; tick: number };
   onFileClick?: (filePath: string) => void;
   onOpenDiff?: (filePath: string) => void;
 }
@@ -236,7 +238,7 @@ function ChangeDirNode({
   );
 }
 
-export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDiff }: GitChangesTreeProps) {
+export function GitChangesTree({ projectPath, refreshKey, shortcut, onFileClick, onOpenDiff }: GitChangesTreeProps) {
   const [expanded, setExpanded] = useState(true);
   const { changes, branch, loading, error, refresh } = useGitChanges(projectPath, refreshKey);
 
@@ -307,6 +309,13 @@ export function GitChangesTree({ projectPath, refreshKey, onFileClick, onOpenDif
   const [newBranchOpen, setNewBranchOpen] = useState(false);
   // Switch-branch modal state
   const [switchBranchOpen, setSwitchBranchOpen] = useState(false);
+
+  useEffect(() => {
+    if (!shortcut?.tick) return;
+    if (shortcut.action === 'switchBranch') setSwitchBranchOpen(true);
+    if (shortcut.action === 'newBranch') setNewBranchOpen(true);
+    if (shortcut.action === 'commit') setCommitOpen(true);
+  }, [shortcut?.tick]);
 
   const handleCommitted = async () => {
     await refresh();

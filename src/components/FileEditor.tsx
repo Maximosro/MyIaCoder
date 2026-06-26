@@ -154,19 +154,26 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
     setReadOnly((prev) => !prev);
   }, []);
 
-  // Ctrl+S keyboard shortcut
+  // Editor keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && key === 's') {
         e.preventDefault();
         if (!readOnly && isDirty) {
           handleSave();
         }
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && key === 'e') {
+        e.preventDefault();
+        toggleReadOnly();
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && key === 'm' && tab.fileType === 'markdown') {
+        e.preventDefault();
+        setPreviewMode((p) => !p);
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [readOnly, isDirty, handleSave]);
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [readOnly, isDirty, handleSave, toggleReadOnly, tab.fileType]);
 
   const badge = getFileTypeBadge(tab.fileType);
   const language = mapFileTypeToLanguage(tab.fileType);
@@ -274,7 +281,7 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
                 ? 'text-[#d4784a] hover:text-[#e8956a] bg-[#1f1a15]/50'
                 : 'text-[#8b5a3c] hover:text-[#d4784a] hover:bg-[#0f0f0f]'
             }`}
-            title={previewMode ? 'Show source' : 'Preview'}
+            title={previewMode ? 'Show source (Ctrl+M)' : 'Preview (Ctrl+M)'}
           >
             {previewMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
@@ -288,7 +295,7 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
               ? 'text-[#8b5a3c] hover:text-[#d4784a] hover:bg-[#0f0f0f]'
               : 'text-[#d4a44a] hover:text-[#e8c06a] bg-[#1f1a15]/50'
           }`}
-          title={readOnly ? 'Enable editing' : 'Disable editing'}
+          title={readOnly ? 'Enable editing (Ctrl+E)' : 'Disable editing (Ctrl+E)'}
         >
           {readOnly ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
         </button>
@@ -347,6 +354,11 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
                 'input.border': '#1f1a15',
               },
             });
+          }}
+          onMount={(editor, monaco) => {
+            // ponytail: disable Monaco's command palette shortcuts; app owns shortcuts.
+            editor.addCommand(monaco.KeyCode.F1, () => null);
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => null);
           }}
           loading={
             <div className="flex items-center justify-center h-full bg-[#050505]">

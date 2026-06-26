@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
+import type { GitShortcutAction, ProjectPanelTab } from './components/Sidebar';
 import { TerminalPanel } from './components/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { AboutModal } from './components/AboutModal';
@@ -18,6 +19,26 @@ const DEFAULT_CLIENTS: ClientsConfig = {
   reasonix: true,
   opencode: true,
 };
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable;
+}
+
+function isTerminalTarget(target: EventTarget | null): boolean {
+  return !!(target as HTMLElement | null)?.closest('.xterm');
+}
+
+function isEditorTarget(target: EventTarget | null): boolean {
+  return !!(target as HTMLElement | null)?.closest('.monaco-editor');
+}
+
+function digitKey(e: KeyboardEvent): number | null {
+  const fromCode = /^Digit([1-9])$/.exec(e.code)?.[1];
+  const raw = fromCode ?? (/^[1-9]$/.test(e.key) ? e.key : '');
+  return raw ? Number(raw) : null;
+}
 
 function App() {
   const { projects, loading, error, refresh } = useProjects();
@@ -60,6 +81,10 @@ function App() {
   const [useWsl2Git, setUseWsl2Git] = useState(false);
   const [wslDistro, setWslDistro] = useState('Ubuntu');
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<ProjectPanelTab>('files');
+  const [closeActiveTick, setCloseActiveTick] = useState(0);
+  const [dockerShortcutTick, setDockerShortcutTick] = useState(0);
+  const [gitShortcut, setGitShortcut] = useState<{ action: GitShortcutAction; tick: number }>({ action: 'switchBranch', tick: 0 });
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
   // Sidebar and empty-state buttons both use this instead of opening tabs directly.
   const [launchTrigger, setLaunchTrigger] = useState<{ command?: string; force: boolean; tick: number }>({ force: false, tick: 0 });
@@ -95,18 +120,6 @@ function App() {
         setConfigOpen(true);
       }
     });
-  }, []);
-
-  // Ctrl+Shift+F → project search popup
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'F') {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   const handleSelectProject = (project: Project) => {
@@ -158,6 +171,117 @@ function App() {
   const handleStop = () => {
     if (runTab) closeTab(runTab.id);
   };
+
+  const refreshAll = useCallback(() => {
+    refresh();
+    setTreeRefreshKey((k) => k + 1);
+  }, [refresh]);
+
+  const selectRelativeTab = useCallback((delta: number) => {
+    if (!tabs.length) return;
+    const current = Math.max(0, tabs.findIndex((t) => t.id === activeTabId));
+    setActiveTab(tabs[(current + delta + tabs.length) % tabs.length].id);
+  }, [activeTabId, setActiveTab, tabs]);
+
+  const triggerGitShortcut = useCallback((action: GitShortcutAction) => {
+    if (!selectedProject) return;
+    setSidebarTab('changes');
+    setGitShortcut((prev) => ({ action, tick: prev.tick + 1 }));
+  }, [selectedProject]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      const digit = digitKey(e);
+      const terminalTarget = isTerminalTarget(e.target);
+      const editorTarget = isEditorTarget(e.target);
+      const appShortcut =
+        (e.ctrlKey && e.key === 'Tab') ||
+        (e.ctrlKey && !e.altKey && !e.shiftKey && (key === 'w' || digit !== null)) ||
+        (e.ctrlKey && e.shiftKey && key === 'r') ||
+        (e.ctrlKey && e.altKey && !e.shiftKey && ((digit !== null && digit <= 5) || key === 'n' || key === 'd')) ||
+        (e.altKey && !e.ctrlKey && !e.shiftKey && (key === 'f' || key === 'g' || key === 't' || key === 'b')) ||
+        ((e.ctrlKey || e.altKey) && !e.shiftKey && key === 'b') ||
+        (e.ctrlKey && e.altKey && e.key === 'Enter') ||
+        (e.ctrlKey && !e.altKey && !e.shiftKey && e.key === '`') ||
+        e.key === 'F5';
+
+      if (e.ctrlKey && e.shiftKey && key === 'f') {
+        if (terminalTarget) return;
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+
+      if (isTypingTarget(e.target) && !((terminalTarget || editorTarget) && appShortcut)) return;
+
+      if (e.ctrlKey && e.shiftKey && key === 'r') {
+        e.preventDefault();
+        refreshAll();
+        return;
+      }
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        selectRelativeTab(e.shiftKey ? -1 : 1);
+        return;
+      }
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && key === 'w') {
+        e.preventDefault();
+        setCloseActiveTick((t) => t + 1);
+        return;
+      }
+      if (e.ctrlKey && e.altKey && !e.shiftKey && digit !== null && digit <= 5) {
+        e.preventDefault();
+        const command = (['claude', 'copilot', 'reasonix', 'codewhale', 'opencode'] as const)[digit - 1];
+        if (clients[command]) requestLaunch(command, command !== 'claude');
+        return;
+      }
+      if (e.ctrlKey && !e.altKey && !e.shiftKey && digit !== null) {
+        e.preventDefault();
+        const tab = tabs[digit - 1];
+        if (tab) setActiveTab(tab.id);
+        return;
+      }
+      if (e.key === 'F5') {
+        e.preventDefault();
+        if (e.shiftKey) handleStop();
+        else handlePlay();
+        return;
+      }
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && (key === 'f' || key === 'g' || key === 't')) {
+        e.preventDefault();
+        setSidebarTab(key === 'f' ? 'files' : key === 'g' ? 'changes' : 'tasks');
+        return;
+      }
+      if ((e.ctrlKey && !e.shiftKey && !e.altKey && key === 'b') || (e.altKey && !e.ctrlKey && !e.shiftKey && key === 'b')) {
+        e.preventDefault();
+        triggerGitShortcut('switchBranch');
+        return;
+      }
+      if (e.ctrlKey && e.altKey && !e.shiftKey && key === 'n') {
+        e.preventDefault();
+        triggerGitShortcut('newBranch');
+        return;
+      }
+      if (e.ctrlKey && e.altKey && e.key === 'Enter') {
+        e.preventDefault();
+        triggerGitShortcut('commit');
+        return;
+      }
+      if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key === '`') {
+        e.preventDefault();
+        if (selectedProject) requestLaunch('terminal', true);
+        return;
+      }
+      if (e.ctrlKey && e.altKey && !e.shiftKey && key === 'd') {
+        e.preventDefault();
+        setDockerShortcutTick((t) => t + 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKey, true);
+    return () => window.removeEventListener('keydown', handleKey, true);
+  }, [activeTabId, clients, refreshAll, selectedProject, selectRelativeTab, setActiveTab, tabs, triggerGitShortcut, runTab]);
 
   const handleConfirmRunCommand = async (command: string, useWsl: boolean) => {
     if (!selectedProject) return;
@@ -352,7 +476,11 @@ function App() {
           onSearch={() => setSearchOpen(true)}
           sessionRecent={sessionRecent}
           recentPersisted={recentPersisted}
-          onRefresh={() => { refresh(); setTreeRefreshKey((k) => k + 1); }}
+          onRefresh={refreshAll}
+          activeTab={sidebarTab}
+          onActiveTabChange={setSidebarTab}
+          gitShortcut={gitShortcut}
+          dockerShortcutTick={dockerShortcutTick}
           onBack={handleBackToProjects}
           onConfig={handleOpenConfig}
           onFileClick={handleFileOpen}
@@ -383,6 +511,7 @@ function App() {
             activeTabId={activeTabId}
             activeProject={selectedProject}
             launchTrigger={launchTrigger}
+            closeTrigger={closeActiveTick}
             scrollback={terminalScrollback}
             onOpenTab={handleOpenTab}
             onForceOpenTab={handleForceOpenTab}

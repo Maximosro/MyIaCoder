@@ -32,6 +32,8 @@ interface TerminalPanelProps {
   onReorderTabs: (fromIndex: number, toIndex: number) => void;
   /** External launch trigger from Sidebar. When tick increments, shows the name prompt. */
   launchTrigger: { command?: string; force: boolean; tick: number };
+  /** External close-active-tab trigger from App shortcuts. */
+  closeTrigger?: number;
   /** Terminal scrollback lines for new terminal tabs (from settings). */
   scrollback?: number;
 }
@@ -160,6 +162,7 @@ export function TerminalPanel({
   onTabActivity,
   onReorderTabs,
   launchTrigger,
+  closeTrigger,
   scrollback,
 }: TerminalPanelProps) {
   const [promptVisible, setPromptVisible] = useState(false);
@@ -225,6 +228,12 @@ export function TerminalPanel({
       onCloseTab(tab.id);
     }
   };
+
+  useEffect(() => {
+    if (!closeTrigger) return;
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    if (activeTab) handleCloseTab(activeTab);
+  }, [closeTrigger]);
 
   const handleCloseTerminalConfirm = async () => {
     const tabId = closeTerminalDialog.tabId;

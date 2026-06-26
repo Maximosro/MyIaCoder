@@ -16,6 +16,9 @@ import { usePromptsTree } from '../hooks/usePromptsTree';
 import { useTemplatesTree } from '../hooks/useTemplatesTree';
 import { useProjectTree } from '../hooks/useProjectTree';
 
+export type ProjectPanelTab = 'files' | 'changes' | 'tasks';
+export type GitShortcutAction = 'switchBranch' | 'newBranch' | 'commit';
+
 interface SidebarProps {
   projects: Project[];
   loading: boolean;
@@ -32,6 +35,10 @@ interface SidebarProps {
   sessionRecent: string[];
   recentPersisted: string[];
   onRefresh: () => void;
+  activeTab?: ProjectPanelTab;
+  onActiveTabChange?: (tab: ProjectPanelTab) => void;
+  gitShortcut?: { action: GitShortcutAction; tick: number };
+  dockerShortcutTick?: number;
   onBack?: () => void;
   onConfig: () => void;
   onFileClick?: (filePath: string) => void;
@@ -69,6 +76,10 @@ export function Sidebar({
   sessionRecent,
   recentPersisted,
   onRefresh,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
+  gitShortcut,
+  dockerShortcutTick,
   onBack,
   onConfig,
   onFileClick,
@@ -94,7 +105,7 @@ export function Sidebar({
   const { tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: refreshPrompts } = usePromptsTree(promptsPath, treeRefreshKey);
   const { tree: templatesTree, loading: templatesLoading, error: templatesError, refresh: refreshTemplates } = useTemplatesTree(templatesPath, treeRefreshKey);
   const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath, treeRefreshKey);
-  const [activeTab, setActiveTab] = useState<'files' | 'changes' | 'tasks'>('files');
+  const [localActiveTab, setLocalActiveTab] = useState<ProjectPanelTab>('files');
   const [launchMenuOpen, setLaunchMenuOpen] = useState(false);
   const launchMenuRef = useRef<HTMLDivElement>(null);
   const [termMenuOpen, setTermMenuOpen] = useState(false);
@@ -150,6 +161,13 @@ export function Sidebar({
     ...(clients.reasonix ? (['reasonix'] as const) : []),
   ];
   const tasksEnabled = taskSources.length > 0;
+  const rawActiveTab = controlledActiveTab ?? localActiveTab;
+  const activeTab = rawActiveTab === 'tasks' && !tasksEnabled ? 'files' : rawActiveTab;
+  const setActiveTab = (tab: ProjectPanelTab) => {
+    if (tab === 'tasks' && !tasksEnabled) return;
+    setLocalActiveTab(tab);
+    onActiveTabChange?.(tab);
+  };
 
   // Collapsible project categories (menu view only).
   const [recentCollapsed, setRecentCollapsed] = useState(false);
@@ -164,6 +182,17 @@ export function Sidebar({
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!dockerShortcutTick) return;
+    if (selectedPath) {
+      setDockerComposeOpen(true);
+    } else if (engineStatus === 'ok') {
+      setContainersOpen(true);
+    } else {
+      handleStartEngine();
+    }
+  }, [dockerShortcutTick]);
 
   // "Recent Opened" = projects opened this session, most-recent-first.
   const recentSet = new Set(sessionRecent);
@@ -612,6 +641,7 @@ export function Sidebar({
                   <GitChangesTree
                     projectPath={project.path}
                     refreshKey={treeRefreshKey}
+                    shortcut={gitShortcut}
                     onFileClick={onFileClick}
                     onOpenDiff={onOpenDiff}
                   />

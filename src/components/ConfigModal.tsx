@@ -27,6 +27,25 @@ const CLIENT_LABELS: { key: keyof ClientsConfig; label: string; supportLevel?: '
   { key: 'opencode', label: 'Opencode', supportLevel: 'limited' },
 ];
 
+const SHORTCUTS = [
+  ['Ctrl+Shift+F', 'Buscar proyectos; dentro de terminal, buscar en terminal'],
+  ['Ctrl+Tab / Ctrl+Shift+Tab', 'Siguiente / anterior tab'],
+  ['Ctrl+1..9', 'Ir a tab por posicion'],
+  ['Ctrl+W', 'Cerrar tab activa'],
+  ['F5 / Shift+F5', 'Levantar / detener app'],
+  ['Alt+F / Alt+G / Alt+T', 'Files / Changes / Tasks'],
+  ['Ctrl+B o Alt+B', 'Cambiar rama'],
+  ['Ctrl+Alt+N', 'Nueva rama'],
+  ['Ctrl+Alt+Enter', 'Commit'],
+  ['Ctrl+`', 'Abrir terminal'],
+  ['Ctrl+Alt+1..5', 'Claude / Copilot / Reasonix / Codewhale / Opencode'],
+  ['Ctrl+Alt+D', 'Docker'],
+  ['Ctrl+Shift+R', 'Refrescar'],
+  ['Ctrl+S', 'Guardar editor'],
+  ['Ctrl+E', 'Bloquear/desbloquear editor'],
+  ['Ctrl+M', 'Preview/source markdown'],
+] as const;
+
 export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, templatesPath, clients, terminalScrollback, backgroundMusic, useWsl2Git, wslDistro, isOnboarding, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
@@ -326,6 +345,25 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
             <p className="text-[10px] text-[#4a2a1a] font-mono">
               Lines of scrollback history per terminal tab. Higher values use more RAM.
             </p>
+          </div>
+
+          {/* Shortcuts */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+              Shortcuts
+            </label>
+            <div className="rounded bg-[#050505] border border-[#1f1a15] divide-y divide-[#1f1a15]/70">
+              {SHORTCUTS.map(([keys, action]) => (
+                <div key={keys} className="flex items-center gap-3 px-3 py-1.5">
+                  <kbd className="min-w-[150px] text-[10px] font-mono text-[#d4784a] bg-[#0f0f0f] border border-[#1f1a15] rounded px-1.5 py-0.5">
+                    {keys}
+                  </kbd>
+                  <span className="text-[10px] font-mono text-[#b0a89a]">
+                    {action}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Background Music */}

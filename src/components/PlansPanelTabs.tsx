@@ -130,7 +130,7 @@ export function PlansPanelTabs({
   };
 
   return (
-    <div className="border-t border-[#1f1a15] flex flex-col min-h-0">
+    <div className="border-t border-[#1f1a15] flex flex-col min-h-0 h-[30%] shrink-0 overflow-hidden">
       {/* Tab bar */}
       <div className="flex items-center gap-0 px-2 py-1 bg-[#0a0a0a] border-b border-[#1f1a15]">
         {(Object.keys(TABS) as PanelTab[]).map((tab) => {
@@ -161,7 +161,7 @@ export function PlansPanelTabs({
       )}
 
       {/* Active tab content */}
-      <div className="flex flex-col min-h-0">
+      <div className="flex flex-col min-h-0 flex-1">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-1.5">
@@ -228,7 +228,7 @@ export function PlansPanelTabs({
         )}
 
         {/* Body */}
-        <div className="max-h-[40vh] overflow-y-auto px-1 pb-2">
+        <div className="flex-1 overflow-y-auto px-1 pb-2">
           {/* Loading state */}
           {active.loading && active.tree.length === 0 && (
             <div className="flex items-center justify-center py-4">

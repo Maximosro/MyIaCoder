@@ -140,6 +140,7 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
       // - Ctrl+Shift+F → show search addon overlay
       term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
         if (e.type !== 'keydown') return true;
+        if (e.defaultPrevented) return false;
 
         if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
           const sel = term.getSelection();
