@@ -1,6 +1,7 @@
 import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import path from 'node:path';
 import { exec } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import {
   listWorkspaceProjects,
   readDirectoryTree,
@@ -17,7 +18,7 @@ import type { Settings } from '../services/settings';
 /** Throws PATH_TRAVERSAL if filePath resolves outside the allowed workspace/plans/skills roots. */
 function assertPathAllowed(filePath: string, settings: Settings): void {
   const resolved = path.resolve(filePath);
-  const roots = [settings.workspacePath, settings.plansPath, settings.skillsPath, settings.promptsPath]
+  const roots = [settings.workspacePath, settings.plansPath, settings.skillsPath, settings.promptsPath, settings.templatesPath]
     .filter(Boolean)
     .map((root) => path.resolve(root));
   if (!roots.some((root) => resolved.startsWith(root))) {
@@ -72,6 +73,29 @@ export function registerFilesystemIpc(getWindow: () => BrowserWindow | null): vo
   ipcMain.handle('read-prompts-tree', async () => {
     const settings = loadSettings();
     return readDirectoryTree(settings.promptsPath);
+  });
+
+  ipcMain.handle('read-templates-tree', async () => {
+    const settings = loadSettings();
+    if (!settings.templatesPath) return [];
+    return readDirectoryTree(settings.templatesPath);
+  });
+
+  // ponytail: reads all .md files from templatesPath as {id, name, content}
+  ipcMain.handle('read-templates', async () => {
+    const settings = loadSettings();
+    const dir = settings.templatesPath;
+    if (!dir || !existsSync(dir)) return [];
+    try {
+      const files = readdirSync(dir).filter((f) => /\.md$/i.test(f));
+      return files.map((f) => ({
+        id: f.replace(/\.md$/i, '').toLowerCase().replace(/\s+/g, '-'),
+        name: f.replace(/\.md$/i, ''),
+        content: readFileSync(path.join(dir, f), 'utf-8'),
+      }));
+    } catch {
+      return [];
+    }
   });
 
   ipcMain.handle('read-project-tree', async (_event, projectPath: string) => {

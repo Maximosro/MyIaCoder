@@ -43,6 +43,7 @@ function App() {
   const [plansPath, setPlansPath] = useState('');
   const [skillsPath, setSkillsPath] = useState('');
   const [promptsPath, setPromptsPath] = useState('');
+  const [templatesPath, setTemplatesPath] = useState('');
   const [clients, setClients] = useState<ClientsConfig>(DEFAULT_CLIENTS);
   const [configOpen, setConfigOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -81,6 +82,7 @@ function App() {
       setPlansPath(s.plansPath);
       setSkillsPath(s.skillsPath || '');
       setPromptsPath(s.promptsPath || '');
+      setTemplatesPath(s.templatesPath || '');
       setClients({ ...DEFAULT_CLIENTS, ...s.clients });
       setTerminalScrollback(s.terminalScrollback ?? 20000);
       setBackgroundMusic(s.backgroundMusic ?? true);
@@ -184,7 +186,7 @@ function App() {
     setAboutOpen(false);
   };
 
-  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newClients: ClientsConfig, newTerminalScrollback: number, newBackgroundMusic: boolean, newUseWsl2Git: boolean, newWslDistro: string) => {
+  const handleSaveConfig = async (newWorkspacePath: string, newPlansPath: string, newSkillsPath: string, newPromptsPath: string, newTemplatesPath: string, newClients: ClientsConfig, newTerminalScrollback: number, newBackgroundMusic: boolean, newUseWsl2Git: boolean, newWslDistro: string) => {
     const currentSettings = await window.electronAPI.getSettings();
     const wslModeChanged = (currentSettings.useWsl2Git ?? false) !== newUseWsl2Git;
     await window.electronAPI.saveSettings({
@@ -193,6 +195,7 @@ function App() {
       plansPath: newPlansPath,
       skillsPath: newSkillsPath,
       promptsPath: newPromptsPath,
+      templatesPath: newTemplatesPath,
       clients: newClients,
       terminalScrollback: newTerminalScrollback,
       backgroundMusic: newBackgroundMusic,
@@ -211,6 +214,7 @@ function App() {
     setPlansPath(newPlansPath);
     setSkillsPath(newSkillsPath);
     setPromptsPath(newPromptsPath);
+    setTemplatesPath(newTemplatesPath);
     setClients(newClients);
     setTerminalScrollback(newTerminalScrollback);
     setBackgroundMusic(newBackgroundMusic);
@@ -221,7 +225,7 @@ function App() {
     setTreeRefreshKey((k) => k + 1);
   };
 
-  const handleCreatePrompt = async (rawName: string) => {
+  const handleCreatePrompt = async (rawName: string, content = '') => {
     if (!promptsPath) return;
     const trimmed = rawName.trim();
     if (!trimmed) return;
@@ -230,12 +234,31 @@ function App() {
     const base = promptsPath.endsWith(sep) ? promptsPath.slice(0, -1) : promptsPath;
     const filePath = `${base}${sep}${name}`;
     try {
-      await window.electronAPI.createFile(filePath, '');
+      await window.electronAPI.createFile(filePath, content);
       setTreeRefreshKey((k) => k + 1);
       await handleFileOpen(filePath);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create prompt';
       console.error('Create prompt failed:', message);
+      setTreeRefreshKey((k) => k + 1);
+    }
+  };
+
+  const handleCreateTemplate = async (rawName: string) => {
+    if (!templatesPath) return;
+    const trimmed = rawName.trim();
+    if (!trimmed) return;
+    const name = /\.md$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+    const sep = templatesPath.includes('\\') ? '\\' : '/';
+    const base = templatesPath.endsWith(sep) ? templatesPath.slice(0, -1) : templatesPath;
+    const filePath = `${base}${sep}${name}`;
+    try {
+      await window.electronAPI.createFile(filePath, '');
+      setTreeRefreshKey((k) => k + 1);
+      await handleFileOpen(filePath);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create template';
+      console.error('Create template failed:', message);
       setTreeRefreshKey((k) => k + 1);
     }
   };
@@ -322,6 +345,7 @@ function App() {
           plansPath={plansPath}
           skillsPath={skillsPath}
           promptsPath={promptsPath}
+          templatesPath={templatesPath}
           treeRefreshKey={treeRefreshKey}
           onSelectProject={handleSelectProject}
           onSearch={() => setSearchOpen(true)}
@@ -334,6 +358,7 @@ function App() {
           onDeleteFile={handleDeleteFile}
           onOpenDiff={handleOpenDiff}
           onCreatePrompt={handleCreatePrompt}
+          onCreateTemplate={handleCreateTemplate}
           onLaunchClaude={() => selectedProject && requestLaunch('claude', false)}
           onLaunchCopilot={() => selectedProject && requestLaunch('copilot', true)}
           onLaunchVscode={handleLaunchVscode}
@@ -377,6 +402,7 @@ function App() {
           plansPath={plansPath}
           skillsPath={skillsPath}
           promptsPath={promptsPath}
+          templatesPath={templatesPath}
           clients={clients}
           terminalScrollback={terminalScrollback}
           backgroundMusic={backgroundMusic}

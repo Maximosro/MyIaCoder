@@ -16,6 +16,7 @@ export interface Settings {
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
+  templatesPath: string;
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
   terminalScrollback: number;
@@ -41,6 +42,7 @@ const DEFAULTS: Settings = {
   plansPath: path.join(HOME, '.claude', 'plans'),
   skillsPath: path.join(HOME, '.claude', 'skills'),
   promptsPath: path.join(HOME, '.claude', 'prompts'),
+  templatesPath: path.join(HOME, '.claude', 'prompt-templates'),
   theme: 'system',
   clients: {
     claude: true,

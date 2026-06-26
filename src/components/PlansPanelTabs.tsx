@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { FolderOpen, RefreshCw, BookOpen, Sparkles, FilePlus } from 'lucide-react';
+import { FolderOpen, RefreshCw, BookOpen, Sparkles, FilePlus, LayoutTemplate, FileBox } from 'lucide-react';
 import type { TreeNode } from '../types/project';
 import { TreeNodeItem } from './TreeNodeItem';
+import { GuidedPromptModal } from './GuidedPromptModal';
 
 type PanelTab = 'plans' | 'skills' | 'prompts';
+type PromptSubTab = 'prompt' | 'template';
 
 interface PlansPanelTabsProps {
   plansTree: TreeNode[];
@@ -18,7 +20,12 @@ interface PlansPanelTabsProps {
   promptsLoading: boolean;
   promptsError: string | null;
   onRefreshPrompts: () => void;
-  onCreatePrompt: (name: string) => void | Promise<void>;
+  templatesTree: TreeNode[];
+  templatesLoading: boolean;
+  templatesError: string | null;
+  onRefreshTemplates: () => void;
+  onCreatePrompt: (name: string, content?: string) => void | Promise<void>;
+  onCreateTemplate: (name: string) => void | Promise<void>;
   onFileClick?: (filePath: string) => void;
   onDeleteFile?: (filePath: string) => void;
 }
@@ -36,13 +43,20 @@ export function PlansPanelTabs({
   promptsLoading,
   promptsError,
   onRefreshPrompts,
+  templatesTree,
+  templatesLoading,
+  templatesError,
+  onRefreshTemplates,
   onCreatePrompt,
+  onCreateTemplate,
   onFileClick,
   onDeleteFile,
 }: PlansPanelTabsProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>('plans');
+  const [promptSubTab, setPromptSubTab] = useState<PromptSubTab>('prompt');
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [guidedOpen, setGuidedOpen] = useState(false);
 
   const tabBaseClass =
     'flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs transition-all duration-300 max-w-[160px] min-w-[80px] shrink border-b-2 font-mono';
@@ -51,21 +65,34 @@ export function PlansPanelTabs({
       ? `${tabBaseClass} border-[#d4784a] text-[#d4784a]`
       : `${tabBaseClass} border-transparent text-[#8b5a3c]/70 hover:text-[#d4784a] hover:border-[#d4784a]/30`;
 
+  const subTabBaseClass =
+    'px-2 py-1 text-[10px] font-mono cursor-pointer transition-all duration-200 border-b';
+  const subTabClass = (isActive: boolean) =>
+    isActive
+      ? `${subTabBaseClass} border-[#d4784a] text-[#d4784a]`
+      : `${subTabBaseClass} border-transparent text-[#8b5a3c]/60 hover:text-[#d4784a]`;
+
   const TABS: Record<PanelTab, {
     label: string;
     Icon: typeof FolderOpen;
-    tree: TreeNode[];
-    loading: boolean;
-    error: string | null;
-    refresh: () => void;
   }> = {
-    plans: { label: '/Plans', Icon: FolderOpen, tree: plansTree, loading: plansLoading, error: plansError, refresh: onRefreshPlans },
-    skills: { label: '/Skills', Icon: BookOpen, tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: onRefreshSkills },
-    prompts: { label: '/Prompt', Icon: Sparkles, tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: onRefreshPrompts },
+    plans: { label: '/Plans', Icon: FolderOpen },
+    skills: { label: '/Skills', Icon: BookOpen },
+    prompts: { label: '/Prompt', Icon: Sparkles },
   };
 
-  const active = TABS[activeTab];
-  const ActiveIcon = active.Icon;
+  // Resolve current tree/loading/error based on active tab + sub-tab
+  const getActiveData = () => {
+    if (activeTab === 'plans') return { tree: plansTree, loading: plansLoading, error: plansError, refresh: onRefreshPlans };
+    if (activeTab === 'skills') return { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: onRefreshSkills };
+    // prompts tab — depends on sub-tab
+    if (promptSubTab === 'template') return { tree: templatesTree, loading: templatesLoading, error: templatesError, refresh: onRefreshTemplates };
+    return { tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: onRefreshPrompts };
+  };
+
+  const active = getActiveData();
+  const activeLabel = activeTab === 'prompts' && promptSubTab === 'template' ? '/Template' : TABS[activeTab].label;
+  const ActiveIcon = activeTab === 'prompts' && promptSubTab === 'template' ? FileBox : TABS[activeTab].Icon;
 
   const switchTab = (tab: PanelTab) => {
     setActiveTab(tab);
@@ -76,7 +103,11 @@ export function PlansPanelTabs({
   const submitCreate = async () => {
     const name = newName.trim();
     if (!name) return;
-    await onCreatePrompt(name);
+    if (activeTab === 'prompts' && promptSubTab === 'template') {
+      await onCreateTemplate(name);
+    } else {
+      await onCreatePrompt(name);
+    }
     setNewName('');
     setCreating(false);
   };
@@ -100,6 +131,18 @@ export function PlansPanelTabs({
         <div className="flex-1" />
       </div>
 
+      {/* Sub-tab bar — only when prompts tab is active */}
+      {activeTab === 'prompts' && (
+        <div className="flex items-center gap-0 px-3 py-0.5 bg-[#070707] border-b border-[#1f1a15]">
+          <button onClick={() => { setPromptSubTab('prompt'); setCreating(false); }} className={subTabClass(promptSubTab === 'prompt')}>
+            /Prompt
+          </button>
+          <button onClick={() => { setPromptSubTab('template'); setCreating(false); }} className={subTabClass(promptSubTab === 'template')}>
+            /Template
+          </button>
+        </div>
+      )}
+
       {/* Active tab content */}
       <div className="flex flex-col min-h-0">
         {/* Header */}
@@ -107,16 +150,26 @@ export function PlansPanelTabs({
           <div className="flex items-center gap-1.5">
             <ActiveIcon className="w-3.5 h-3.5 text-[#d4784a] flex-shrink-0" />
             <span className="text-[10px] font-mono font-semibold text-[#f0ece8] tracking-wider">
-              {active.label}
+              {activeLabel}
             </span>
           </div>
           <div className="flex items-center gap-1">
-            {/* New MD — prompts tab only */}
+            {/* Guided prompt — only on /Prompt sub-tab */}
+            {activeTab === 'prompts' && promptSubTab === 'prompt' && (
+              <button
+                onClick={() => setGuidedOpen(true)}
+                className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a]"
+                title="Guided prompt (template)"
+              >
+                <LayoutTemplate className="w-3 h-3" />
+              </button>
+            )}
+            {/* Create md — visible on prompts tab (both sub-tabs) */}
             {activeTab === 'prompts' && (
               <button
                 onClick={() => setCreating((v) => !v)}
                 className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a]"
-                title="New markdown prompt"
+                title="Create md"
               >
                 <FilePlus className="w-3 h-3" />
               </button>
@@ -125,14 +178,14 @@ export function PlansPanelTabs({
               onClick={active.refresh}
               disabled={active.loading}
               className="p-1 rounded hover:bg-[#0f0f0f] transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a] disabled:opacity-30"
-              title={`Refresh ${active.label} tree`}
+              title={`Refresh ${activeLabel} tree`}
             >
               <RefreshCw className={`w-3 h-3 ${active.loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Inline create row — prompts tab only */}
+        {/* Inline create row — prompts tab (both sub-tabs) */}
         {activeTab === 'prompts' && creating && (
           <div className="flex items-center gap-1.5 px-3 pb-2 animate-fade-in">
             <input
@@ -144,7 +197,7 @@ export function PlansPanelTabs({
                 if (e.key === 'Enter') submitCreate();
                 if (e.key === 'Escape') { setCreating(false); setNewName(''); }
               }}
-              placeholder="nombre.md"
+              placeholder="name.md"
               spellCheck={false}
               className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-2 py-1 text-[11px] font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 transition-all"
             />
@@ -201,6 +254,11 @@ export function PlansPanelTabs({
             ))}
         </div>
       </div>
+      <GuidedPromptModal
+        open={guidedOpen}
+        onClose={() => setGuidedOpen(false)}
+        onCreate={(n, content) => onCreatePrompt(n, content)}
+      />
     </div>
   );
 }

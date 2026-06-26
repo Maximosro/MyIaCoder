@@ -20,7 +20,12 @@ const emptyProps = {
   promptsLoading: false,
   promptsError: null,
   onRefreshPrompts: vi.fn(),
+  templatesTree: [],
+  templatesLoading: false,
+  templatesError: null,
+  onRefreshTemplates: vi.fn(),
   onCreatePrompt: vi.fn(),
+  onCreateTemplate: vi.fn(),
 };
 
 /** Helper: get tab bar buttons by their text content */
@@ -124,11 +129,11 @@ describe('PlansPanelTabs', () => {
     expect(promptsTab.textContent).toContain('/Prompt');
     fireEvent.click(promptsTab);
 
-    const newBtn = document.querySelector('button[title="New markdown prompt"]');
+    const newBtn = document.querySelector('button[title="Create md"]');
     expect(newBtn).not.toBeNull();
     fireEvent.click(newBtn!);
 
-    const input = document.querySelector('input[placeholder="nombre.md"]') as HTMLInputElement;
+    const input = document.querySelector('input[placeholder="name.md"]') as HTMLInputElement;
     expect(input).not.toBeNull();
     fireEvent.change(input, { target: { value: 'idea' } });
     fireEvent.keyDown(input, { key: 'Enter' });

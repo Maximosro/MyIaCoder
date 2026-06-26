@@ -28,6 +28,9 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
   // Suppress activity callbacks for a window after resize to avoid false positives
   // (ptyResize triggers terminal redraw which produces output unrelated to AI activity)
   const suppressActivityUntilRef = useRef(0);
+  // ponytail: xterm clears selection on right-mousedown before contextmenu fires;
+  // capture it early so right-click-to-copy works
+  const lastRightClickSelectionRef = useRef<string>('');
 
   // ── Search bar state ──────────────────────────────────
   const [searchVisible, setSearchVisible] = useState(false);
@@ -105,6 +108,13 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
       term.open(containerRef.current);
       fitAddon.fit();
 
+      // Capture selection on right-mousedown (before xterm clears it)
+      containerRef.current.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.button === 2) {
+          lastRightClickSelectionRef.current = term.getSelection() ?? '';
+        }
+      }, true); // capture phase — fires before xterm's handler
+
       // LigaturesAddon needs the DOM renderer available,
       // so it must be loaded after term.open().
       term.loadAddon(ligaturesAddon);
@@ -141,9 +151,13 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
           term.clearSelection();
           return false; // copied — don't send Ctrl+C (SIGINT) to the PTY
         }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+        // Ctrl+V paste (Ctrl+Shift+V also works — both handled)
+        // ponytail: use term.paste() not raw ptyInput — respects bracketed paste mode
+        // so Copilot/Claude readline receives pasted text correctly wrapped
+        if (e.ctrlKey && (e.key === 'v' || e.key === 'V') && !e.altKey) {
+          e.preventDefault();
           window.electronAPI.clipboardReadText().then((text) => {
-            if (text) window.electronAPI.ptyInput(tab.id, text);
+            if (text) term.paste(text);
           });
           return false;
         }
@@ -238,12 +252,16 @@ export function TerminalTab({ tab, isActive, onActivity, scrollback }: TerminalT
     e.preventDefault();
     const term = terminalRef.current;
     if (!term) return;
-    if (term.hasSelection()) {
-      window.electronAPI.clipboardWriteText(term.getSelection());
+    // Use saved selection (captured before xterm's mousedown clears it)
+    const sel = lastRightClickSelectionRef.current || term.getSelection();
+    if (sel) {
+      window.electronAPI.clipboardWriteText(sel);
       term.clearSelection();
+      lastRightClickSelectionRef.current = '';
     } else {
+      // ponytail: term.paste() wraps with bracketed paste sequences for Copilot/Claude
       window.electronAPI.clipboardReadText().then((text) => {
-        if (text) window.electronAPI.ptyInput(tab.id, text);
+        if (text) term.paste(text);
       });
     }
   }, [tab.id]);

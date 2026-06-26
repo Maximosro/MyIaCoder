@@ -13,6 +13,7 @@ import { DockerComposeModal } from './DockerComposeModal';
 import { usePlansTree } from '../hooks/usePlansTree';
 import { useSkillsTree } from '../hooks/useSkillsTree';
 import { usePromptsTree } from '../hooks/usePromptsTree';
+import { useTemplatesTree } from '../hooks/useTemplatesTree';
 import { useProjectTree } from '../hooks/useProjectTree';
 
 interface SidebarProps {
@@ -24,6 +25,7 @@ interface SidebarProps {
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
+  templatesPath: string;
   treeRefreshKey: number;
   onSelectProject: (project: Project) => void;
   onSearch: () => void;
@@ -35,7 +37,8 @@ interface SidebarProps {
   onFileClick?: (filePath: string) => void;
   onDeleteFile?: (filePath: string) => void;
   onOpenDiff?: (filePath: string) => void;
-  onCreatePrompt: (name: string) => void | Promise<void>;
+  onCreatePrompt: (name: string, content?: string) => void | Promise<void>;
+  onCreateTemplate: (name: string) => void | Promise<void>;
   onLaunchClaude: () => void;
   onLaunchCopilot: () => void;
   onLaunchVscode: () => void;
@@ -59,6 +62,7 @@ export function Sidebar({
   plansPath,
   skillsPath,
   promptsPath,
+  templatesPath,
   treeRefreshKey,
   onSelectProject,
   onSearch,
@@ -71,6 +75,7 @@ export function Sidebar({
   onDeleteFile,
   onOpenDiff,
   onCreatePrompt,
+  onCreateTemplate,
   onLaunchClaude,
   onLaunchCopilot,
   onLaunchVscode,
@@ -87,6 +92,7 @@ export function Sidebar({
   const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath, treeRefreshKey);
   const { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: refreshSkills } = useSkillsTree(treeRefreshKey);
   const { tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: refreshPrompts } = usePromptsTree(promptsPath, treeRefreshKey);
+  const { tree: templatesTree, loading: templatesLoading, error: templatesError, refresh: refreshTemplates } = useTemplatesTree(templatesPath, treeRefreshKey);
   const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath, treeRefreshKey);
   const [activeTab, setActiveTab] = useState<'files' | 'changes' | 'tasks'>('files');
   const [launchMenuOpen, setLaunchMenuOpen] = useState(false);
@@ -647,7 +653,12 @@ export function Sidebar({
         promptsLoading={promptsLoading}
         promptsError={promptsError}
         onRefreshPrompts={refreshPrompts}
+        templatesTree={templatesTree}
+        templatesLoading={templatesLoading}
+        templatesError={templatesError}
+        onRefreshTemplates={refreshTemplates}
         onCreatePrompt={onCreatePrompt}
+        onCreateTemplate={onCreateTemplate}
         onFileClick={onFileClick}
         onDeleteFile={onDeleteFile}
       />

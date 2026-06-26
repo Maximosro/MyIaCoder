@@ -20,6 +20,7 @@ export interface Settings {
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
+  templatesPath: string;
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
   terminalScrollback: number;
@@ -36,11 +37,19 @@ export interface RunConfig {
   useWsl: boolean;
 }
 
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  content: string;
+}
+
 export interface ElectronAPI {
   listProjects: () => Promise<Project[]>;
   readPlansTree: () => Promise<TreeNode[]>;
   readSkillsTree: () => Promise<TreeNode[]>;
   readPromptsTree: () => Promise<TreeNode[]>;
+  readTemplatesTree: () => Promise<TreeNode[]>;
+  readTemplates: () => Promise<PromptTemplate[]>;
   readProjectTree: (projectPath: string) => Promise<TreeNode[]>;
   refreshBranch: (projectPath: string) => Promise<string>;
   wslPrewarm: (projectPath: string) => Promise<void>;
@@ -102,6 +111,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readPlansTree: () => ipcRenderer.invoke('read-plans-tree'),
   readSkillsTree: () => ipcRenderer.invoke('read-skills-tree'),
   readPromptsTree: () => ipcRenderer.invoke('read-prompts-tree'),
+  readTemplatesTree: () => ipcRenderer.invoke('read-templates-tree'),
+  readTemplates: () => ipcRenderer.invoke('read-templates'),
   readProjectTree: (projectPath: string) => ipcRenderer.invoke('read-project-tree', projectPath),
   refreshBranch: (projectPath: string) => ipcRenderer.invoke('refresh-branch', projectPath),
   wslPrewarm: (projectPath: string) => ipcRenderer.invoke('wsl-prewarm', projectPath),

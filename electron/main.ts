@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { PTYManager } from './pty-manager';
@@ -143,6 +143,11 @@ function registerIpcHandlers(): void {
 // ── App Lifecycle ─────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  // ponytail: remove default menu so its Ctrl+C/V accelerators don't swallow
+  // key events before they reach xterm's attachCustomKeyEventHandler (canvas
+  // has no DOM selection, so the native "Copy" accelerator copies nothing).
+  Menu.setApplicationMenu(null);
+
   // PTYManager pushes output to the renderer in real-time via webContents.send.
   // The callback is sandbox-compatible because preload.ts bridges it with
   // ipcRenderer.on + contextBridge (same pattern as window-maximized-changed).
