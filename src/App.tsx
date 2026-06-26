@@ -83,6 +83,7 @@ function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<ProjectPanelTab>('files');
   const [closeActiveTick, setCloseActiveTick] = useState(0);
+  const [closeAllTick, setCloseAllTick] = useState(0);
   const [dockerShortcutTick, setDockerShortcutTick] = useState(0);
   const [gitShortcut, setGitShortcut] = useState<{ action: GitShortcutAction; tick: number }>({ action: 'switchBranch', tick: 0 });
   // Launch trigger: when tick increments, TerminalPanel shows the name prompt.
@@ -198,6 +199,7 @@ function App() {
       const appShortcut =
         (e.ctrlKey && e.key === 'Tab') ||
         (e.ctrlKey && !e.altKey && !e.shiftKey && (key === 'w' || digit !== null)) ||
+        (e.ctrlKey && e.shiftKey && !e.altKey && key === 'w') ||
         (e.ctrlKey && e.shiftKey && key === 'r') ||
         (e.ctrlKey && e.altKey && !e.shiftKey && ((digit !== null && digit <= 5) || key === 'n' || key === 'd')) ||
         (e.altKey && !e.ctrlKey && !e.shiftKey && (key === 'f' || key === 'g' || key === 't' || key === 'b')) ||
@@ -228,6 +230,11 @@ function App() {
       if (e.ctrlKey && !e.shiftKey && !e.altKey && key === 'w') {
         e.preventDefault();
         setCloseActiveTick((t) => t + 1);
+        return;
+      }
+      if (e.ctrlKey && e.shiftKey && !e.altKey && key === 'w') {
+        e.preventDefault();
+        setCloseAllTick((t) => t + 1);
         return;
       }
       if (e.ctrlKey && e.altKey && !e.shiftKey && digit !== null && digit <= 5) {
@@ -512,6 +519,7 @@ function App() {
             activeProject={selectedProject}
             launchTrigger={launchTrigger}
             closeTrigger={closeActiveTick}
+            closeAllTrigger={closeAllTick}
             scrollback={terminalScrollback}
             onOpenTab={handleOpenTab}
             onForceOpenTab={handleForceOpenTab}

@@ -34,6 +34,8 @@ interface TerminalPanelProps {
   launchTrigger: { command?: string; force: boolean; tick: number };
   /** External close-active-tab trigger from App shortcuts. */
   closeTrigger?: number;
+  /** External close-all-tabs trigger from App shortcuts. */
+  closeAllTrigger?: number;
   /** Terminal scrollback lines for new terminal tabs (from settings). */
   scrollback?: number;
 }
@@ -163,6 +165,7 @@ export function TerminalPanel({
   onReorderTabs,
   launchTrigger,
   closeTrigger,
+  closeAllTrigger,
   scrollback,
 }: TerminalPanelProps) {
   const [promptVisible, setPromptVisible] = useState(false);
@@ -218,6 +221,31 @@ export function TerminalPanel({
     setPromptVisible(false);
   };
 
+  // ponytail: close-all queue — sequential close respecting dialogs, cancel stops the queue
+  const closeAllQueueRef = useRef<string[]>([]);
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
+  const onCloseTabRef = useRef(onCloseTab);
+  onCloseTabRef.current = onCloseTab;
+
+  const processCloseAllNext = useCallback(() => {
+    while (closeAllQueueRef.current.length > 0) {
+      const nextId = closeAllQueueRef.current.shift()!;
+      const tab = tabsRef.current.find((t) => t.id === nextId);
+      if (tab) {
+        // ponytail: defer to next tick so React has flushed and refs are fresh
+        if (isTerminalTab(tab)) {
+          setCloseTerminalDialog({ open: true, tabId: tab.id, tabTitle: tab.title });
+        } else if ((isFileTab(tab) || isDiffTab(tab)) && tab.isDirty) {
+          setUnsavedDialog({ open: true, tabId: tab.id, fileName: tab.title });
+        } else {
+          onCloseTabRef.current(tab.id).then(() => processCloseAllNext());
+        }
+        return;
+      }
+    }
+  }, []);
+
   // Close tab: terminal tabs show confirmation dialog; file/diff tabs check for unsaved changes
   const handleCloseTab = (tab: Tab) => {
     if (isTerminalTab(tab)) {
@@ -235,34 +263,54 @@ export function TerminalPanel({
     if (activeTab) handleCloseTab(activeTab);
   }, [closeTrigger]);
 
+  useEffect(() => {
+    if (!closeAllTrigger) return;
+    closeAllQueueRef.current = tabs.map((t) => t.id);
+    processCloseAllNext();
+  }, [closeAllTrigger]);
+
   const handleCloseTerminalConfirm = async () => {
     const tabId = closeTerminalDialog.tabId;
     setCloseTerminalDialog({ open: false, tabId: '', tabTitle: '' });
-    await onCloseTab(tabId);
+    try {
+      await onCloseTabRef.current(tabId);
+    } finally {
+      processCloseAllNext();
+    }
   };
 
   const handleCloseTerminalCancel = () => {
     setCloseTerminalDialog({ open: false, tabId: '', tabTitle: '' });
+    closeAllQueueRef.current = []; // ponytail: cancel stops the queue
   };
 
   const handleUnsavedSave = async () => {
     const tabId = unsavedDialog.tabId;
     setUnsavedDialog({ open: false, tabId: '', fileName: '' });
-    // Use live editor content (ref), not the stale initial content
     const content = editorContentRef.current.get(tabId) ?? getFileContent?.(tabId) ?? '';
     if (content !== undefined) {
       await onSaveFile?.(tabId, content);
     }
-    await onCloseTab(tabId);
+    try {
+      await onCloseTabRef.current(tabId);
+    } finally {
+      processCloseAllNext();
+    }
   };
 
-  const handleUnsavedDiscard = () => {
+  const handleUnsavedDiscard = async () => {
+    const tabId = unsavedDialog.tabId;
     setUnsavedDialog({ open: false, tabId: '', fileName: '' });
-    onCloseTab(unsavedDialog.tabId);
+    try {
+      await onCloseTabRef.current(tabId);
+    } finally {
+      processCloseAllNext();
+    }
   };
 
   const handleUnsavedCancel = () => {
     setUnsavedDialog({ open: false, tabId: '', fileName: '' });
+    closeAllQueueRef.current = []; // ponytail: cancel stops the queue
   };
 
   // ── Drag & drop sensors ────────────────────────────────────
