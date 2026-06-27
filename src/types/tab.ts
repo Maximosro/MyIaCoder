@@ -2,7 +2,7 @@
 
 export type TabKind = 'terminal' | 'file' | 'diff';
 
-export type FileType = 'text' | 'json' | 'markdown' | 'yaml' | 'toml';
+export type FileType = 'text' | 'json' | 'markdown' | 'yaml' | 'toml' | 'xml' | 'properties';
 
 export interface Tab {
   id: string;

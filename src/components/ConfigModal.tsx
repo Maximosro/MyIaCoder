@@ -46,6 +46,9 @@ const SHORTCUTS = [
   ['Ctrl+M', 'Preview/source markdown'],
 ] as const;
 
+// ponytail: 4 tabs — general first, advanced last for WSL.
+type ConfigTab = 'general' | 'paths' | 'terminal' | 'advanced';
+
 export function ConfigModal({ open, workspacePath, plansPath, skillsPath, promptsPath, templatesPath, clients, terminalScrollback, backgroundMusic, useWsl2Git, wslDistro, isOnboarding, onClose, onSave }: ConfigModalProps) {
   const [wp, setWp] = useState(workspacePath);
   const [pp, setPp] = useState(plansPath);
@@ -58,6 +61,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const [wsl2Git, setWsl2Git] = useState(useWsl2Git);
   const [distro, setDistro] = useState(wslDistro);
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<ConfigTab>('general');
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -130,7 +134,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
       onClick={handleBackdropClick}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in"
     >
-      <div className="w-[480px] max-h-[90vh] bg-[#0a0a0a] border border-[#1f1a15] rounded-lg shadow-2xl shadow-[#d4784a]/5 flex flex-col animate-scale-in">
+      <div className="w-[480px] bg-[#0a0a0a] border border-[#1f1a15] rounded-lg shadow-2xl shadow-[#d4784a]/5 flex flex-col animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1f1a15]">
           <div className="flex items-center gap-2.5">
@@ -149,274 +153,308 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
           )}
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-[#1f1a15] px-5">
+          {(['general', 'paths', 'terminal', 'advanced'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2.5 text-[11px] font-mono tracking-widest uppercase transition-colors ${
+                tab === t
+                  ? 'text-[#d4784a] border-b-2 border-[#d4784a] -mb-px'
+                  : 'text-[#8b5a3c] hover:text-[#d4784a]/70'
+              }`}
+            >
+              {t === 'general' ? 'GENERAL' : t === 'paths' ? 'PATHS' : t === 'terminal' ? 'TERMINAL' : 'ADVANCED'}
+            </button>
+          ))}
+        </div>
+
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-          {/* Workspace Path */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Workspace Path
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={wp}
-                onChange={(e) => setWp(e.target.value)}
-                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
-                placeholder="C:\Workspace"
-                spellCheck={false}
-              />
-              <button
-                onClick={handleBrowseWorkspace}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                BROWSE
-              </button>
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Root folder scanned for projects with .git directories
-            </p>
-          </div>
+        {/* ponytail: fixed height keeps modal stable across tabs */}
+        <div className="h-[60vh] overflow-y-auto px-5 py-5 space-y-5">
+          {tab === 'paths' && (
+            <>
+              {/* Workspace Path */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Workspace Path
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={wp}
+                    onChange={(e) => setWp(e.target.value)}
+                    className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="C:\Workspace"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={handleBrowseWorkspace}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    BROWSE
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Root folder scanned for projects with .git directories
+                </p>
+              </div>
 
-          {/* Plans Path */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Plans Path
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={pp}
-                onChange={(e) => setPp(e.target.value)}
-                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
-                placeholder="C:\Users\...\.claude\plans"
-                spellCheck={false}
-              />
-              <button
-                onClick={handleBrowsePlans}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                BROWSE
-              </button>
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Folder containing .claude/plans structure for the plans tree
-            </p>
-          </div>
+              {/* Plans Path */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Plans Path
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={pp}
+                    onChange={(e) => setPp(e.target.value)}
+                    className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="C:\Users\...\.claude\plans"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={handleBrowsePlans}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    BROWSE
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Folder containing .claude/plans structure for the plans tree
+                </p>
+              </div>
 
-          {/* Skills Path */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Skills Path
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={sp}
-                onChange={(e) => setSp(e.target.value)}
-                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
-                placeholder="C:\Users\...\.claude\skills"
-                spellCheck={false}
-              />
-              <button
-                onClick={handleBrowseSkills}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                BROWSE
-              </button>
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Folder containing .claude/skills structure for the skills tree
-            </p>
-          </div>
+              {/* Skills Path */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Skills Path
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={sp}
+                    onChange={(e) => setSp(e.target.value)}
+                    className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="C:\Users\...\.claude\skills"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={handleBrowseSkills}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    BROWSE
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Folder containing .claude/skills structure for the skills tree
+                </p>
+              </div>
 
-          {/* Prompts Path */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Prompts Path
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={prp}
-                onChange={(e) => setPrp(e.target.value)}
-                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
-                placeholder="C:\Users\...\.claude\prompts"
-                spellCheck={false}
-              />
-              <button
-                onClick={handleBrowsePrompts}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                BROWSE
-              </button>
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Folder where markdown prompts are created and listed
-            </p>
-          </div>
+              {/* Prompts Path */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Prompts Path
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={prp}
+                    onChange={(e) => setPrp(e.target.value)}
+                    className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="C:\Users\...\.claude\prompts"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={handleBrowsePrompts}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    BROWSE
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Folder where markdown prompts are created and listed
+                </p>
+              </div>
 
-          {/* Templates Path */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Templates Path
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={tp}
-                onChange={(e) => setTp(e.target.value)}
-                className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
-                placeholder="C:\Users\...\.claude\prompt-templates"
-                spellCheck={false}
-              />
-              <button
-                onClick={handleBrowseTemplates}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                BROWSE
-              </button>
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Folder with .md template files for guided prompts
-            </p>
-          </div>
+              {/* Templates Path */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Templates Path
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={tp}
+                    onChange={(e) => setTp(e.target.value)}
+                    className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="C:\Users\...\.claude\prompt-templates"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={handleBrowseTemplates}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    BROWSE
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Folder with .md template files for guided prompts
+                </p>
+              </div>
+            </>
+          )}
 
-          {/* Clients */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Clients
-            </label>
-            <div className="space-y-1.5">
-              {CLIENT_LABELS.map(({ key, label, supportLevel }) => (
-                <label
-                  key={key}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all"
-                >
+          {tab === 'terminal' && (
+            <>
+              {/* Clients */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Clients
+                </label>
+                <div className="space-y-1.5">
+                  {CLIENT_LABELS.map(({ key, label, supportLevel }) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={cl[key]}
+                        onChange={(e) => setCl((prev) => ({ ...prev, [key]: e.target.checked }))}
+                        className="accent-[#d4784a] w-3.5 h-3.5"
+                      />
+                      <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
+                        {label}
+                        {supportLevel === 'limited' && (
+                          <span className="ml-1.5 text-[9px] font-mono text-[#8b5a3c] bg-[#0f0f0f] border border-[#1f1a15] rounded px-1.5 py-px align-middle">
+                            LIMITED
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Disabled clients are hidden from the project launch menu. The Tasks tab is hidden when both Claude and Copilot are off.
+                </p>
+              </div>
+
+              {/* Terminal Scrollback */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Terminal Scrollback
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1000}
+                    max={100000}
+                    step={1000}
+                    value={scrollback}
+                    onChange={(e) => setScrollback(Number(e.target.value))}
+                    className="flex-1 accent-[#d4784a] h-1.5"
+                  />
+                  <span className="text-xs font-mono text-[#d4784a] min-w-[60px] text-right tabular-nums">
+                    {scrollback.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[9px] font-mono text-[#4a2a1a]">
+                  <span>1K</span>
+                  <span>100K</span>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Lines of scrollback history per terminal tab. Higher values use more RAM.
+                </p>
+              </div>
+            </>
+          )}
+
+          {tab === 'general' && (
+            <>
+              {/* Background Music */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Audio
+                </label>
+                <label className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all">
                   <input
                     type="checkbox"
-                    checked={cl[key]}
-                    onChange={(e) => setCl((prev) => ({ ...prev, [key]: e.target.checked }))}
+                    checked={bgMusic}
+                    onChange={(e) => setBgMusic(e.target.checked)}
                     className="accent-[#d4784a] w-3.5 h-3.5"
                   />
                   <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
-                    {label}
-                    {supportLevel === 'limited' && (
-                      <span className="ml-1.5 text-[9px] font-mono text-[#8b5a3c] bg-[#0f0f0f] border border-[#1f1a15] rounded px-1.5 py-px align-middle">
-                        LIMITED
-                      </span>
-                    )}
+                    Background Music
                   </span>
                 </label>
-              ))}
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Disabled clients are hidden from the project launch menu. The Tasks tab is hidden when both Claude and Copilot are off.
-            </p>
-          </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Play ambient focus music on startup
+                </p>
+              </div>
 
-          {/* Terminal Scrollback */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Terminal Scrollback
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={1000}
-                max={100000}
-                step={1000}
-                value={scrollback}
-                onChange={(e) => setScrollback(Number(e.target.value))}
-                className="flex-1 accent-[#d4784a] h-1.5"
-              />
-              <span className="text-xs font-mono text-[#d4784a] min-w-[60px] text-right tabular-nums">
-                {scrollback.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-[#4a2a1a]">
-              <span>1K</span>
-              <span>100K</span>
-            </div>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Lines of scrollback history per terminal tab. Higher values use more RAM.
-            </p>
-          </div>
-
-          {/* Shortcuts */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Shortcuts
-            </label>
-            <div className="rounded bg-[#050505] border border-[#1f1a15] divide-y divide-[#1f1a15]/70">
-              {SHORTCUTS.map(([keys, action]) => (
-                <div key={keys} className="flex items-center gap-3 px-3 py-1.5">
-                  <kbd className="min-w-[150px] text-[10px] font-mono text-[#d4784a] bg-[#0f0f0f] border border-[#1f1a15] rounded px-1.5 py-0.5">
-                    {keys}
-                  </kbd>
-                  <span className="text-[10px] font-mono text-[#b0a89a]">
-                    {action}
-                  </span>
+              {/* Shortcuts */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Shortcuts
+                </label>
+                <div className="rounded bg-[#050505] border border-[#1f1a15] divide-y divide-[#1f1a15]/70">
+                  {SHORTCUTS.map(([keys, action]) => (
+                    <div key={keys} className="flex items-center gap-3 px-3 py-1.5">
+                      <kbd className="min-w-[150px] text-[10px] font-mono text-[#d4784a] bg-[#0f0f0f] border border-[#1f1a15] rounded px-1.5 py-0.5">
+                        {keys}
+                      </kbd>
+                      <span className="text-[10px] font-mono text-[#b0a89a]">
+                        {action}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
 
-          {/* Background Music */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Audio
-            </label>
-            <label className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all">
-              <input
-                type="checkbox"
-                checked={bgMusic}
-                onChange={(e) => setBgMusic(e.target.checked)}
-                className="accent-[#d4784a] w-3.5 h-3.5"
-              />
-              <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
-                Background Music
-              </span>
-            </label>
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              Play ambient focus music on startup
-            </p>
-          </div>
-
-          {/* Git via WSL2 */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
-              Git Backend
-            </label>
-            <label className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all">
-              <input
-                type="checkbox"
-                checked={wsl2Git}
-                onChange={(e) => setWsl2Git(e.target.checked)}
-                className="accent-[#d4784a] w-3.5 h-3.5"
-              />
-              <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
-                Git via WSL2
-              </span>
-            </label>
-            {wsl2Git && (
-              <input
-                type="text"
-                value={distro}
-                onChange={(e) => setDistro(e.target.value)}
-                className="w-full bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
-                placeholder="Ubuntu"
-                spellCheck={false}
-              />
-            )}
-            <p className="text-[10px] text-[#4a2a1a] font-mono">
-              When enabled, git runs inside WSL2 (wsl -d &lt;distro&gt; git ...) against the project at /mnt/c/... instead of native Windows git. Changing this restarts the app.
-            </p>
-          </div>
+          {tab === 'advanced' && (
+            <>
+              {/* Git via WSL2 */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  Git Backend
+                </label>
+                <label className="flex items-center gap-2.5 px-3 py-2 rounded bg-[#050505] border border-[#1f1a15] hover:border-[#d4784a]/30 cursor-pointer transition-all">
+                  <input
+                    type="checkbox"
+                    checked={wsl2Git}
+                    onChange={(e) => setWsl2Git(e.target.checked)}
+                    className="accent-[#d4784a] w-3.5 h-3.5"
+                  />
+                  <span className="text-xs font-mono text-[#f0ece8] tracking-wider">
+                    Git via WSL2
+                  </span>
+                </label>
+                {wsl2Git && (
+                  <input
+                    type="text"
+                    value={distro}
+                    onChange={(e) => setDistro(e.target.value)}
+                    className="w-full bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="Ubuntu"
+                    spellCheck={false}
+                  />
+                )}
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  When enabled, git runs inside WSL2 (wsl -d &lt;distro&gt; git ...) against the project at /mnt/c/... instead of native Windows git. Changing this restarts the app.
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}

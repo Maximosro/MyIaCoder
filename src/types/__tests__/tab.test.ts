@@ -47,6 +47,22 @@ describe('getFileType', () => {
     expect(getFileType('CONFIG.TOML')).toBe('toml');
   });
 
+  it('.xml → xml', () => {
+    expect(getFileType('pom.xml')).toBe('xml');
+  });
+
+  it('.XML → xml (case insensitive)', () => {
+    expect(getFileType('POM.XML')).toBe('xml');
+  });
+
+  it('.properties → properties', () => {
+    expect(getFileType('application.properties')).toBe('properties');
+  });
+
+  it('.PROPERTIES → properties (case insensitive)', () => {
+    expect(getFileType('APPLICATION.PROPERTIES')).toBe('properties');
+  });
+
   it('.yml → yaml', () => {
     expect(getFileType('config.yml')).toBe('yaml');
   });
@@ -98,6 +114,18 @@ describe('getTabColorClass', () => {
     expect(cls).toContain('#4ab8b8');
     expect(cls).toContain('text-[');
   });
+
+  it('xml returns pink classes', () => {
+    const cls = getTabColorClass('xml');
+    expect(cls).toContain('#c47ba0');
+    expect(cls).toContain('text-[');
+  });
+
+  it('properties returns sand classes', () => {
+    const cls = getTabColorClass('properties');
+    expect(cls).toContain('#a89060');
+    expect(cls).toContain('text-[');
+  });
 });
 
 // ── getTabColorHex ────────────────────────────────────────────
@@ -108,6 +136,8 @@ describe('getTabColorHex', () => {
   it('markdown → #e05555', () => expect(getTabColorHex('markdown')).toBe('#e05555'));
   it('yaml → #d4a44a', () => expect(getTabColorHex('yaml')).toBe('#d4a44a'));
   it('toml → #4ab8b8', () => expect(getTabColorHex('toml')).toBe('#4ab8b8'));
+  it('xml → #c47ba0', () => expect(getTabColorHex('xml')).toBe('#c47ba0'));
+  it('properties → #a89060', () => expect(getTabColorHex('properties')).toBe('#a89060'));
 });
 
 // ── Type guards ───────────────────────────────────────────────
@@ -171,13 +201,15 @@ describe('isTerminalTab', () => {
 // ── SUPPORTED_EXTENSIONS ──────────────────────────────────────
 
 describe('SUPPORTED_EXTENSIONS', () => {
-  it('contains .txt, .json, .md, .yaml, .yml, .toml', () => {
+  it('contains .txt, .json, .md, .yaml, .yml, .toml, .xml, .properties', () => {
     expect(SUPPORTED_EXTENSIONS.has('.txt')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.json')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.md')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.yaml')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.yml')).toBe(true);
     expect(SUPPORTED_EXTENSIONS.has('.toml')).toBe(true);
+    expect(SUPPORTED_EXTENSIONS.has('.xml')).toBe(true);
+    expect(SUPPORTED_EXTENSIONS.has('.properties')).toBe(true);
   });
 
   it('does not contain .ts', () => {

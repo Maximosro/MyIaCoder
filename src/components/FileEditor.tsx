@@ -58,6 +58,11 @@ function mapFileTypeToLanguage(fileType: FileType): string {
       return 'yaml';
     case 'toml':
       return 'toml';
+    case 'xml':
+      return 'xml';
+    case 'properties':
+      // ponytail: ini is closest Monaco built-in for key=value + # comments
+      return 'ini';
   }
 }
 
@@ -73,6 +78,10 @@ function getFileTypeBadge(fileType: FileType): { label: string; className: strin
       return { label: 'YAML', className: 'bg-[#1a140a] text-[#d4a44a] border-[#d4a44a]/30' };
     case 'toml':
       return { label: 'TOML', className: 'bg-[#0a1515] text-[#4ab8b8] border-[#4ab8b8]/30' };
+    case 'xml':
+      return { label: 'XML', className: 'bg-[#150a12] text-[#c47ba0] border-[#c47ba0]/30' };
+    case 'properties':
+      return { label: 'PROP', className: 'bg-[#12100a] text-[#a89060] border-[#a89060]/30' };
   }
 }
 
