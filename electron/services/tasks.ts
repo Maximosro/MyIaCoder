@@ -101,8 +101,11 @@ const REASONIX_SESSIONS_ROOT = path.join(getReasonixDataDir(), 'sessions');
  *  call whose name is in this set is an agent dispatch (shown as a subagent),
  *  everything else is a plain tool invocation.
  *  ponytail: fixed builtin set from the reasonix binary; extend if new
- *  runAs=subagent skills are added. */
-const REASONIX_SUBAGENT_TOOLS = new Set(['explore', 'research', 'review', 'securityReview', 'task']);
+ *  runAs=subagent skills are added.  Last synced: v1.13.0. */
+const REASONIX_SUBAGENT_TOOLS = new Set([
+  'explore', 'research', 'review', 'security_review', 'task',
+  'read_only_task', 'read_only_skill', 'parallel_tasks',
+]);
 
 /**
  * Tracks which project paths have open Reasonix terminal tabs and when the

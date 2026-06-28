@@ -4,7 +4,7 @@ import { parseReasonixEvents } from '../tasks';
 // A real Reasonix ≥ 1.8.0 session transcript JSONL: one subagent dispatch
 // (`explore`), one plain tool call (`read_file`), and one unknown tool
 // (`ls`).  Only subagent dispatches (explore, research, review,
-// securityReview, task) are shown in the panel — regular tools like
+// security_review, task, read_only_task, read_only_skill, parallel_tasks) are shown in the panel — regular tools like
 // read_file, bash, glob, etc. are implementation details of the main agent
 // and are skipped.
 const TRANSCRIPT = [
