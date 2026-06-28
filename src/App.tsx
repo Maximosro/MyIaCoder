@@ -123,23 +123,43 @@ function App() {
     });
   }, []);
 
-  const handleSelectProject = (project: Project) => {
+  // Shared side-effects when the active project changes:
+  // sessionRecent, persisted recent-5, WSL prewarm.
+  // Called by both handleSelectProject (sidebar) and handleSelectTab (tab click).
+  const syncProjectSelection = useCallback((project: Project) => {
     setSelectedProject(project);
-    // Track opened project: session list (most-recent-first) drives "Recent Opened";
-    // persisted last-5 orders the rest of the list across sessions.
     setSessionRecent((prev) => [project.path, ...prev.filter((p) => p !== project.path)]);
     const nextRecent = [project.path, ...recentPersisted.filter((p) => p !== project.path)].slice(0, 5);
     setRecentPersisted(nextRecent);
     window.electronAPI.getSettings().then((currentSettings) => {
       window.electronAPI.saveSettings({ ...currentSettings, recentProjects: nextRecent });
     });
-    // WSL git mode: spin up the persistent session for this project so the
-    // first status/commit/push reuses it instead of spawning wsl each time.
     if (useWsl2Git) {
       window.electronAPI.wslPrewarm(project.path);
     }
+  }, [recentPersisted, useWsl2Git]);
+
+  // Tab selection wrapper: activates the tab AND switches the sidebar project
+  // when the tab belongs to a real project different from the current one.
+  // Plans/skills/prompts tabs are excluded in practice because their
+  // projectPath (the file's parent directory) won't match a workspace project.
+  const handleSelectTab = useCallback((tabId: string) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    setActiveTab(tabId);
+    if (tab.projectPath === selectedProject?.path) return;
+    const project = projects.find((p) => p.path === tab.projectPath);
+    if (project) {
+      syncProjectSelection(project);
+    }
+  }, [setActiveTab, tabs, selectedProject, projects, syncProjectSelection]);
+
+  const handleSelectProject = (project: Project) => {
+    syncProjectSelection(project);
     const existingTab = tabs.find((t) => t.projectPath === project.path);
     if (existingTab) {
+      // Use setActiveTab directly — do NOT go through handleSelectTab,
+      // otherwise syncProjectSelection would fire twice for the same project.
       setActiveTab(existingTab.id);
     }
   };
@@ -181,8 +201,8 @@ function App() {
   const selectRelativeTab = useCallback((delta: number) => {
     if (!tabs.length) return;
     const current = Math.max(0, tabs.findIndex((t) => t.id === activeTabId));
-    setActiveTab(tabs[(current + delta + tabs.length) % tabs.length].id);
-  }, [activeTabId, setActiveTab, tabs]);
+    handleSelectTab(tabs[(current + delta + tabs.length) % tabs.length].id);
+  }, [activeTabId, handleSelectTab, tabs]);
 
   const triggerGitShortcut = useCallback((action: GitShortcutAction) => {
     if (!selectedProject) return;
@@ -246,7 +266,7 @@ function App() {
       if (e.ctrlKey && !e.altKey && !e.shiftKey && digit !== null) {
         e.preventDefault();
         const tab = tabs[digit - 1];
-        if (tab) setActiveTab(tab.id);
+        if (tab) handleSelectTab(tab.id);
         return;
       }
       if (e.key === 'F5') {
@@ -288,7 +308,7 @@ function App() {
 
     window.addEventListener('keydown', handleKey, true);
     return () => window.removeEventListener('keydown', handleKey, true);
-  }, [activeTabId, clients, refreshAll, selectedProject, selectRelativeTab, setActiveTab, tabs, triggerGitShortcut, runTab]);
+  }, [activeTabId, clients, refreshAll, selectedProject, selectRelativeTab, handleSelectTab, tabs, triggerGitShortcut, runTab]);
 
   const handleConfirmRunCommand = async (command: string, useWsl: boolean) => {
     if (!selectedProject) return;
@@ -524,7 +544,7 @@ function App() {
             onOpenTab={handleOpenTab}
             onForceOpenTab={handleForceOpenTab}
             onCloseTab={closeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={handleSelectTab}
             onSaveFile={handleSaveFile}
             onFileDirtyChange={handleFileDirtyChange}
             getFileContent={getFileContent}
