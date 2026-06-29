@@ -5,7 +5,10 @@ import type { Tab, FileType } from '../types/tab';
 import { isFileTab } from '../types/tab';
 import * as monaco from 'monaco-editor';
 import { useDictation } from '../hooks/useDictation';
+import { useSpeech } from '../hooks/useSpeech';
+import { mdToSpeech } from '../utils/mdToSpeech';
 import { MicButton } from './MicButton';
+import { SpeakButton } from './SpeakButton';
 import { CurateModal } from './CurateModal';
 
 // ── Monaco initialization (synchronous, must run before Editor mounts) ──
@@ -141,6 +144,20 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
     else startListening();
   }, [isListening, startListening, stopListening]);
 
+  // ── Text-to-speech (Flujo 3) ──
+  const { isSpeaking, isLoading: speechLoading, isSupported: speechSupported, error: speechError, speak, stop: stopSpeech } = useSpeech();
+  const toggleSpeech = useCallback(() => {
+    if (isSpeaking || speechLoading) {
+      stopSpeech();
+      return;
+    }
+    // Read the current selection if there is one, else the whole document.
+    const editor = editorRef.current;
+    const sel = editor?.getSelection();
+    const selected = sel && !sel.isEmpty() ? editor?.getModel()?.getValueInRange(sel) : '';
+    speak(mdToSpeech(selected || content));
+  }, [isSpeaking, speechLoading, stopSpeech, speak, content]);
+
   // ── AI curator (Flujo 2) ──
   const [hasGroqKey, setHasGroqKey] = useState(false);
   const [curateOpen, setCurateOpen] = useState(false);
@@ -227,11 +244,14 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && key === 'v') {
         e.preventDefault();
         toggleDictation();
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && key === 'r' && tab.fileType === 'markdown') {
+        e.preventDefault();
+        toggleSpeech();
       }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [readOnly, isDirty, handleSave, toggleReadOnly, tab.fileType, toggleDictation]);
+  }, [readOnly, isDirty, handleSave, toggleReadOnly, tab.fileType, toggleDictation, toggleSpeech]);
 
   // Insert each newly-recognized dictation chunk (the delta of finalText) at the
   // cursor. Monaco fires onChange for these edits, so dirty/content track automatically.
@@ -397,6 +417,17 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
           error={voiceError}
           onToggle={toggleDictation}
         />
+
+        {/* Text-to-speech (read aloud) — markdown only */}
+        {tab.fileType === 'markdown' && (
+          <SpeakButton
+            isSpeaking={isSpeaking}
+            isLoading={speechLoading}
+            isSupported={speechSupported}
+            error={speechError}
+            onToggle={toggleSpeech}
+          />
+        )}
 
         {/* Read-only toggle */}
         <button

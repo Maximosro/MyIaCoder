@@ -20,6 +20,11 @@ let splashWindow: BrowserWindow | null = null;
 let disposeTasksWatcher: (() => void) | null = null;
 let ptyManager: PTYManager;
 
+// TTS (Flujo 3) plays synthesized audio after an async round-trip, so the
+// play() call lands outside the click gesture. The webPreferences autoplayPolicy
+// is unreliable; the command-line switch is the documented, dependable way.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 // Lightweight splash shown instantly while the main window loads in the
 // background. Inlined as a data URL so no extra file needs bundling/copying.
 const SPLASH_HTML = `<!DOCTYPE html>
@@ -95,6 +100,9 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // TTS (Flujo 3) plays synthesized audio after an async round-trip, so the
+      // play() call lands outside the click gesture; allow it without re-gesture.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
 

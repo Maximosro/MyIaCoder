@@ -1,6 +1,6 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
-import { existsSync, appendFileSync } from 'node:fs';
+import { existsSync, appendFileSync, readdirSync } from 'node:fs';
 import { app } from 'electron';
 
 /**
@@ -92,11 +92,29 @@ function sidecarCommand(): { cmd: string; args: string[] } {
 function sidecarEnv(): NodeJS.ProcessEnv {
   if (app.isPackaged) {
     const modelDir = path.join(process.resourcesPath, 'voice', 'model');
+    const env: NodeJS.ProcessEnv = { ...process.env };
     if (existsSync(modelDir)) {
-      return { ...process.env, VOICE_MODEL: modelDir };
+      env.VOICE_MODEL = modelDir;
     }
+    // Point Piper at the bundled es-ES voice so TTS works fully offline.
+    const ttsDir = path.join(process.resourcesPath, 'voice', 'tts');
+    const voice = existsSync(ttsDir) ? findOnnx(ttsDir) : null;
+    if (voice) {
+      env.VOICE_TTS_MODEL = voice;
+    }
+    return env;
   }
   return process.env;
+}
+
+/** First *.onnx file in a folder (the bundled Piper voice). */
+function findOnnx(dir: string): string | null {
+  try {
+    const onnx = readdirSync(dir).find((f) => f.endsWith('.onnx'));
+    return onnx ? path.join(dir, onnx) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -176,6 +194,24 @@ export async function transcribe(audio: Buffer, mimeType = 'audio/webm'): Promis
     throw new Error(data.error || `Transcribe failed (HTTP ${res.status})`);
   }
   return data.text ?? '';
+}
+
+/**
+ * Synthesizes text to speech (Flujo 3). Lazily starts the sidecar, POSTs the
+ * text, and returns the WAV audio bytes produced by the Piper voice.
+ */
+export async function synthesize(text: string): Promise<Buffer> {
+  const port = await startVoiceSidecar();
+  const res = await fetch(`http://127.0.0.1:${port}/synthesize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || `Synthesize failed (HTTP ${res.status})`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }
 
 /** True once the sidecar process is running. */

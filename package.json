@@ -9,6 +9,7 @@
     "build:electron": "npm run build:python && npm run rebuild:sqlite && npm run build && electron-builder --win",
     "build:python": "powershell -ExecutionPolicy Bypass -File scripts/build-embedded-python.ps1",
     "build:model": "py scripts/prepare_model.py small sidecar-dist/model",
+    "build:tts": "py scripts/prepare_tts_voice.py es_AR-daniela-high sidecar-dist/tts",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "rebuild:sqlite": "cd node_modules/better-sqlite3 && node ../prebuild-install/bin.js -r electron -t 35.7.5 --arch x64"

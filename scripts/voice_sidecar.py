@@ -13,6 +13,7 @@ Protocol:
 Run "python voice_sidecar.py --selftest" for a dependency-free self-check.
 """
 
+import io
 import os
 import sys
 import tempfile
@@ -23,13 +24,23 @@ import tempfile
 MODEL_NAME = os.environ.get("VOICE_MODEL", "small")
 LANG = os.environ.get("VOICE_LANG", "es")
 
+# Flujo 3 — texto a voz (TTS). Path to a Piper voice .onnx (its .onnx.json must
+# sit next to it). Bundled offline in packaged builds via VOICE_TTS_MODEL.
+TTS_MODEL = os.environ.get("VOICE_TTS_MODEL", "")
+# ponytail: Piper's default cadence (1.0) is the natural pace; >1 slows it down,
+# <1 speeds it up. Override with VOICE_TTS_LENGTH.
+TTS_LENGTH_SCALE = float(os.environ.get("VOICE_TTS_LENGTH", "1.0"))
+
 _model = None
+_tts_voice = None
 # The CTranslate2 model is not thread-safe and is CPU-bound; serialize requests
 # so concurrent chunks queue instead of thrashing the CPU (which makes each one
 # slower and builds an unbounded backlog).
 import threading
 
 _model_lock = threading.Lock()
+# Piper's onnx voice is likewise not thread-safe and CPU-bound — its own lock.
+_tts_lock = threading.Lock()
 
 
 def get_model():
@@ -79,14 +90,50 @@ def transcribe_file(path: str) -> str:
         return "".join(seg.text for seg in segments).strip()
 
 
+def get_tts_voice():
+    """Lazy-load the Piper voice once. The config (.onnx.json) is auto-derived
+    from the model path. espeak-ng phoneme data ships inside the piper wheel, so
+    this works fully offline."""
+    global _tts_voice
+    if _tts_voice is None:
+        if not TTS_MODEL:
+            raise RuntimeError("VOICE_TTS_MODEL no configurado (ruta al .onnx de Piper).")
+        if not os.path.isfile(TTS_MODEL):
+            raise RuntimeError(f"Voz Piper no encontrada en {TTS_MODEL}")
+        from piper import PiperVoice
+
+        _tts_voice = PiperVoice.load(TTS_MODEL)
+    return _tts_voice
+
+
+def synthesize_wav(text: str) -> bytes:
+    """Synthesize text to a WAV byte string (with header). Serialized via a lock
+    because the Piper voice is not thread-safe and CPU-bound."""
+    import wave
+
+    from piper import SynthesisConfig
+
+    with _tts_lock:
+        voice = get_tts_voice()
+        cfg = SynthesisConfig(length_scale=TTS_LENGTH_SCALE)
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wav_file:
+            voice.synthesize_wav(text, wav_file, syn_config=cfg)
+        return buf.getvalue()
+
+
 def build_app():
-    from flask import Flask, jsonify, request
+    from flask import Flask, Response, jsonify, request
 
     app = Flask(__name__)
 
     @app.get("/health")
     def health():
-        return jsonify(status="ok", model_loaded=_model is not None)
+        return jsonify(
+            status="ok",
+            model_loaded=_model is not None,
+            tts_loaded=_tts_voice is not None,
+        )
 
     @app.post("/transcribe")
     def transcribe():
@@ -109,6 +156,18 @@ def build_app():
             except OSError:
                 pass
 
+    @app.post("/synthesize")
+    def synthesize():
+        data = request.get_json(silent=True) or {}
+        text = (data.get("text") or "").strip()
+        if not text:
+            return jsonify(error="missing 'text' field"), 400
+        try:
+            wav = synthesize_wav(text)
+            return Response(wav, mimetype="audio/wav")
+        except Exception as exc:  # noqa: BLE001 — surface any load/synthesize error
+            return jsonify(error=str(exc)), 500
+
     return app
 
 
@@ -116,8 +175,14 @@ def serve():
     """Bind to an ephemeral port, announce it on stdout, then serve."""
     from werkzeug.serving import make_server
 
-    # Warm the model before announcing the port so the first /transcribe is fast.
-    get_model()
+    # Warm whisper in the background so the port is announced immediately and a
+    # TTS-only caller isn't blocked on the (heavy) STT model load. Guarded by
+    # _model_lock so it can't race a concurrent /transcribe into a double-load.
+    def _warm_model():
+        with _model_lock:
+            get_model()
+
+    threading.Thread(target=_warm_model, daemon=True).start()
     app = build_app()
     srv = make_server("127.0.0.1", 0, app, threaded=True)
     print(f"PORT {srv.server_port}", flush=True)
@@ -125,9 +190,9 @@ def serve():
 
 
 def selftest() -> int:
-    """Generate a tiny silent WAV, run it through the pipeline, and assert the
-    transcribe path returns a string. The smallest check that fails if the
-    model load or decode path breaks."""
+    """Run a tiny silent WAV through transcribe, and (if a Piper voice is
+    configured) synthesize a short phrase. The smallest check that fails if the
+    STT or TTS load/decode path breaks."""
     import struct
     import wave
 
@@ -141,7 +206,13 @@ def selftest() -> int:
             w.writeframes(struct.pack("<" + "h" * 16000, *([0] * 16000)))  # 1s silence
         text = transcribe_file(tmp.name)
         assert isinstance(text, str), f"expected str, got {type(text)}"
-        print(f"selftest OK (model={MODEL_NAME}, text={text!r})")
+        print(f"selftest STT OK (model={MODEL_NAME}, text={text!r})")
+        if TTS_MODEL and os.path.isfile(TTS_MODEL):
+            wav = synthesize_wav("Hola, esto es una prueba.")
+            assert wav[:4] == b"RIFF", f"expected WAV bytes, got {wav[:4]!r}"
+            print(f"selftest TTS OK (voice={TTS_MODEL}, bytes={len(wav)})")
+        else:
+            print("selftest TTS skipped (VOICE_TTS_MODEL not set)")
         return 0
     finally:
         try:

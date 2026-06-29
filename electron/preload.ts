@@ -104,6 +104,7 @@ export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   relaunchApp: () => Promise<void>;
   voiceTranscribe: (audio: ArrayBuffer, mimeType: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
+  voiceSynthesize: (text: string) => Promise<{ ok: true; audio: ArrayBuffer } | { ok: false; error: string }>;
   voiceStatus: () => Promise<{ running: boolean }>;
   curate: (text: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
   onPtyData: (callback: (tabId: string, data: string) => void) => () => void;
@@ -192,6 +193,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   relaunchApp: () => ipcRenderer.invoke('app-relaunch'),
   voiceTranscribe: (audio: ArrayBuffer, mimeType: string) => ipcRenderer.invoke('voice:transcribe', audio, mimeType),
+  voiceSynthesize: (text: string) => ipcRenderer.invoke('voice:synthesize', text),
   voiceStatus: () => ipcRenderer.invoke('voice:status'),
   curate: (text: string) => ipcRenderer.invoke('curate:run', text),
 } satisfies ElectronAPI);

@@ -4,3 +4,7 @@
 # Python bundled under resources/voice/ (target machine needs no Python).
 faster-whisper>=1.0.0
 flask>=3.0.0
+# Flujo 3 — texto a voz (TTS). Piper: voces neuronales es-ES, offline, CPU.
+# piper-tts arrastra onnxruntime; lo fijamos explícito por claridad del bundle.
+piper-tts>=1.4.0
+onnxruntime>=1.17.0

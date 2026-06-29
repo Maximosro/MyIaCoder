@@ -11,6 +11,8 @@
 
   Output: sidecar-dist/python/  (python.exe + Lib/site-packages + deps)
           sidecar-dist/voice_sidecar.py
+          sidecar-dist/model/        (whisper STT model)
+          sidecar-dist/tts/          (Piper es-ES voice)
 
   electron-builder copies sidecar-dist/** into resources/voice/ in the installer.
 #>
@@ -55,6 +57,11 @@ Copy-Item scripts/voice_sidecar.py (Join-Path (Split-Path $Dest -Parent) "voice_
 $modelDir = Join-Path (Split-Path $Dest -Parent) "model"
 Write-Host "==> Preparing whisper model into $modelDir"
 & "$Dest/python.exe" scripts/prepare_model.py small $modelDir
+
+# Materialize the Piper TTS voice (Flujo 3) using the embedded Python.
+$ttsDir = Join-Path (Split-Path $Dest -Parent) "tts"
+Write-Host "==> Preparing Piper TTS voice into $ttsDir"
+& "$Dest/python.exe" scripts/prepare_tts_voice.py es_AR-daniela-high $ttsDir
 
 $sizeMb = [math]::Round((Get-ChildItem $Dest -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 0)
 Write-Host "==> Embedded Python ready at $Dest ($sizeMb MB)"
