@@ -1,0 +1,6 @@
+# Voice STT sidecar dependencies (Flujo 1 — dictado).
+# Dev: pip install -r scripts/requirements.txt
+# Installer: scripts/build-embedded-python.ps1 installs these into an embedded
+# Python bundled under resources/voice/ (target machine needs no Python).
+faster-whisper>=1.0.0
+flask>=3.0.0

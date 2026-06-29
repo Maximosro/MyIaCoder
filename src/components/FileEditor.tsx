@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Editor, loader } from '@monaco-editor/react';
-import { Lock, LockOpen, Save, Eye, EyeOff } from 'lucide-react';
+import { Lock, LockOpen, Save, Eye, EyeOff, Sparkles } from 'lucide-react';
 import type { Tab, FileType } from '../types/tab';
 import { isFileTab } from '../types/tab';
 import * as monaco from 'monaco-editor';
+import { useDictation } from '../hooks/useDictation';
+import { MicButton } from './MicButton';
+import { CurateModal } from './CurateModal';
 
 // ── Monaco initialization (synchronous, must run before Editor mounts) ──
 
@@ -128,6 +131,49 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
   const [saving, setSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
 
+  // ── Voice dictation (Flujo 1) ──
+  const { isListening, isSupported, interimText, finalText, error: voiceError, startListening, stopListening } = useDictation();
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const insertedRef = useRef('');
+  const ghostRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const toggleDictation = useCallback(() => {
+    if (isListening) stopListening();
+    else startListening();
+  }, [isListening, startListening, stopListening]);
+
+  // ── AI curator (Flujo 2) ──
+  const [hasGroqKey, setHasGroqKey] = useState(false);
+  const [curateOpen, setCurateOpen] = useState(false);
+  const [curateLoading, setCurateLoading] = useState(false);
+  const [curatedText, setCuratedText] = useState('');
+  const [curateError, setCurateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.electronAPI.getSettings().then((s) => setHasGroqKey(!!s.groqApiKey?.trim()));
+  }, [curateOpen]);
+
+  const runCurate = useCallback(async () => {
+    setCurateOpen(true);
+    setCurateLoading(true);
+    setCurateError(null);
+    setCuratedText('');
+    const res = await window.electronAPI.curate(content);
+    if (res.ok) setCuratedText(res.text);
+    else setCurateError(res.error);
+    setCurateLoading(false);
+  }, [content]);
+
+  const applyCurate = useCallback(() => {
+    const editor = editorRef.current;
+    if (editor && curatedText) {
+      const model = editor.getModel();
+      if (model) {
+        editor.executeEdits('curate', [{ range: model.getFullModelRange(), text: curatedText }]);
+      }
+    }
+    setCurateOpen(false);
+  }, [curatedText]);
+
   // Reset state when tab changes
   useEffect(() => {
     setContent(initialContent);
@@ -178,11 +224,47 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
       } else if ((e.ctrlKey || e.metaKey) && !e.altKey && key === 'm' && tab.fileType === 'markdown') {
         e.preventDefault();
         setPreviewMode((p) => !p);
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && key === 'v') {
+        e.preventDefault();
+        toggleDictation();
       }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [readOnly, isDirty, handleSave, toggleReadOnly, tab.fileType]);
+  }, [readOnly, isDirty, handleSave, toggleReadOnly, tab.fileType, toggleDictation]);
+
+  // Insert each newly-recognized dictation chunk (the delta of finalText) at the
+  // cursor. Monaco fires onChange for these edits, so dirty/content track automatically.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || finalText === insertedRef.current) return;
+    const delta = finalText.slice(insertedRef.current.length);
+    insertedRef.current = finalText;
+    if (!delta) return;
+    const pos = editor.getPosition();
+    if (!pos) return;
+    editor.executeEdits('voice', [
+      { range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column), text: delta, forceMoveMarkers: true },
+    ]);
+  }, [finalText]);
+
+  // Ghost "…" hint at the cursor while a chunk is being transcribed.
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (!interimText) {
+      ghostRef.current?.clear();
+      return;
+    }
+    const pos = editor.getPosition();
+    if (!pos) return;
+    const deco: monaco.editor.IModelDeltaDecoration = {
+      range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+      options: { after: { content: ` ${interimText}`, inlineClassName: 'voice-ghost' } },
+    };
+    if (!ghostRef.current) ghostRef.current = editor.createDecorationsCollection([deco]);
+    else ghostRef.current.set([deco]);
+  }, [interimText]);
 
   const badge = getFileTypeBadge(tab.fileType);
   const language = mapFileTypeToLanguage(tab.fileType);
@@ -296,6 +378,26 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
           </button>
         )}
 
+        {/* AI curator — only when a Groq key is configured */}
+        {hasGroqKey && (
+          <button
+            onClick={runCurate}
+            disabled={!content.trim() || curateLoading}
+            className="p-1 rounded transition-all duration-200 text-[#8b5a3c] hover:text-[#d4784a] hover:bg-[#0f0f0f] disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Curar dictado con IA (✨)"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Voice dictation toggle */}
+        <MicButton
+          isListening={isListening}
+          isSupported={isSupported}
+          error={voiceError}
+          onToggle={toggleDictation}
+        />
+
         {/* Read-only toggle */}
         <button
           onClick={toggleReadOnly}
@@ -365,6 +467,7 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
             });
           }}
           onMount={(editor, monaco) => {
+            editorRef.current = editor;
             // ponytail: disable Monaco's command palette shortcuts; app owns shortcuts.
             editor.addCommand(monaco.KeyCode.F1, () => null);
             editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => null);
@@ -390,6 +493,16 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
         />
         )}
       </div>
+
+      <CurateModal
+        open={curateOpen}
+        original={content}
+        curated={curatedText}
+        loading={curateLoading}
+        error={curateError}
+        onApply={applyCurate}
+        onClose={() => setCurateOpen(false)}
+      />
     </div>
   );
 }

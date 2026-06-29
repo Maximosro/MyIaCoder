@@ -60,6 +60,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const [bgMusic, setBgMusic] = useState(backgroundMusic);
   const [wsl2Git, setWsl2Git] = useState(useWsl2Git);
   const [distro, setDistro] = useState(wslDistro);
+  const [groqKey, setGroqKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<ConfigTab>('general');
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -76,6 +77,8 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
       setBgMusic(backgroundMusic);
       setWsl2Git(useWsl2Git);
       setDistro(wslDistro);
+      // groqApiKey isn't a prop — read it straight from settings.
+      window.electronAPI.getSettings().then((s) => setGroqKey(s.groqApiKey || ''));
     }
   }, [open, workspacePath, plansPath, skillsPath, promptsPath, templatesPath, clients, terminalScrollback, backgroundMusic, useWsl2Git, wslDistro]);
 
@@ -117,6 +120,10 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Persist the Groq key first; onSave (App) re-reads settings and spreads,
+      // so this survives without threading through its long signature.
+      const s = await window.electronAPI.getSettings();
+      await window.electronAPI.saveSettings({ ...s, groqApiKey: groqKey.trim() });
       await onSave(wp, pp, sp, prp, tp, cl, scrollback, bgMusic, wsl2Git, distro.trim() || 'Ubuntu');
       onClose();
     } finally {
@@ -451,6 +458,25 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
                 )}
                 <p className="text-[10px] text-[#4a2a1a] font-mono">
                   When enabled, git runs inside WSL2 (wsl -d &lt;distro&gt; git ...) against the project at /mnt/c/... instead of native Windows git. Changing this restarts the app.
+                </p>
+              </div>
+
+              {/* AI curator (Groq) */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  IA · Curador de dictado
+                </label>
+                <input
+                  type="password"
+                  value={groqKey}
+                  onChange={(e) => setGroqKey(e.target.value)}
+                  className="w-full bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                  placeholder="Groq API key (gsk_...)"
+                  spellCheck={false}
+                  autoComplete="off"
+                />
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  Clave de Groq (gratis en console.groq.com) para el botón ✨ que cura el dictado. Sin clave, el botón no aparece. Se guarda en settings.json en claro.
                 </p>
               </div>
             </>

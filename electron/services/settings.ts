@@ -24,6 +24,8 @@ export interface Settings {
   onboardingComplete: boolean;
   useWsl2Git: boolean;
   wslDistro: string;
+  /** Groq API key for the AI dictation curator (Flujo 2). Empty = curator off. */
+  groqApiKey: string;
   /** Per-project run command + shell, keyed by absolute project path. */
   runConfigs: Record<string, RunConfig>;
   /** Up to 5 most-recently-opened project paths, most-recent-first. */
@@ -56,6 +58,7 @@ const DEFAULTS: Settings = {
   onboardingComplete: false,
   useWsl2Git: false,
   wslDistro: 'Ubuntu',
+  groqApiKey: '',
   runConfigs: {},
   recentProjects: [],
 };

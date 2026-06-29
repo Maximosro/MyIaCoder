@@ -481,3 +481,18 @@ body {
   background: #0a0a0a;
   padding: 0.5rem;
 }
+
+/* ── Voice dictation: pulsing mic while recording ───────── */
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.15); }
+}
+.mic-active {
+  color: #e05555;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+/* Monaco ghost text shown while a dictation chunk is transcribing */
+.voice-ghost {
+  color: #6a5c4c;
+  font-style: italic;
+}

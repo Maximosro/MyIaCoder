@@ -3,6 +3,9 @@ dist/
 dist-electron/
 release/
 out/
+sidecar-dist/
+build/
+__pycache__/
 *.tsbuildinfo
 *.toml
 *.md

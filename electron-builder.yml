@@ -7,6 +7,14 @@ files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
+# Voice STT sidecar: embedded Python + deps + whisper model, built into
+# sidecar-dist/ by build:python + build:model. Lands under resources/voice/
+# (python/, model/, voice_sidecar.py) — target machine needs no Python, no internet.
+extraResources:
+  - from: sidecar-dist
+    to: voice
+    filter:
+      - "**/*"
 # node-pty ships N-API prebuilds; skip the from-source rebuild (no VS toolchain).
 # better-sqlite3 prebuilds are Node-ABI only, so build:electron runs the
 # `rebuild:sqlite` script first to fetch the matching Electron-ABI binary.

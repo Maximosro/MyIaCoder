@@ -9,6 +9,9 @@ import { registerPtyIpc } from './ipc/pty.ipc';
 import { registerWindowIpc } from './ipc/window.ipc';
 import { registerTasksIpc } from './ipc/tasks.ipc';
 import { registerDockerIpc } from './ipc/docker.ipc';
+import { registerVoiceIpc } from './ipc/voice.ipc';
+import { registerAiIpc } from './ipc/ai.ipc';
+import { stopVoiceSidecar } from './services/voice';
 import { closeAllSessions } from './services/wsl-session';
 import { loadSettings } from './services/settings';
 
@@ -138,6 +141,8 @@ function registerIpcHandlers(): void {
   registerWindowIpc(getWindow);
   disposeTasksWatcher = registerTasksIpc(getWindow);
   registerDockerIpc();
+  registerVoiceIpc();
+  registerAiIpc();
 }
 
 // ── App Lifecycle ─────────────────────────────────────────────
@@ -172,6 +177,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   ptyManager.killAll();
   disposeTasksWatcher?.();
+  stopVoiceSidecar();
   closeAllSessions();
   // Stop Docker on exit so it doesn't linger — only if WSL is enabled in config.
   // Surgical: stops just the daemon, not the whole WSL. Needs the NOPASSWD sudoers rule.

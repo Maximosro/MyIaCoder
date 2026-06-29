@@ -28,6 +28,7 @@ export interface Settings {
   onboardingComplete: boolean;
   useWsl2Git: boolean;
   wslDistro: string;
+  groqApiKey: string;
   runConfigs: Record<string, RunConfig>;
   recentProjects: string[];
 }
@@ -102,6 +103,9 @@ export interface ElectronAPI {
   onTasksChanged: (callback: () => void) => () => void;
   getAppVersion: () => Promise<string>;
   relaunchApp: () => Promise<void>;
+  voiceTranscribe: (audio: ArrayBuffer, mimeType: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
+  voiceStatus: () => Promise<{ running: boolean }>;
+  curate: (text: string) => Promise<{ ok: true; text: string } | { ok: false; error: string }>;
   onPtyData: (callback: (tabId: string, data: string) => void) => () => void;
   onPtyExit: (callback: (tabId: string, exitCode: number) => void) => () => void;
 }
@@ -187,4 +191,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   relaunchApp: () => ipcRenderer.invoke('app-relaunch'),
+  voiceTranscribe: (audio: ArrayBuffer, mimeType: string) => ipcRenderer.invoke('voice:transcribe', audio, mimeType),
+  voiceStatus: () => ipcRenderer.invoke('voice:status'),
+  curate: (text: string) => ipcRenderer.invoke('curate:run', text),
 } satisfies ElectronAPI);
