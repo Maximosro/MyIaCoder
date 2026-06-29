@@ -3,7 +3,7 @@ be bundled into the installer (shipped offline, no first-run download).
 
 Usage (from repo root, run by the `build:tts` npm script):
     python scripts/prepare_tts_voice.py [voice] [output_dir]
-Defaults: voice="es_AR-daniela-high", output_dir="sidecar-dist/tts".
+Defaults: voice="es_ES-davefx-medium", output_dir="sidecar-dist/tts".
 
 Downloads <voice>.onnx and <voice>.onnx.json from HuggingFace
 rhasspy/piper-voices. At runtime the sidecar is pointed at the .onnx via
@@ -27,7 +27,7 @@ def voice_url_path(voice: str) -> str:
 
 
 def main() -> int:
-    voice = sys.argv[1] if len(sys.argv) > 1 else "es_AR-daniela-high"
+    voice = sys.argv[1] if len(sys.argv) > 1 else "es_ES-davefx-medium"
     output_dir = Path(sys.argv[2] if len(sys.argv) > 2 else "sidecar-dist/tts")
     output_dir.mkdir(parents=True, exist_ok=True)
 

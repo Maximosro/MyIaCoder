@@ -61,7 +61,7 @@ Write-Host "==> Preparing whisper model into $modelDir"
 # Materialize the Piper TTS voice (Flujo 3) using the embedded Python.
 $ttsDir = Join-Path (Split-Path $Dest -Parent) "tts"
 Write-Host "==> Preparing Piper TTS voice into $ttsDir"
-& "$Dest/python.exe" scripts/prepare_tts_voice.py es_AR-daniela-high $ttsDir
+& "$Dest/python.exe" scripts/prepare_tts_voice.py es_ES-davefx-medium $ttsDir
 
 $sizeMb = [math]::Round((Get-ChildItem $Dest -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 0)
 Write-Host "==> Embedded Python ready at $Dest ($sizeMb MB)"
