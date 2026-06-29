@@ -49,5 +49,12 @@ Write-Host "==> Installing sidecar requirements (real wheels, native libs intact
 # Ship the sidecar script alongside the interpreter.
 Copy-Item scripts/voice_sidecar.py (Join-Path (Split-Path $Dest -Parent) "voice_sidecar.py") -Force
 
+# Materialize the whisper model using THIS embedded Python (has faster-whisper),
+# so the build never depends on a system Python (which on Windows is often the
+# broken Microsoft Store alias).
+$modelDir = Join-Path (Split-Path $Dest -Parent) "model"
+Write-Host "==> Preparing whisper model into $modelDir"
+& "$Dest/python.exe" scripts/prepare_model.py small $modelDir
+
 $sizeMb = [math]::Round((Get-ChildItem $Dest -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 0)
 Write-Host "==> Embedded Python ready at $Dest ($sizeMb MB)"
