@@ -7,6 +7,3 @@ sidecar-dist/
 build/
 __pycache__/
 *.tsbuildinfo
-*.toml
-*.md
-!landing/

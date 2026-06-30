@@ -12,10 +12,7 @@ import { TasksTree } from './TasksTree';
 import { SessionsPanel } from './SessionsPanel';
 import { ContainersModal } from './ContainersModal';
 import { DockerComposeModal } from './DockerComposeModal';
-import { usePlansTree } from '../hooks/usePlansTree';
-import { useSkillsTree } from '../hooks/useSkillsTree';
-import { usePromptsTree } from '../hooks/usePromptsTree';
-import { useTemplatesTree } from '../hooks/useTemplatesTree';
+import { useTree } from '../hooks/useTree';
 import { useProjectTree } from '../hooks/useProjectTree';
 
 export type ProjectPanelTab = 'files' | 'changes' | 'tasks' | 'sessions';
@@ -106,10 +103,10 @@ export function Sidebar({
   clients,
   hideBranch,
 }: SidebarProps) {
-  const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = usePlansTree(plansPath, treeRefreshKey);
-  const { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: refreshSkills } = useSkillsTree(treeRefreshKey);
-  const { tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: refreshPrompts } = usePromptsTree(promptsPath, treeRefreshKey);
-  const { tree: templatesTree, loading: templatesLoading, error: templatesError, refresh: refreshTemplates } = useTemplatesTree(templatesPath, treeRefreshKey);
+  const { tree, loading: plansLoading, error: plansError, refresh: refreshPlans } = useTree(() => window.electronAPI.readPlansTree(), [plansPath, treeRefreshKey], 'Failed to load RPI plans tree');
+  const { tree: skillsTree, loading: skillsLoading, error: skillsError, refresh: refreshSkills } = useTree(() => window.electronAPI.readSkillsTree(), [treeRefreshKey], 'Failed to load skills tree');
+  const { tree: promptsTree, loading: promptsLoading, error: promptsError, refresh: refreshPrompts } = useTree(() => window.electronAPI.readPromptsTree(), [promptsPath, treeRefreshKey], 'Failed to load prompts tree');
+  const { tree: templatesTree, loading: templatesLoading, error: templatesError, refresh: refreshTemplates } = useTree(() => window.electronAPI.readTemplatesTree(), [templatesPath, treeRefreshKey], 'Failed to load templates tree');
   const { tree: projectTree, loading: projectTreeLoading } = useProjectTree(selectedPath, treeRefreshKey);
   const [localActiveTab, setLocalActiveTab] = useState<ProjectPanelTab>('files');
   const [launchMenuOpen, setLaunchMenuOpen] = useState(false);

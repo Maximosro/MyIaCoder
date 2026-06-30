@@ -91,10 +91,7 @@ ai-code-manager/
 │   │   ├── useProjectTree.ts  # File tree for selected project
 │   │   ├── useGitChanges.ts   # Git status for selected project
 │   │   ├── useTasks.ts        # Live task discovery from CLI agents
-│   │   ├── usePlansTree.ts    # Plans directory tree
-│   │   ├── useSkillsTree.ts   # Skills directory tree
-│   │   ├── usePromptsTree.ts  # Prompts directory tree
-│   │   └── useTemplatesTree.ts # Templates directory tree
+│   │   └── useTree.ts         # Generic directory-tree hook (plans, skills, prompts, templates)
 │   ├── types/
 │   │   ├── project.ts         # Project, TreeNode, GitChange, Settings
 │   │   ├── tab.ts             # Tab (terminal | file | diff) + type guards

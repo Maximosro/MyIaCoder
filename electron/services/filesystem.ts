@@ -1,4 +1,4 @@
-import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, rmdirSync, statSync, mkdirSync } from 'node:fs';
+import { readdirSync, existsSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
 export interface Project {
@@ -101,39 +101,13 @@ export function readFileContent(filePath: string): string {
 
 /**
  * Deletes a file or directory (recursively).
- * Auto-detects type and delegates to unlinkSync or rmdirSync.
- * Throws if the path does not exist or is inaccessible.
+ * Throws if the path does not exist.
  */
 export function deleteEntry(entryPath: string): void {
   if (!existsSync(entryPath)) {
     throw new Error(`Path not found: ${entryPath}`);
   }
-  const stats = statSync(entryPath);
-  if (stats.isDirectory()) {
-    deleteDirectory(entryPath);
-  } else {
-    unlinkSync(entryPath);
-  }
-}
-
-/**
- * Recursively deletes a directory and all its contents.
- * Throws if the path does not exist or is inaccessible.
- */
-export function deleteDirectory(dirPath: string): void {
-  if (!existsSync(dirPath)) {
-    throw new Error(`Directory not found: ${dirPath}`);
-  }
-  const entries = readdirSync(dirPath, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      deleteDirectory(fullPath);
-    } else {
-      unlinkSync(fullPath);
-    }
-  }
-  rmdirSync(dirPath);
+  rmSync(entryPath, { recursive: true, force: true });
 }
 
 /**
