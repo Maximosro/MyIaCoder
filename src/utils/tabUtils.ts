@@ -27,24 +27,24 @@ export function getFileType(fileName: string): FileType | null {
   }
 }
 
+const FILE_TYPE_COLORS: Record<FileType, string> = {
+  text: '#6ba86b',
+  json: '#7b9ec4',
+  markdown: '#e05555',
+  yaml: '#d4a44a',
+  toml: '#4ab8b8',
+  xml: '#c47ba0',
+  properties: '#a89060',
+};
+
+/** Returns a hex color string for the file type (used for icons, indicators). */
+export function getTabColorHex(fileType: FileType): string {
+  return FILE_TYPE_COLORS[fileType];
+}
+
 /** Returns Tailwind text class for the tab accent color. */
 export function getTabColorClass(fileType: FileType): string {
-  switch (fileType) {
-    case 'text':
-      return 'text-[#6ba86b]';
-    case 'json':
-      return 'text-[#7b9ec4]';
-    case 'markdown':
-      return 'text-[#e05555]';
-    case 'yaml':
-      return 'text-[#d4a44a]';
-    case 'toml':
-      return 'text-[#4ab8b8]';
-    case 'xml':
-      return 'text-[#c47ba0]';
-    case 'properties':
-      return 'text-[#a89060]';
-  }
+  return `text-[${FILE_TYPE_COLORS[fileType]}]`;
 }
 
 // ponytail: single source of truth for command colors
@@ -63,30 +63,5 @@ export function getCommandColor(command?: string): string {
       return '#b0a89a';
     default:
       return '#d4784a'; // claude + unknown fallback
-  }
-}
-
-/** Returns a Tailwind text class for a terminal command's accent color. */
-export function getCommandColorClass(command?: string): string {
-  return `text-[${getCommandColor(command)}]`;
-}
-
-/** Returns a hex color string for the file type (used for icons, indicators). */
-export function getTabColorHex(fileType: FileType): string {
-  switch (fileType) {
-    case 'text':
-      return '#6ba86b';
-    case 'json':
-      return '#7b9ec4';
-    case 'markdown':
-      return '#e05555';
-    case 'yaml':
-      return '#d4a44a';
-    case 'toml':
-      return '#4ab8b8';
-    case 'xml':
-      return '#c47ba0';
-    case 'properties':
-      return '#a89060';
   }
 }

@@ -13,12 +13,7 @@ function generateTabId(): string {
 interface UseTabsReturn {
   tabs: Tab[];
   activeTabId: string | null;
-  /** @deprecated Use openTerminalTab instead */
-  openTab: (project: Project, title: string, command?: string) => Promise<void>;
-  /** @deprecated Use forceOpenTerminalTab instead */
-  forceOpenTab: (project: Project, title: string, command?: string) => Promise<void>;
   openTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
-  forceOpenTerminalTab: (project: Project, title: string, command?: string) => Promise<void>;
   /** Open a terminal tab that runs the project's persisted run command. Returns the tab id. */
   openRunTab: (project: Project, command: string, useWsl: boolean) => Promise<string>;
   openFileTab: (project: Project, filePath: string, unlocked?: boolean) => Promise<string>;
@@ -46,23 +41,6 @@ export function useTabs(): UseTabsReturn {
   // ── Terminal tabs ──────────────────────────────────────────
 
   const openTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
-    const tabId = generateTabId();
-    const newTab: Tab = {
-      id: tabId,
-      kind: 'terminal',
-      projectName: project.name,
-      projectPath: project.path,
-      title,
-      command,
-    };
-
-    setTabs((prev) => [...prev, newTab]);
-    setActiveTabId(tabId);
-
-    await window.electronAPI.ptySpawn(tabId, project.path, command, title);
-  }, []);
-
-  const forceOpenTerminalTab = useCallback(async (project: Project, title: string, command?: string) => {
     const tabId = generateTabId();
     const newTab: Tab = {
       id: tabId,
@@ -322,10 +300,7 @@ export function useTabs(): UseTabsReturn {
   return {
     tabs,
     activeTabId,
-    openTab: openTerminalTab,
-    forceOpenTab: forceOpenTerminalTab,
     openTerminalTab,
-    forceOpenTerminalTab,
     openRunTab,
     openFileTab,
     openDiffTab,

@@ -8,7 +8,7 @@ import { DiffViewer } from './DiffViewer';
 import { TranscriptViewer } from './TranscriptViewer';
 import type { Tab } from '../types/tab';
 import { isFileTab, isDiffTab, isTerminalTab, isSessionTab } from '../types/tab';
-import { getTabColorClass, getCommandColor, getCommandColorClass } from '../utils/tabUtils';
+import { getTabColorClass, getCommandColor } from '../utils/tabUtils';
 import type { Project } from '../types/project';
 import { ProjectInfo } from './ProjectInfo';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -101,7 +101,7 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
     ? 'text-[#d4a44a]'
     : file
       ? getTabColorClass(tab.fileType)
-      : getCommandColorClass(tab.command);
+      : `text-[${getCommandColor(tab.command)}]`;
 
   const session = isSessionTab(tab);
 

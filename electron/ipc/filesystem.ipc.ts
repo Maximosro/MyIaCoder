@@ -12,7 +12,7 @@ import {
   deleteEntry,
   ensureProjectTodos,
 } from '../services/filesystem';
-import { getGitBranchAsync } from '../services/git';
+import { getGitBranch } from '../services/git';
 import { loadSettings } from '../services/settings';
 import type { Settings } from '../services/settings';
 
@@ -40,7 +40,7 @@ export function registerFilesystemIpc(getWindow: () => BrowserWindow | null): vo
   ): Promise<void> {
     for (const project of projects) {
       if (generation !== branchLoadGeneration) return; // superseded by a refresh
-      const branch = await getGitBranchAsync(project.path);
+      const branch = await getGitBranch(project.path);
       if (generation !== branchLoadGeneration) return;
       getWindow()?.webContents.send('project-branch-loaded', { path: project.path, branch });
     }

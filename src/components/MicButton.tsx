@@ -1,4 +1,5 @@
 import { Mic, AlertTriangle } from 'lucide-react';
+import { VoiceToggleButton } from './VoiceToggleButton';
 
 interface MicButtonProps {
   isListening: boolean;
@@ -8,13 +9,10 @@ interface MicButtonProps {
 }
 
 /**
- * Toolbar dictation toggle for the FileEditor. Renders nothing when the
- * platform can't record audio. Pulses red while listening; shows the error
- * state when transcription/permission fails.
+ * Toolbar dictation toggle for the FileEditor. Pulses red while listening;
+ * shows the error state when transcription/permission fails.
  */
 export function MicButton({ isListening, isSupported, error, onToggle }: MicButtonProps) {
-  if (!isSupported) return null;
-
   const title = error
     ? `Dictation error: ${error === 'not-allowed' ? 'microphone permission denied' : error}`
     : isListening
@@ -22,24 +20,19 @@ export function MicButton({ isListening, isSupported, error, onToggle }: MicButt
       : 'Dictate (Ctrl+Shift+V)';
 
   return (
-    <button
-      onClick={onToggle}
+    <VoiceToggleButton
+      active={isListening}
+      error={error}
+      isSupported={isSupported}
+      onToggle={onToggle}
       title={title}
-      aria-label={title}
-      aria-pressed={isListening}
-      className={`p-1 rounded transition-all duration-200 ${
-        isListening
-          ? 'mic-active bg-[#1f1a15]/50'
-          : error
-            ? 'text-[#e05555] hover:bg-[#0f0f0f]'
-            : 'text-[#8b5a3c] hover:text-[#d4784a] hover:bg-[#0f0f0f]'
-      }`}
+      activeClass="mic-active bg-[#1f1a15]/50"
     >
       {error && !isListening ? (
         <AlertTriangle className="w-3.5 h-3.5" />
       ) : (
         <Mic className="w-3.5 h-3.5" />
       )}
-    </button>
+    </VoiceToggleButton>
   );
 }

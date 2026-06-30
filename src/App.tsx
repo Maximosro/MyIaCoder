@@ -45,8 +45,7 @@ function App() {
   const {
     tabs,
     activeTabId,
-    openTab,
-    forceOpenTab,
+    openTerminalTab,
     openRunTab,
     openFileTab,
     openSessionTab,
@@ -415,12 +414,10 @@ function App() {
     }
   };
 
+  // ponytail: "open" and "force open" are currently identical; one handler wired
+  // to both props until/if they diverge.
   const handleOpenTab = (project: Project, title: string, command?: string) => {
-    openTab(project, title, command);
-  };
-
-  const handleForceOpenTab = (project: Project, title: string, command?: string) => {
-    forceOpenTab(project, title, command);
+    openTerminalTab(project, title, command);
   };
 
   const handleFileOpen = async (filePath: string) => {
@@ -551,7 +548,7 @@ function App() {
             closeAllTrigger={closeAllTick}
             scrollback={terminalScrollback}
             onOpenTab={handleOpenTab}
-            onForceOpenTab={handleForceOpenTab}
+            onForceOpenTab={handleOpenTab}
             onCloseTab={closeTab}
             onSelectTab={handleSelectTab}
             onSaveFile={handleSaveFile}

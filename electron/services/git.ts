@@ -92,9 +92,6 @@ export async function getGitBranch(projectPath: string): Promise<string> {
   }
 }
 
-/** Alias kept for the background branch loader. */
-export const getGitBranchAsync = getGitBranch;
-
 /**
  * Returns all files that have changed in the working tree compared to HEAD,
  * including staged, unstaged, and untracked files.

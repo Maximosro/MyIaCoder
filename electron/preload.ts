@@ -115,6 +115,13 @@ export interface ElectronAPI {
   onPtyExit: (callback: (tabId: string, exitCode: number) => void) => () => void;
 }
 
+/** Subscribe to an ipcRenderer channel; returns an unsubscribe function. */
+function subscribe<A extends unknown[]>(channel: string, callback: (...args: A) => void): () => void {
+  const handler = (_event: Electron.IpcRendererEvent, ...args: A) => callback(...args);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   listProjects: () => ipcRenderer.invoke('list-projects'),
   readPlansTree: () => ipcRenderer.invoke('read-plans-tree'),
@@ -172,31 +179,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowClose: () => ipcRenderer.invoke('window-close'),
   clipboardWriteText: (text: string) => ipcRenderer.invoke('clipboard-write', text),
   clipboardReadText: () => ipcRenderer.invoke('clipboard-read'),
-  onMaximizedChanged: (callback: (isMaximized: boolean) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, isMaximized: boolean) => callback(isMaximized);
-    ipcRenderer.on('window-maximized-changed', handler);
-    return () => ipcRenderer.removeListener('window-maximized-changed', handler);
-  },
-  onProjectBranchLoaded: (callback: (data: { path: string; branch: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { path: string; branch: string }) => callback(data);
-    ipcRenderer.on('project-branch-loaded', handler);
-    return () => ipcRenderer.removeListener('project-branch-loaded', handler);
-  },
-  onTasksChanged: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on('tasks-changed', handler);
-    return () => ipcRenderer.removeListener('tasks-changed', handler);
-  },
-  onPtyData: (callback: (tabId: string, data: string) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, tabId: string, data: string) => callback(tabId, data);
-    ipcRenderer.on('pty-data', handler);
-    return () => ipcRenderer.removeListener('pty-data', handler);
-  },
-  onPtyExit: (callback: (tabId: string, exitCode: number) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, tabId: string, exitCode: number) => callback(tabId, exitCode);
-    ipcRenderer.on('pty-exit', handler);
-    return () => ipcRenderer.removeListener('pty-exit', handler);
-  },
+  onMaximizedChanged: (callback: (isMaximized: boolean) => void) =>
+    subscribe('window-maximized-changed', callback),
+  onProjectBranchLoaded: (callback: (data: { path: string; branch: string }) => void) =>
+    subscribe('project-branch-loaded', callback),
+  onTasksChanged: (callback: () => void) => subscribe('tasks-changed', callback),
+  onPtyData: (callback: (tabId: string, data: string) => void) =>
+    subscribe('pty-data', callback),
+  onPtyExit: (callback: (tabId: string, exitCode: number) => void) =>
+    subscribe('pty-exit', callback),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   relaunchApp: () => ipcRenderer.invoke('app-relaunch'),
   voiceTranscribe: (audio: ArrayBuffer, mimeType: string) => ipcRenderer.invoke('voice:transcribe', audio, mimeType),
