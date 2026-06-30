@@ -8,6 +8,7 @@ import { registerSettingsIpc } from './ipc/settings.ipc';
 import { registerPtyIpc } from './ipc/pty.ipc';
 import { registerWindowIpc } from './ipc/window.ipc';
 import { registerTasksIpc } from './ipc/tasks.ipc';
+import { registerSessionsIpc } from './ipc/sessions.ipc';
 import { registerDockerIpc } from './ipc/docker.ipc';
 import { registerVoiceIpc } from './ipc/voice.ipc';
 import { registerAiIpc } from './ipc/ai.ipc';
@@ -148,6 +149,7 @@ function registerIpcHandlers(): void {
   registerPtyIpc(ptyManager);
   registerWindowIpc(getWindow);
   disposeTasksWatcher = registerTasksIpc(getWindow);
+  registerSessionsIpc();
   registerDockerIpc();
   registerVoiceIpc();
   registerAiIpc();

@@ -1,6 +1,8 @@
 // ── Tab type system ──────────────────────────────────────────────
 
-export type TabKind = 'terminal' | 'file' | 'diff';
+import type { SessionSource } from './session';
+
+export type TabKind = 'terminal' | 'file' | 'diff' | 'session';
 
 export type FileType = 'text' | 'json' | 'markdown' | 'yaml' | 'toml' | 'xml' | 'properties';
 
@@ -25,6 +27,11 @@ export interface Tab {
   unlocked?: boolean;
   /** When true, this terminal tab runs the project's persisted run command (Play/Stop). */
   isRun?: boolean;
+  // Session-transcript fields
+  /** Agent-coder that produced the session (also drives accent color via `command`). */
+  source?: SessionSource;
+  /** On-disk id of the session whose transcript this tab shows. */
+  sessionId?: string;
   // Diff-specific fields
   diffContent?: string;
 }
@@ -41,4 +48,8 @@ export function isTerminalTab(tab: Tab): tab is Tab & { kind: 'terminal' } {
 
 export function isDiffTab(tab: Tab): tab is Tab & { kind: 'diff'; filePath: string; diffContent: string } {
   return tab.kind === 'diff';
+}
+
+export function isSessionTab(tab: Tab): tab is Tab & { kind: 'session'; source: SessionSource; sessionId: string } {
+  return tab.kind === 'session';
 }

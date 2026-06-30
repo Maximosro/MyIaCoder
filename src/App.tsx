@@ -49,6 +49,7 @@ function App() {
     forceOpenTab,
     openRunTab,
     openFileTab,
+    openSessionTab,
     openDiffTab,
     closeTab,
     setActiveTab,
@@ -520,6 +521,7 @@ function App() {
           onOpenTodos={handleOpenTodos}
           onDeleteFile={handleDeleteFile}
           onOpenDiff={handleOpenDiff}
+          onOpenSession={(session) => selectedProject && openSessionTab(selectedProject, session)}
           onCreatePrompt={handleCreatePrompt}
           onCreateTemplate={handleCreateTemplate}
           onLaunchClaude={() => selectedProject && requestLaunch('claude', false)}

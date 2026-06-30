@@ -76,7 +76,9 @@ function getReasonixDataDir(): string {
   if (process.platform === 'darwin') {
     return path.join(HOME, 'Library', 'Application Support', 'reasonix');
   }
-  return path.join(process.env.XDG_DATA_HOME || path.join(HOME, '.local', 'share'), 'reasonix');
+  // Linux: Go's os.UserConfigDir() = $XDG_CONFIG_HOME or ~/.config (reasonix 1.8.0
+  // persists sessions under the config root, not the XDG data dir).
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(HOME, '.config'), 'reasonix');
 }
 
 /**

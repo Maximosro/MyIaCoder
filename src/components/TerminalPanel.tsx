@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Terminal, X, FileText, GitCompare, Sparkles, Brain, Bot, Cpu, SquareTerminal } from 'lucide-react';
+import { Terminal, X, FileText, GitCompare, Sparkles, Brain, Bot, Cpu, SquareTerminal, MessageSquare } from 'lucide-react';
 import { TerminalTab } from './TerminalTab';
 import { UnsavedDialog } from './UnsavedDialog';
 import { CloseTerminalDialog } from './CloseTerminalDialog';
 import { FileEditor } from './FileEditor';
 import { DiffViewer } from './DiffViewer';
+import { TranscriptViewer } from './TranscriptViewer';
 import type { Tab } from '../types/tab';
-import { isFileTab, isDiffTab, isTerminalTab } from '../types/tab';
+import { isFileTab, isDiffTab, isTerminalTab, isSessionTab } from '../types/tab';
 import { getTabColorClass, getCommandColor, getCommandColorClass } from '../utils/tabUtils';
 import type { Project } from '../types/project';
 import { ProjectInfo } from './ProjectInfo';
@@ -102,9 +103,12 @@ function SortableTabItem({ tab, isActive, onSelect, onClose }: SortableTabItemPr
       ? getTabColorClass(tab.fileType)
       : getCommandColorClass(tab.command);
 
+  const session = isSessionTab(tab);
+
   // Icon: map command to distinctive lucide icon (matching Sidebar menu)
   const IconComponent = diff ? GitCompare
     : file ? FileText
+    : session ? MessageSquare
     : tab.command === 'copilot' ? Sparkles
     : tab.command === 'reasonix' ? Brain
     : tab.command === 'codewhale' ? Bot
@@ -373,6 +377,12 @@ export function TerminalPanel({
                 fileName={tab.title.replace(' (diff)', '')}
                 projectPath={tab.projectPath}
                 filePath={tab.filePath}
+              />
+            ) : isSessionTab(tab) ? (
+              <TranscriptViewer
+                source={tab.source}
+                sessionId={tab.sessionId}
+                projectPath={tab.projectPath}
               />
             ) : isFileTab(tab) ? (
               <FileEditor

@@ -69,6 +69,8 @@ export interface ElectronAPI {
   gitCreateBranch: (projectPath: string, name: string, base?: string) => Promise<import('./services/git').GitRemoteResult>;
   gitSwitchBranch: (projectPath: string, branch: string) => Promise<import('./services/git').GitRemoteResult>;
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => Promise<import('./services/tasks').ProjectTasksResult>;
+  listProjectSessions: (projectPath: string) => Promise<import('./services/sessions').SessionListResult>;
+  getSessionTranscript: (source: import('./services/sessions').SessionSource, sessionId: string, projectPath: string) => Promise<import('./services/sessions').TranscriptResult>;
   readFileContent: (filePath: string) => Promise<string>;
   writeFileContent: (filePath: string, content: string) => Promise<void>;
   createFile: (filePath: string, content: string) => Promise<void>;
@@ -137,6 +139,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitCreateBranch: (projectPath: string, name: string, base?: string) => ipcRenderer.invoke('git-create-branch', projectPath, name, base),
   gitSwitchBranch: (projectPath: string, branch: string) => ipcRenderer.invoke('git-switch-branch', projectPath, branch),
   getProjectTasks: (projectPath: string, source: import('./services/tasks').TaskSource) => ipcRenderer.invoke('get-project-tasks', projectPath, source),
+  listProjectSessions: (projectPath: string) => ipcRenderer.invoke('list-project-sessions', projectPath),
+  getSessionTranscript: (source: import('./services/sessions').SessionSource, sessionId: string, projectPath: string) => ipcRenderer.invoke('get-session-transcript', source, sessionId, projectPath),
   readFileContent: (filePath: string) => ipcRenderer.invoke('read-file-content', filePath),
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
   createFile: (filePath: string, content: string) => ipcRenderer.invoke('create-file', filePath, content),

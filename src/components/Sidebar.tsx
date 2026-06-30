@@ -1,13 +1,15 @@
-import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode, Container, Boxes, List, Play, Square, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, History, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode, Container, Boxes, List, Play, Square, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import type { Project } from '../types/project';
 import type { ClientsConfig } from '../../electron/preload';
 import type { TaskSource } from '../types/task';
+import type { SessionEntry } from '../types/session';
 import { ProjectItem } from './ProjectItem';
 import { TreeNodeItem } from './TreeNodeItem';
 import { PlansPanelTabs } from './PlansPanelTabs';
 import { GitChangesTree } from './GitChangesTree';
 import { TasksTree } from './TasksTree';
+import { SessionsPanel } from './SessionsPanel';
 import { ContainersModal } from './ContainersModal';
 import { DockerComposeModal } from './DockerComposeModal';
 import { usePlansTree } from '../hooks/usePlansTree';
@@ -16,7 +18,7 @@ import { usePromptsTree } from '../hooks/usePromptsTree';
 import { useTemplatesTree } from '../hooks/useTemplatesTree';
 import { useProjectTree } from '../hooks/useProjectTree';
 
-export type ProjectPanelTab = 'files' | 'changes' | 'tasks';
+export type ProjectPanelTab = 'files' | 'changes' | 'tasks' | 'sessions';
 export type GitShortcutAction = 'switchBranch' | 'newBranch' | 'commit';
 
 interface SidebarProps {
@@ -45,6 +47,7 @@ interface SidebarProps {
   onDeleteFile?: (filePath: string) => void;
   onOpenTodos?: (project: Project) => void;
   onOpenDiff?: (filePath: string) => void;
+  onOpenSession?: (session: SessionEntry) => void;
   onCreatePrompt: (name: string, content?: string) => void | Promise<void>;
   onCreateTemplate: (name: string) => void | Promise<void>;
   onLaunchClaude: () => void;
@@ -87,6 +90,7 @@ export function Sidebar({
   onDeleteFile,
   onOpenTodos,
   onOpenDiff,
+  onOpenSession,
   onCreatePrompt,
   onCreateTemplate,
   onLaunchClaude,
@@ -621,6 +625,17 @@ export function Sidebar({
                     TASKS
                   </button>
                   )}
+                  <button
+                    onClick={() => setActiveTab('sessions')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono tracking-wider rounded transition-colors ${
+                      activeTab === 'sessions'
+                        ? 'bg-[#1a0f0a] text-[#d4784a] border border-[#d4784a]/30'
+                        : 'text-[#8b5a3c] hover:text-[#b0a89a] border border-transparent'
+                    }`}
+                  >
+                    <History className="w-3 h-3" />
+                    SESSIONS
+                  </button>
                 </div>
 
                 {/* ── FILES tab: full project file tree ── */}
@@ -666,6 +681,11 @@ export function Sidebar({
                 {/* ── TASKS tab: live CLI tasks ── */}
                 {tasksEnabled && activeTab === 'tasks' && (
                   <TasksTree projectPath={project.path} refreshKey={treeRefreshKey} sources={taskSources} />
+                )}
+
+                {/* ── SESSIONS tab: CLI session transcripts (history) ── */}
+                {activeTab === 'sessions' && (
+                  <SessionsPanel projectPath={project.path} refreshKey={treeRefreshKey} onOpenSession={(s) => onOpenSession?.(s)} />
                 )}
               </div>
             )}

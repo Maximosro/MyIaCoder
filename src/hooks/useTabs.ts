@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { Project } from '../types/project';
 import type { Tab } from '../types/tab';
 import { isFileTab, isDiffTab } from '../types/tab';
+import type { SessionEntry } from '../types/session';
 import { getFileType } from '../utils/tabUtils';
 import { arrayMove } from '@dnd-kit/sortable';
 
@@ -22,6 +23,8 @@ interface UseTabsReturn {
   openRunTab: (project: Project, command: string, useWsl: boolean) => Promise<string>;
   openFileTab: (project: Project, filePath: string, unlocked?: boolean) => Promise<string>;
   openDiffTab: (project: Project, filePath: string) => Promise<string>;
+  /** Open a read-only transcript tab for a past CLI session. Returns the tab id. */
+  openSessionTab: (project: Project, session: SessionEntry) => string;
   closeTab: (tabId: string, onBeforeClose?: (tab: Tab) => Promise<boolean>) => Promise<void>;
   setActiveTab: (tabId: string) => void;
   saveFileTab: (tabId: string, content: string) => Promise<void>;
@@ -145,6 +148,34 @@ export function useTabs(): UseTabsReturn {
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(tabId);
 
+    return tabId;
+  }, [tabs]);
+
+  // ── Session transcript tabs ────────────────────────────────
+
+  const openSessionTab = useCallback((project: Project, session: SessionEntry): string => {
+    // One tab per session — re-open just focuses the existing one.
+    const existing = tabs.find((t) => t.kind === 'session' && t.source === session.source && t.sessionId === session.id);
+    if (existing) {
+      setActiveTabId(existing.id);
+      return existing.id;
+    }
+
+    const tabId = generateTabId();
+    const newTab: Tab = {
+      id: tabId,
+      kind: 'session',
+      projectName: project.name,
+      projectPath: project.path,
+      title: session.title,
+      // Reuse command-based accent coloring/icon: source maps 1:1 to a command color.
+      command: session.source,
+      source: session.source,
+      sessionId: session.id,
+    };
+
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(tabId);
     return tabId;
   }, [tabs]);
 
@@ -298,6 +329,7 @@ export function useTabs(): UseTabsReturn {
     openRunTab,
     openFileTab,
     openDiffTab,
+    openSessionTab,
     closeTab,
     setActiveTab,
     saveFileTab,
