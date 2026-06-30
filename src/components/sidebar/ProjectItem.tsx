@@ -1,6 +1,6 @@
 import { FolderGit2 } from 'lucide-react';
-import { getBranchStyle, getBranchLabel } from '../utils/branchUtils';
-import type { Project } from '../types/project';
+import { getBranchStyle, getBranchLabel } from '../../utils/branchUtils';
+import type { Project } from '../../types/project';
 
 interface ProjectItemProps {
   project: Project;

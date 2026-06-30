@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act } from '@testing-library/react';
 import { Terminal } from '@xterm/xterm';
-import { TerminalTab } from '../TerminalTab';
+import { TerminalTab } from '../terminal/TerminalTab';
 import type { Tab } from '../../types/tab';
 
 // ── Mock xterm.js ─────────────────────────────────────────

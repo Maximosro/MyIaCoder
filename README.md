@@ -62,28 +62,13 @@ ai-code-manager/
 │   ├── App.tsx            # Root layout — project selection, tab sync, keyboard shortcuts
 │   ├── index.css          # TailwindCSS 4 + xterm styles + copper-ambient theme
 │   ├── components/
-│   │   ├── Sidebar.tsx    # Project list, file tree, git changes, tasks, plans/skills/prompts
-│   │   ├── TerminalPanel.tsx  # Tab bar (DnD reorder) + content area (terminal / editor / diff)
-│   │   ├── TerminalTab.tsx    # xterm.js + addons (fit, webgl, search, ligatures, serialize)
-│   │   ├── FileEditor.tsx     # Monaco editor for text/json/md/yaml/toml/xml/properties
-│   │   ├── DiffViewer.tsx     # Side-by-side git diff viewer
-│   │   ├── ProjectItem.tsx    # Single project row with branch badge
-│   │   ├── ProjectInfo.tsx    # Empty-state project overview
-│   │   ├── TitleBar.tsx       # Custom Windows title bar
-│   │   ├── ProjectSearch.tsx  # Ctrl+Shift+F fuzzy project finder
-│   │   ├── GitChangesTree.tsx # Git status tree with diff/open actions
-│   │   ├── TasksTree.tsx      # Live CLI session tasks (Claude/Copilot/Reasonix)
-│   │   ├── PlansPanelTabs.tsx # Plans / Skills / Prompts / Templates file browser
+│   │   ├── sidebar/       # Sidebar hub: project list, file/git/tasks trees, plans tabs, git & docker modals
+│   │   ├── terminal/      # TerminalPanel hub: terminal/editor/diff/transcript tabs + close/unsaved dialogs
+│   │   ├── voice/         # Dictation + TTS toggle buttons (MicButton, SpeakButton, VoiceToggleButton)
 │   │   ├── ConfigModal.tsx    # Settings modal (workspace, clients, WSL, scrollback)
-│   │   ├── CommitModal.tsx    # Git commit modal with diff preview
-│   │   ├── NewBranchModal.tsx # Git branch creation from issue slug
-│   │   ├── SwitchBranchModal.tsx # Git branch switcher
 │   │   ├── RunCommandModal.tsx   # Play/Stop command configurator
-│   │   ├── GuidedPromptModal.tsx # AI prompt wizard
-│   │   ├── DockerComposeModal.tsx
-│   │   ├── ContainersModal.tsx
-│   │   ├── CloseTerminalDialog.tsx
-│   │   ├── UnsavedDialog.tsx
+│   │   ├── ProjectSearch.tsx  # Ctrl+Shift+F fuzzy project finder
+│   │   ├── TitleBar.tsx       # Custom Windows title bar
 │   │   └── AboutModal.tsx
 │   ├── hooks/
 │   │   ├── useProjects.ts     # Workspace project scanner

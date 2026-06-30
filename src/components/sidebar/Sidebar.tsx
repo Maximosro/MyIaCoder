@@ -1,9 +1,9 @@
 import { RefreshCw, FolderOpen, ArrowLeft, FolderGit2, GitCompare, ListTodo, History, MessageSquarePlus, Terminal, Sparkles, Code2, Bot, Brain, Cpu, SquareTerminal, TerminalSquare, FileCode, Container, Boxes, List, Play, Square, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import type { Project } from '../types/project';
-import type { ClientsConfig } from '../../electron/preload';
-import type { TaskSource } from '../types/task';
-import type { SessionEntry } from '../types/session';
+import type { Project } from '../../types/project';
+import type { ClientsConfig } from '../../../electron/preload';
+import type { TaskSource } from '../../types/task';
+import type { SessionEntry } from '../../types/session';
 import { ProjectItem } from './ProjectItem';
 import { TreeNodeItem } from './TreeNodeItem';
 import { PlansPanelTabs } from './PlansPanelTabs';
@@ -12,8 +12,8 @@ import { TasksTree } from './TasksTree';
 import { SessionsPanel } from './SessionsPanel';
 import { ContainersModal } from './ContainersModal';
 import { DockerComposeModal } from './DockerComposeModal';
-import { useTree } from '../hooks/useTree';
-import { useProjectTree } from '../hooks/useProjectTree';
+import { useTree } from '../../hooks/useTree';
+import { useProjectTree } from '../../hooks/useProjectTree';
 
 export type ProjectPanelTab = 'files' | 'changes' | 'tasks' | 'sessions';
 export type GitShortcutAction = 'switchBranch' | 'newBranch' | 'commit';

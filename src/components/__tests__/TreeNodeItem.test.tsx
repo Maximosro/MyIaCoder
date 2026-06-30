@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { TreeNodeItem } from '../TreeNodeItem';
+import { TreeNodeItem } from '../sidebar/TreeNodeItem';
 import type { TreeNode } from '../../types/project';
 
 const fileNode: TreeNode = {

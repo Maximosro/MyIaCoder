@@ -7,7 +7,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { LigaturesAddon } from '@xterm/addon-ligatures';
-import type { Tab } from '../types/tab';
+import type { Tab } from '../../types/tab';
 
 interface TerminalTabProps {
   tab: Tab;

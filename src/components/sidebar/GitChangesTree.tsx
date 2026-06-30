@@ -13,14 +13,14 @@ import {
   CloudDownload,
   GitCommit,
 } from 'lucide-react';
-import { useGitChanges } from '../hooks/useGitChanges';
-import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
-import { GIT_STATUS_META } from '../utils/gitStatus';
+import { useGitChanges } from '../../hooks/useGitChanges';
+import { SUPPORTED_EXTENSIONS } from '../../utils/tabUtils';
+import { GIT_STATUS_META } from '../../utils/gitStatus';
 import { CommitModal } from './CommitModal';
 import { NewBranchModal } from './NewBranchModal';
 import { SwitchBranchModal } from './SwitchBranchModal';
 import type { GitShortcutAction } from './Sidebar';
-import type { GitChange, GitTreeNode } from '../types/project';
+import type { GitChange, GitTreeNode } from '../../types/project';
 
 interface GitChangesTreeProps {
   projectPath: string;

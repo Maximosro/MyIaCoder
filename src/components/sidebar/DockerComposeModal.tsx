@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Boxes, RefreshCw, FileSearch, Play } from 'lucide-react';
-import type { DockerResult } from '../../electron/services/docker';
+import type { DockerResult } from '../../../electron/services/docker';
 
 interface DockerComposeModalProps {
   open: boolean;

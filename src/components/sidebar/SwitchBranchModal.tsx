@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowLeftRight, RefreshCw, Check } from 'lucide-react';
-import type { GitBranchList } from '../../electron/services/git';
+import type { GitBranchList } from '../../../electron/services/git';
 
 interface SwitchBranchModalProps {
   open: boolean;

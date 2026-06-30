@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, GitBranchPlus, RefreshCw } from 'lucide-react';
-import { BRANCH_PREFIXES, sanitizeBranchName } from '../utils/branchPrefixes';
-import type { GitBranchList } from '../../electron/services/git';
+import { BRANCH_PREFIXES, sanitizeBranchName } from '../../utils/branchPrefixes';
+import type { GitBranchList } from '../../../electron/services/git';
 
 interface NewBranchModalProps {
   open: boolean;

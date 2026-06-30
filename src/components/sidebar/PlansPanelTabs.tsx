@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FolderOpen, RefreshCw, BookOpen, Sparkles, FilePlus, LayoutTemplate, FileBox } from 'lucide-react';
-import type { TreeNode } from '../types/project';
+import type { TreeNode } from '../../types/project';
 import { TreeNodeItem } from './TreeNodeItem';
 import { GuidedPromptModal } from './GuidedPromptModal';
 

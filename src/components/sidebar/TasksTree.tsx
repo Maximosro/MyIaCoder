@@ -10,8 +10,8 @@ import {
   Terminal,
   Cpu,
 } from 'lucide-react';
-import { useTasks } from '../hooks/useTasks';
-import type { TaskStatus, TaskSession, TaskSource } from '../types/task';
+import { useTasks } from '../../hooks/useTasks';
+import type { TaskStatus, TaskSession, TaskSource } from '../../types/task';
 
 interface TasksTreeProps {
   projectPath: string;

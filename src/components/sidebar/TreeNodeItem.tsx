@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Folder, FolderOpen, FileText, ChevronRight, Trash2, Copy, Check } from 'lucide-react';
-import type { TreeNode } from '../types/project';
-import { SUPPORTED_EXTENSIONS } from '../utils/tabUtils';
+import type { TreeNode } from '../../types/project';
+import { SUPPORTED_EXTENSIONS } from '../../utils/tabUtils';
 
 export interface TreeNodeItemProps {
   node: TreeNode;

@@ -1,7 +1,7 @@
 import { RefreshCw } from 'lucide-react';
-import { useTranscript } from '../hooks/useSessions';
-import type { SessionSource } from '../types/session';
-import { getCommandColor } from '../utils/tabUtils';
+import { useTranscript } from '../../hooks/useSessions';
+import type { SessionSource } from '../../types/session';
+import { getCommandColor } from '../../utils/tabUtils';
 
 interface TranscriptViewerProps {
   source: SessionSource;

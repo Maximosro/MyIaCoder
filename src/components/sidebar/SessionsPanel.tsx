@@ -1,6 +1,6 @@
 import { RefreshCw, Sparkles, Terminal, Cpu, MessageSquare } from 'lucide-react';
-import { useSessions } from '../hooks/useSessions';
-import type { SessionEntry, SessionSource } from '../types/session';
+import { useSessions } from '../../hooks/useSessions';
+import type { SessionEntry, SessionSource } from '../../types/session';
 
 interface SessionsPanelProps {
   projectPath: string;

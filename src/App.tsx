@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Sidebar } from './components/Sidebar';
-import type { GitShortcutAction, ProjectPanelTab } from './components/Sidebar';
-import { TerminalPanel } from './components/TerminalPanel';
+import { Sidebar } from './components/sidebar/Sidebar';
+import type { GitShortcutAction, ProjectPanelTab } from './components/sidebar/Sidebar';
+import { TerminalPanel } from './components/terminal/TerminalPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { AboutModal } from './components/AboutModal';
 import { ProjectSearch } from './components/ProjectSearch';

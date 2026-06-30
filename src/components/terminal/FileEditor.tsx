@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Editor, loader } from '@monaco-editor/react';
 import { Lock, LockOpen, Save, Eye, EyeOff, Sparkles } from 'lucide-react';
-import type { Tab, FileType } from '../types/tab';
-import { isFileTab } from '../types/tab';
+import type { Tab, FileType } from '../../types/tab';
+import { isFileTab } from '../../types/tab';
 import * as monaco from 'monaco-editor';
-import { useDictation } from '../hooks/useDictation';
-import { useSpeech } from '../hooks/useSpeech';
-import { mdToSpeech } from '../utils/mdToSpeech';
-import { MicButton } from './voice/MicButton';
-import { SpeakButton } from './voice/SpeakButton';
+import { useDictation } from '../../hooks/useDictation';
+import { useSpeech } from '../../hooks/useSpeech';
+import { mdToSpeech } from '../../utils/mdToSpeech';
+import { MicButton } from '../voice/MicButton';
+import { SpeakButton } from '../voice/SpeakButton';
 import { CurateModal } from './CurateModal';
 
 // ── Monaco initialization (synchronous, must run before Editor mounts) ──

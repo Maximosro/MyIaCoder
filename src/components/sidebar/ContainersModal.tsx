@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Container, RefreshCw, Square } from 'lucide-react';
-import type { DockerContainer } from '../../electron/services/docker';
+import type { DockerContainer } from '../../../electron/services/docker';
 
 interface ContainersModalProps {
   open: boolean;
