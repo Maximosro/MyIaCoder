@@ -21,6 +21,7 @@ export interface Settings {
   skillsPath: string;
   promptsPath: string;
   templatesPath: string;
+  todosPath: string;
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
   terminalScrollback: number;
@@ -72,6 +73,7 @@ export interface ElectronAPI {
   writeFileContent: (filePath: string, content: string) => Promise<void>;
   createFile: (filePath: string, content: string) => Promise<void>;
   deleteFile: (filePath: string) => Promise<void>;
+  ensureProjectTodos: (projectName: string) => Promise<string>;
   ptySpawn: (tabId: string, projectPath: string, command?: string, title?: string, useWsl?: boolean) => Promise<void>;
   ptyRead: (tabId: string) => Promise<string | null>;
   ptyIsAlive: (tabId: string) => Promise<boolean>;
@@ -139,6 +141,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFileContent: (filePath: string, content: string) => ipcRenderer.invoke('write-file-content', filePath, content),
   createFile: (filePath: string, content: string) => ipcRenderer.invoke('create-file', filePath, content),
   deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
+  ensureProjectTodos: (projectName: string) => ipcRenderer.invoke('ensure-project-todos', projectName),
   ptySpawn: (tabId: string, projectPath: string, command?: string, title?: string, useWsl?: boolean) => ipcRenderer.invoke('pty-spawn', tabId, projectPath, command, title, useWsl),
   ptyRead: (tabId: string) => ipcRenderer.invoke('pty-read', tabId),
   ptyIsAlive: (tabId: string) => ipcRenderer.invoke('pty-is-alive', tabId),

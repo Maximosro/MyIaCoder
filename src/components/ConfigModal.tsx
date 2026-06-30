@@ -55,6 +55,7 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
   const [sp, setSp] = useState(skillsPath);
   const [prp, setPrp] = useState(promptsPath);
   const [tp, setTp] = useState(templatesPath);
+  const [td, setTd] = useState('');
   const [cl, setCl] = useState<ClientsConfig>(clients);
   const [scrollback, setScrollback] = useState(terminalScrollback);
   const [bgMusic, setBgMusic] = useState(backgroundMusic);
@@ -77,8 +78,11 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
       setBgMusic(backgroundMusic);
       setWsl2Git(useWsl2Git);
       setDistro(wslDistro);
-      // groqApiKey isn't a prop — read it straight from settings.
-      window.electronAPI.getSettings().then((s) => setGroqKey(s.groqApiKey || ''));
+      // groqApiKey/todosPath aren't props — read them straight from settings.
+      window.electronAPI.getSettings().then((s) => {
+        setGroqKey(s.groqApiKey || '');
+        setTd(s.todosPath || '');
+      });
     }
   }, [open, workspacePath, plansPath, skillsPath, promptsPath, templatesPath, clients, terminalScrollback, backgroundMusic, useWsl2Git, wslDistro]);
 
@@ -117,13 +121,18 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
     if (folder) setTp(folder);
   };
 
+  const handleBrowseTodos = async () => {
+    const folder = await window.electronAPI.pickFolder('Select To-Dos Folder');
+    if (folder) setTd(folder);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       // Persist the Groq key first; onSave (App) re-reads settings and spreads,
       // so this survives without threading through its long signature.
       const s = await window.electronAPI.getSettings();
-      await window.electronAPI.saveSettings({ ...s, groqApiKey: groqKey.trim() });
+      await window.electronAPI.saveSettings({ ...s, groqApiKey: groqKey.trim(), todosPath: td.trim() });
       await onSave(wp, pp, sp, prp, tp, cl, scrollback, bgMusic, wsl2Git, distro.trim() || 'Ubuntu');
       onClose();
     } finally {
@@ -314,6 +323,33 @@ export function ConfigModal({ open, workspacePath, plansPath, skillsPath, prompt
                 </div>
                 <p className="text-[10px] text-[#4a2a1a] font-mono">
                   Folder with .md template files for guided prompts
+                </p>
+              </div>
+
+              {/* To-Dos Path */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-mono text-[#8b5a3c] tracking-widest uppercase">
+                  To-Dos Path
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={td}
+                    onChange={(e) => setTd(e.target.value)}
+                    className="flex-1 bg-[#050505] border border-[#1f1a15] rounded px-3 py-2 text-xs font-mono text-[#f0ece8] placeholder-[#4a2a1a] focus:outline-none focus:border-[#d4784a]/50 focus:ring-1 focus:ring-[#d4784a]/20 transition-all"
+                    placeholder="C:\Users\...\.claude\todos"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={handleBrowseTodos}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs rounded bg-[#0f0f0f] hover:bg-[#141414] text-[#8b5a3c] hover:text-[#d4784a] border border-[#1f1a15] hover:border-[#d4784a]/30 transition-all font-mono whitespace-nowrap"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    BROWSE
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#4a2a1a] font-mono">
+                  External root for per-project To-Do files (&lt;root&gt;/&lt;project&gt;/todos.md)
                 </p>
               </div>
             </>

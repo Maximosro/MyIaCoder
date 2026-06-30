@@ -155,3 +155,23 @@ export function createFile(filePath: string, content = ''): void {
   mkdirSync(path.dirname(filePath), { recursive: true });
   writeFileSync(filePath, content, 'utf-8');
 }
+
+/**
+ * Resolves the per-project To-Do file at `<todosRoot>/<projectName>/todos.md`,
+ * external to the project repo. Creates the folder and seeds a template on first
+ * use; existing files are left untouched. Returns the absolute file path.
+ * // ponytail: name-based mapping; hash the project path if names ever collide.
+ */
+export function ensureProjectTodos(todosRoot: string, projectName: string): string {
+  const dir = path.join(todosRoot, projectName);
+  const filePath = path.join(dir, `${projectName}.md`);
+  if (!existsSync(filePath)) {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(filePath, todosTemplate(projectName), 'utf-8');
+  }
+  return filePath;
+}
+
+function todosTemplate(projectName: string): string {
+  return `# To-Dos — ${projectName}\n\n## Pendiente\n\n- \n\n## Futuro\n\n- \n`;
+}

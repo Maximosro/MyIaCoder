@@ -10,6 +10,7 @@ import {
   writeFileContent,
   createFile,
   deleteEntry,
+  ensureProjectTodos,
 } from '../services/filesystem';
 import { getGitBranchAsync } from '../services/git';
 import { loadSettings } from '../services/settings';
@@ -18,7 +19,7 @@ import type { Settings } from '../services/settings';
 /** Throws PATH_TRAVERSAL if filePath resolves outside the allowed workspace/plans/skills roots. */
 function assertPathAllowed(filePath: string, settings: Settings): void {
   const resolved = path.resolve(filePath);
-  const roots = [settings.workspacePath, settings.plansPath, settings.skillsPath, settings.promptsPath, settings.templatesPath]
+  const roots = [settings.workspacePath, settings.plansPath, settings.skillsPath, settings.promptsPath, settings.templatesPath, settings.todosPath]
     .filter(Boolean)
     .map((root) => path.resolve(root));
   if (!roots.some((root) => resolved.startsWith(root))) {
@@ -120,6 +121,13 @@ export function registerFilesystemIpc(getWindow: () => BrowserWindow | null): vo
   ipcMain.handle('delete-file', async (_event, filePath: string) => {
     assertPathAllowed(filePath, loadSettings());
     deleteEntry(filePath);
+  });
+
+  // Resolves (and seeds on first use) the per-project To-Do MD file living
+  // outside the project repo. Returns its absolute path for opening in a tab.
+  ipcMain.handle('ensure-project-todos', async (_event, projectName: string) => {
+    const settings = loadSettings();
+    return ensureProjectTodos(settings.todosPath, projectName);
   });
 
   ipcMain.handle('pick-workspace', async () => {

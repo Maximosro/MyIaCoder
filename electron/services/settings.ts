@@ -17,6 +17,8 @@ export interface Settings {
   skillsPath: string;
   promptsPath: string;
   templatesPath: string;
+  /** External root for per-project To-Do MD files (<todosPath>/<project>/todos.md). */
+  todosPath: string;
   theme: 'system' | 'light' | 'dark';
   clients: ClientsConfig;
   terminalScrollback: number;
@@ -45,6 +47,7 @@ const DEFAULTS: Settings = {
   skillsPath: path.join(HOME, '.claude', 'skills'),
   promptsPath: path.join(HOME, '.claude', 'prompts'),
   templatesPath: path.join(HOME, '.claude', 'prompt-templates'),
+  todosPath: path.join(HOME, '.claude', 'todos'),
   theme: 'system',
   clients: {
     claude: true,

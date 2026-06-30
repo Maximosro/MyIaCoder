@@ -439,6 +439,12 @@ function App() {
     await openFileTab(project, filePath, unlocked);
   };
 
+  // Opens the project's external To-Do MD (seeded on first use), editable.
+  const handleOpenTodos = async (project: Project) => {
+    const filePath = await window.electronAPI.ensureProjectTodos(project.name);
+    await openFileTab(project, filePath, true);
+  };
+
   const handleSaveFile = async (tabId: string, content: string) => {
     await saveFileTab(tabId, content);
   };
@@ -511,6 +517,7 @@ function App() {
           onBack={handleBackToProjects}
           onConfig={handleOpenConfig}
           onFileClick={handleFileOpen}
+          onOpenTodos={handleOpenTodos}
           onDeleteFile={handleDeleteFile}
           onOpenDiff={handleOpenDiff}
           onCreatePrompt={handleCreatePrompt}

@@ -49,6 +49,7 @@ export interface Settings {
   plansPath: string;
   skillsPath: string;
   promptsPath: string;
+  todosPath: string;
   theme: 'system' | 'light' | 'dark';
 }
 

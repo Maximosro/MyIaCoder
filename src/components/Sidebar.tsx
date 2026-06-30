@@ -43,6 +43,7 @@ interface SidebarProps {
   onConfig: () => void;
   onFileClick?: (filePath: string) => void;
   onDeleteFile?: (filePath: string) => void;
+  onOpenTodos?: (project: Project) => void;
   onOpenDiff?: (filePath: string) => void;
   onCreatePrompt: (name: string, content?: string) => void | Promise<void>;
   onCreateTemplate: (name: string) => void | Promise<void>;
@@ -84,6 +85,7 @@ export function Sidebar({
   onConfig,
   onFileClick,
   onDeleteFile,
+  onOpenTodos,
   onOpenDiff,
   onCreatePrompt,
   onCreateTemplate,
@@ -318,6 +320,20 @@ export function Sidebar({
                 title={engineStatus === 'error' ? 'Docker no disponible — clic para intentar compose up' : 'Docker compose up'}
               >
                 <Boxes className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* To-Dos — open the project's external To-Do MD; only when selected */}
+            {selectedPath && onOpenTodos && (
+              <button
+                onClick={() => {
+                  const p = projects.find((pr) => pr.path === selectedPath);
+                  if (p) onOpenTodos(p);
+                }}
+                className="p-1.5 rounded transition-all duration-200 hover:bg-[#0f0f0f] text-[#8b5a3c] hover:text-[#d4784a] animate-fade-in"
+                title="To-Dos del proyecto"
+              >
+                <ListTodo className="w-4 h-4" />
               </button>
             )}
 
