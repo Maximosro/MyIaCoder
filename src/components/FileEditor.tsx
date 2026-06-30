@@ -7,8 +7,8 @@ import * as monaco from 'monaco-editor';
 import { useDictation } from '../hooks/useDictation';
 import { useSpeech } from '../hooks/useSpeech';
 import { mdToSpeech } from '../utils/mdToSpeech';
-import { MicButton } from './MicButton';
-import { SpeakButton } from './SpeakButton';
+import { MicButton } from './voice/MicButton';
+import { SpeakButton } from './voice/SpeakButton';
 import { CurateModal } from './CurateModal';
 
 // ── Monaco initialization (synchronous, must run before Editor mounts) ──
