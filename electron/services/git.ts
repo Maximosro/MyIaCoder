@@ -48,7 +48,7 @@ function wslConfig(): { enabled: boolean; distro: string } {
  * Only the project path (the `-C` value) is translated to `/mnt/c/...`; disk
  * reads elsewhere stay native because the repo lives on the Windows FS.
  */
-async function runGit(projectPath: string, args: string[], timeoutMs = 10_000): Promise<string> {
+async function runGit(projectPath: string, args: string[], timeoutMs = 60_000): Promise<string> {
   const { enabled, distro } = wslConfig();
 
   if (enabled) {
@@ -85,7 +85,7 @@ async function runGit(projectPath: string, args: string[], timeoutMs = 10_000): 
  */
 export async function getGitBranch(projectPath: string): Promise<string> {
   try {
-    const result = await runGit(projectPath, ['branch', '--show-current'], 5000);
+    const result = await runGit(projectPath, ['branch', '--show-current']);
     return result.trim() || 'unknown';
   } catch {
     return 'unknown';
@@ -318,7 +318,7 @@ export interface GitBranchList {
   remote: string[];
 }
 
-const REMOTE_TIMEOUT = 30_000;
+const REMOTE_TIMEOUT = 90_000;
 
 /**
  * Maps a raw git remote error to a user-friendly message. Auth failures are the
@@ -351,7 +351,7 @@ export async function gitFetch(projectPath: string): Promise<GitRemoteResult> {
 export async function gitPull(projectPath: string): Promise<GitRemoteResult> {
   try {
     // Get current branch name for explicit pull
-    const branchName = await runGit(projectPath, ['branch', '--show-current'], 5000);
+    const branchName = await runGit(projectPath, ['branch', '--show-current']);
     const branch = branchName.trim();
     const args = branch ? ['pull', 'origin', branch] : ['pull'];
     const output = await runGit(projectPath, args, REMOTE_TIMEOUT);
@@ -377,7 +377,7 @@ export async function gitPush(projectPath: string): Promise<GitRemoteResult> {
  */
 export async function gitAheadBehind(projectPath: string): Promise<GitAheadBehind> {
   try {
-    const stdout = await runGit(projectPath, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'], 5000);
+    const stdout = await runGit(projectPath, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}']);
     const [ahead, behind] = stdout.trim().split(/\s+/).map(Number);
     return { ahead: ahead || 0, behind: behind || 0 };
   } catch {
@@ -400,13 +400,13 @@ export async function gitCommit(projectPath: string, message: string): Promise<G
 
 /** Lists local and remote branches plus the current branch. */
 export async function gitListBranches(projectPath: string): Promise<GitBranchList> {
-  const current = (await runGit(projectPath, ['branch', '--show-current'], 5000)).trim();
+  const current = (await runGit(projectPath, ['branch', '--show-current'])).trim();
   const toList = (out: string) =>
     out.split('\n').map((b) => b.trim()).filter((b) => b && !b.includes('->'));
-  const local = toList(await runGit(projectPath, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], 5000));
+  const local = toList(await runGit(projectPath, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']));
   let remote: string[] = [];
   try {
-    remote = toList(await runGit(projectPath, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes'], 5000));
+    remote = toList(await runGit(projectPath, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes']));
   } catch {
     remote = [];
   }

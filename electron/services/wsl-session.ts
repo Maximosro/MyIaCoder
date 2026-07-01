@@ -29,7 +29,7 @@ export interface WslGitResult {
   code: number;   // git exit code
 }
 
-const DEFAULT_TIMEOUT = 15_000;
+const DEFAULT_TIMEOUT = 60_000;
 
 /**
  * A long-lived `wsl -d <distro> bash` process bound to one project directory.
