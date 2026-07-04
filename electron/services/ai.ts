@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { net } from 'electron';
 import { loadSettings } from './settings';
 
@@ -17,8 +14,6 @@ import { loadSettings } from './settings';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
-// Fixed blueprint template, portable across machines via the user home dir.
-const TEMPLATE_PATH = path.join(os.homedir(), '.copilot', 'blueprints', 'New-feature.md');
 
 function buildSystemPrompt(template: string): string {
   return [
@@ -37,8 +32,8 @@ function buildSystemPrompt(template: string): string {
   ].join('\n');
 }
 
-/** Rewrites raw dictation into the New-feature template via Groq. */
-export async function curate(text: string): Promise<string> {
+/** Rewrites raw dictation into a caller-provided template via Groq. */
+export async function curate(text: string, templateContent: string): Promise<string> {
   const key = loadSettings().groqApiKey?.trim();
   if (!key) {
     throw new Error('Falta la API key de Groq. Configúrala en Ajustes → IA.');
@@ -46,12 +41,8 @@ export async function curate(text: string): Promise<string> {
   if (!text.trim()) {
     throw new Error('No hay texto que curar.');
   }
-
-  let template = '';
-  try {
-    template = readFileSync(TEMPLATE_PATH, 'utf-8');
-  } catch {
-    throw new Error(`No se encontró la plantilla en ${TEMPLATE_PATH}`);
+  if (!templateContent.trim()) {
+    throw new Error('No se seleccionó ninguna plantilla. Configura plantillas en Ajustes → Prompt Templates.');
   }
 
   // ponytail: Electron's net.fetch uses Chromium's network stack, so it trusts
@@ -65,7 +56,7 @@ export async function curate(text: string): Promise<string> {
       model: MODEL,
       temperature: 0.3,
       messages: [
-        { role: 'system', content: buildSystemPrompt(template) },
+        { role: 'system', content: buildSystemPrompt(templateContent) },
         { role: 'user', content: `DICTADO EN BRUTO:\n${text}` },
       ],
     }),

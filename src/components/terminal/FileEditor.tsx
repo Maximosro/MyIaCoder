@@ -10,6 +10,8 @@ import { mdToSpeech } from '../../utils/mdToSpeech';
 import { MicButton } from '../voice/MicButton';
 import { SpeakButton } from '../voice/SpeakButton';
 import { CurateModal } from './CurateModal';
+import { TemplatePickerModal } from './TemplatePickerModal';
+import type { PromptTemplate } from '../../../electron/preload';
 
 // ── Monaco initialization (synchronous, must run before Editor mounts) ──
 
@@ -164,17 +166,55 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
   const [curateLoading, setCurateLoading] = useState(false);
   const [curatedText, setCuratedText] = useState('');
   const [curateError, setCurateError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getSettings().then((s) => setHasGroqKey(!!s.groqApiKey?.trim()));
   }, [curateOpen]);
 
   const runCurate = useCallback(async () => {
+    // Guard against double-click / re-entry while picker or curation is open
+    if (pickerOpen || curateOpen || templatesLoading) return;
+    // Step 1: load available templates
+    setPickerOpen(true);
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+    try {
+      const loaded = await window.electronAPI.readTemplates();
+      if (loaded.length === 1) {
+        // Single template — use it directly, skip the picker
+        setPickerOpen(false);
+        setCurateOpen(true);
+        setCurateLoading(true);
+        setCurateError(null);
+        setCuratedText('');
+        const res = await window.electronAPI.curate(content, loaded[0].content);
+        if (res.ok) setCuratedText(res.text);
+        else setCurateError(res.error);
+        setCurateLoading(false);
+      } else {
+        // 0 or 2+ templates — show picker
+        setTemplates(loaded);
+        if (loaded.length === 0) {
+          setTemplatesError('No hay plantillas disponibles. Añade archivos .md en la carpeta de plantillas (Ajustes → Prompt Templates).');
+        }
+      }
+    } catch (err) {
+      setTemplatesError(err instanceof Error ? err.message : String(err));
+    }
+    setTemplatesLoading(false);
+  }, [content]);
+
+  const handleTemplateSelect = useCallback(async (template: PromptTemplate) => {
+    setPickerOpen(false);
     setCurateOpen(true);
     setCurateLoading(true);
     setCurateError(null);
     setCuratedText('');
-    const res = await window.electronAPI.curate(content);
+    const res = await window.electronAPI.curate(content, template.content);
     if (res.ok) setCuratedText(res.text);
     else setCurateError(res.error);
     setCurateLoading(false);
@@ -524,6 +564,15 @@ function FileEditorContent({ tab, initialContent, onSave, onDirtyChange, onConte
         />
         )}
       </div>
+
+      <TemplatePickerModal
+        open={pickerOpen}
+        templates={templates}
+        loading={templatesLoading}
+        error={templatesError}
+        onSelect={handleTemplateSelect}
+        onClose={() => setPickerOpen(false)}
+      />
 
       <CurateModal
         open={curateOpen}
